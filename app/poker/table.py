@@ -1,3 +1,4 @@
+import time
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -34,7 +35,14 @@ class Table:
     - VERY basic betting (blinds, fold/call/raise_to)
     """
 
-    def __init__(self, max_seats: int = 6, small_blind: int = 1, big_blind: int = 2):
+    def __init__(
+        self,
+        max_seats: int = 6,
+        small_blind: int = 1,
+        big_blind: int = 2,
+        bomb_pot_every_n_hands: Optional[int] = None,
+        bomb_pot_amount: Optional[int] = None,
+    ):
         self.max_seats = max_seats
         self.players: List[Player] = []
         self.deck: Deck = Deck()
@@ -49,6 +57,11 @@ class Table:
         self.small_blind: int = small_blind
         self.big_blind: int = big_blind
         self.next_to_act_seat: Optional[int] = None
+        self.action_deadline: Optional[float] = None  # epoch seconds for timer
+
+        # Bomb pot configuration
+        self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
+        self.bomb_pot_amount: Optional[int] = bomb_pot_amount
 
     # ---------- Player & seating ----------
 
@@ -115,6 +128,8 @@ class Table:
             p.committed = 0
             p.all_in = False
 
+        self._apply_bomb_pot_if_needed()
+
         # Deal 2 cards to each player
         for _ in range(2):
             for p in self.players:
@@ -135,9 +150,29 @@ class Table:
         self._post_blind(sb_player, self.small_blind)
         self._post_blind(bb_player, self.big_blind)
 
-        self.current_bet = self.big_blind
+        self.current_bet = max(self.current_bet, self.big_blind)
 
         self.next_to_act_seat = self._next_seat(bb_player.seat)
+        self._set_action_deadline()
+
+    def _apply_bomb_pot_if_needed(self) -> None:
+        """If configured, take bomb pot contributions from each player."""
+        if not self.bomb_pot_every_n_hands or not self.bomb_pot_amount:
+            return
+
+        if self.hand_number % self.bomb_pot_every_n_hands != 0:
+            return
+
+        for p in self.players:
+            contribution = min(p.stack, self.bomb_pot_amount)
+            p.stack -= contribution
+            p.committed += contribution
+            self.pot += contribution
+            if p.stack == 0:
+                p.all_in = True
+
+        # Bomb pot contributions set the initial current bet
+        self.current_bet = max(self.current_bet, self.bomb_pot_amount)
 
     def _post_blind(self, player: Player, amount: int) -> None:
         post = min(player.stack, amount)
@@ -160,6 +195,32 @@ class Table:
         idx = occupied.index(seat)
         return occupied[(idx + 1) % len(occupied)]
 
+    def _set_action_deadline(self) -> None:
+        if self.next_to_act_seat is None:
+            self.action_deadline = None
+            return
+        self.action_deadline = time.time() + 30
+
+    def enforce_action_timeout(self) -> Optional[str]:
+        """Auto-act if the current player has exceeded the 30 second window."""
+        if self.next_to_act_seat is None or self.action_deadline is None:
+            return None
+
+        if time.time() < self.action_deadline:
+            return None
+
+        player = self._player_by_seat(self.next_to_act_seat)
+        action = "call" if player.committed == self.current_bet else "fold"
+        try:
+            self._apply_action(player.id, action, auto=True)
+        except Exception:
+            # If the auto action fails, give up and clear the deadline to avoid loops
+            self.next_to_act_seat = None
+            self.action_deadline = None
+            return None
+
+        return action
+
     # ---------- Betting logic ----------
 
     def player_action(self, player_id: int, action: str, amount: int | None = None) -> None:
@@ -169,6 +230,12 @@ class Table:
         - 'call'
         - 'raise_to'  (amount = total committed target, e.g. raise_to=10)
         """
+        self._apply_action(player_id, action, amount)
+
+    def _apply_action(
+        self, player_id: int, action: str, amount: int | None = None, auto: bool = False
+    ) -> None:
+        """Shared action handler for user and auto-timeout actions."""
         if self.next_to_act_seat is None:
             raise ValueError("No player is set to act")
 
@@ -222,6 +289,7 @@ class Table:
     def _advance_turn(self) -> None:
         if all(p.has_folded or p.all_in for p in self.players):
             self.next_to_act_seat = None
+            self.action_deadline = None
             return
 
         start_seat = self.next_to_act_seat
@@ -234,10 +302,12 @@ class Table:
                     self.next_to_act_seat = None
                 else:
                     self.next_to_act_seat = seat
+                self._set_action_deadline()
                 return
 
             if seat == start_seat:
                 self.next_to_act_seat = None
+                self.action_deadline = None
                 return
 
     def _betting_round_complete(self) -> bool:
@@ -260,6 +330,7 @@ class Table:
         for p in self.players:
             p.committed = 0
         self.next_to_act_seat = self._next_seat(self.dealer_seat)
+        self._set_action_deadline()
 
     def deal_flop(self) -> None:
         if self.street != "preflop":

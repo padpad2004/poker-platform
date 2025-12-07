@@ -135,3 +135,45 @@ def get_club_detail(
         members=members,
         tables=tables,
     )
+
+
+@router.post(
+    "/{club_id}/members/{user_id}/balance",
+    response_model=schemas.BalanceUpdateResponse,
+)
+def adjust_member_balance(
+    club_id: int,
+    user_id: int,
+    payload: schemas.BalanceUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only club owners can adjust balances")
+
+    membership = (
+        db.query(models.ClubMember)
+        .filter(models.ClubMember.club_id == club_id, models.ClubMember.user_id == user_id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="User is not a member of this club")
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_balance = user.balance + payload.amount_delta
+    if new_balance < 0:
+        raise HTTPException(status_code=400, detail="Balance cannot be negative")
+
+    user.balance = new_balance
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return schemas.BalanceUpdateResponse(user_id=user.id, new_balance=user.balance)

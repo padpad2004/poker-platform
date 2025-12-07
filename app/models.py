@@ -56,6 +56,8 @@ class PokerTable(Base):
     max_seats = Column(Integer, default=6)
     small_blind = Column(Integer, default=1)
     big_blind = Column(Integer, default=2)
+    bomb_pot_every_n_hands = Column(Integer, nullable=True)
+    bomb_pot_amount = Column(Integer, nullable=True)
     status = Column(String, default="active")  # active | closed
     created_at = Column(DateTime, default=datetime.utcnow)
 
