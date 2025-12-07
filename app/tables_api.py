@@ -3,7 +3,7 @@ from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException, WebSocket, Depends
 from sqlalchemy.orm import Session
 
-from .poker.table import Table
+from app.poker.table import Table
 from . import schemas, models
 from .deps import get_db, get_current_user
 

@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Poker Table Viewer</title>
+  <style>
+    :root {
+      --bg: #020617;
+      --panel: #020617;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 60%);
+      color: var(--text-main);
+      margin: 0;
+      padding: 16px;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 380px) minmax(600px, 900px);
+      gap: 16px;
+      width: 100%;
+      max-width: 1300px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    h2 {
+      font-size: 14px;
+      margin: 16px 0 8px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .row { margin-bottom: 10px; }
+
+    button {
+      margin: 4px 4px 4px 0;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      background: var(--btn);
+      color: white;
+      font-size: 12px;
+    }
+    button:hover:not(:disabled) { background: var(--btn-hover); }
+    button:disabled {
+      background: #374151;
+      cursor: default;
+      color: #9ca3af;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: var(--danger-hover);
+    }
+
+
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"] {
+      width: 100%;
+      max-width: 200px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #f9fafb;
+      font-size: 12px;
+      margin: 2px 0 6px;
+    }
+
+    select {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #f9fafb;
+      font-size: 12px;
+    }
+
+    .label {
+      font-weight: 600;
+      margin-right: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .card-img {
+      width: 70px;
+      height: 100px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    .seat-card img {
+      width: 60px;
+      height: 90px;
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .wallet-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* TABLE AREA */
+
+    .table-wrapper {
+      position: relative;
+      width: 100%;
+      padding-top: 60%;
+      background: radial-gradient(circle at top, #0b1120 0, #020617 60%);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 40px;
+    }
+
+    .felt {
+      position: absolute;
+      inset: 8%;
+      background: radial-gradient(circle at 30% 20%, #22c55e 0, #065f46 35%, #022c22 80%);
+      border-radius: 999px;
+      box-shadow:
+        inset 0 0 0 8px rgba(15,23,42,0.7),
+        0 20px 40px rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .center-area {
+      position: relative;
+      width: 60%;
+      max-width: 480px;
+      text-align: center;
+      color: #ecfdf5;
+    }
+
+    .board-cards { margin-bottom: 6px; }
+
+    @keyframes deal-card {
+      from {
+        opacity: 0;
+        transform: translateY(16px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .card.dealt,
+    .seat-card.dealt {
+      animation: deal-card 0.3s ease-out;
+    }
+
+    .card {
+      display: inline-block;
+      padding: 6px 10px;
+      margin: 0 3px;
+      border-radius: 8px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.4);
+      font-family: "Menlo", monospace;
+      font-size: 14px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+    }
+
+    .pot-info { font-size: 13px; margin-bottom: 4px; }
+    .street-info { font-size: 12px; color: #cfebff; opacity: 0.8; }
+
+    /* --- GG-style seat panel --- */
+
+    .seat-inner {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 16px;
+      padding: 8px 10px;
+      border: 2px solid rgba(15, 23, 42, 0.9);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.8);
+      transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
+    }
+
+    .seat-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Avatar bubble */
+    .seat-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 20%, #4f46e5, #0f172a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9), 0 4px 8px rgba(0,0,0,0.7);
+      flex-shrink: 0;
+    }
+
+    .seat-avatar-initial {
+      font-size: 16px;
+      font-weight: 700;
+      color: #e5e7eb;
+    }
+
+    /* Name + stack row */
+    .seat-body {
+      flex: 1;
+    }
+
+    .seat-name-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .seat-name {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .seat-stack {
+      font-size: 14px;
+      font-weight: 700;
+      color: #4ade80; /* bright green for chips */
+    }
+
+    /* Status + bet row */
+    .seat-meta-row {
+      margin-top: 2px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .seat-status {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .seat-bet {
+      font-size: 11px;
+      color: #facc15; /* yellow for current bet */
+    }
+
+    /* Bigger GG-style hole cards */
+    .seat-cards {
+      margin-top: 6px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .seat-card img {
+      width: 72px;
+      height: 102px;
+      border-radius: 10px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.8);
+    }
+
+    /* Highlight acting player */
+    .seat.highlight .seat-inner {
+      border-color: #22c55e;
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.7), 0 10px 22px rgba(0,0,0,0.9);
+    }
+
+    /* Seats */
+
+    .seat {
+      position: absolute;
+      width: 22%;
+      max-width: 220px;
+      transform: translate(-50%, -50%);
+      color: #e5e7eb;
+    }
+
+
+    .seat-name { font-weight: 600; font-size: 12px; }
+    .seat-stack { font-size: 12px; color: #bbf7d0; }
+    .seat-status { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; }
+
+    .seat-cards {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+
+
+    .seat.empty .seat-inner {
+      opacity: 0.2;
+      border-style: dashed;
+    }
+
+    /* Seat positions (6-max) */
+    .seat[data-seat="0"] { top: 20%; left: 50%; }
+    .seat[data-seat="1"] { top: 32%; left: 82%; }
+    .seat[data-seat="2"] { top: 68%; left: 82%; }
+    .seat[data-seat="3"] { top: 82%; left: 50%; }
+    .seat[data-seat="4"] { top: 68%; left: 18%; }
+    .seat[data-seat="5"] { top: 32%; left: 18%; }
+
+    .seat.highlight .seat-inner {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(34,197,94,0.6), 0 8px 16px rgba(0,0,0,0.8);
+    }
+
+    /* ACTION DOCK */
+
+    .action-dock {
+      margin-top: 0;
+      padding: 10px 16px;
+      border-radius: 16px;
+      background: #020617;
+      border: 1px solid #1f2937;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .action-left,
+    .action-middle,
+    .action-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .action-left button {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .action-middle-main {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .bottom-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .action-right button {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    .action-right input[type="number"] {
+      width: 70px;
+      padding: 2px 4px;
+      border-radius: 999px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      color: #f9fafb;
+      font-size: 11px;
+    }
+
+    /* Raw JSON */
+
+    pre {
+      background: #020617;
+      padding: 8px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 11px;
+      border: 1px solid #1f2937;
+      max-height: 220px;
+    }
+
+    /* MODALS */
+
+    .modal.hidden { display: none; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9000;
+    }
+
+    .modal-content {
+      background: #020617;
+      border-radius: 12px;
+      padding: 16px 20px;
+      border: 1px solid #1f2937;
+      min-width: 260px;
+      color: var(--text-main);
+    }
+
+    .modal-content h3 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .modal-content input {
+      width: 100%;
+    }
+
+    /* BIG CARD OVERLAY (ClubGG-style) */
+
+    #bigCardOverlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+      z-index: 9999;
+    }
+
+    #bigCardOverlay.show {
+      opacity: 1;
+    }
+
+    #bigCard {
+      width: 180px;
+      height: 260px;
+      border-radius: 16px;
+      background: #f9fafb;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transform: scale(0.2) translateY(40px);
+      opacity: 0;
+    }
+
+    #bigCard.animate {
+      animation: big-card-pop 0.35s ease-out forwards;
+    }
+
+    .big-card-rank {
+      font-size: 64px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .big-card-suit {
+      font-size: 52px;
+      margin-top: 8px;
+    }
+
+    #bigCard.red .big-card-rank,
+    #bigCard.red .big-card-suit {
+      color: #dc2626;
+    }
+
+    #bigCard.black .big-card-rank,
+    #bigCard.black .big-card-suit {
+      color: #111827;
+    }
+
+    @keyframes big-card-pop {
+      0% {
+        transform: scale(0.2) translateY(40px);
+        opacity: 0;
+      }
+      60% {
+        transform: scale(1.05) translateY(0);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- LEFT SIDE: Auth, wallet, clubs, controls -->
+    <div class="panel">
+      <h1>Poker Engine Control</h1>
+
+      <!-- AUTH -->
+      <h2>Auth</h2>
+      <div class="row">
+        <div>
+          <span class="label">Email</span><br/>
+          <input type="text" id="emailInput" placeholder="you@example.com" />
+        </div>
+        <div>
+          <span class="label">Password</span><br/>
+          <input type="password" id="passwordInput" placeholder="password" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="registerBtn">Register</button>
+        <button id="loginBtn">Login</button>
+      </div>
+      <div class="row">
+        <span class="label">User:</span>
+        <span id="currentUserEmail">Not logged in</span>
+      </div>
+
+      <!-- WALLET -->
+      <h2>Wallet</h2>
+      <div class="row wallet-row">
+        <div>
+          <span class="label">Balance</span>
+          <span id="balanceText">0</span>
+        </div>
+        <button id="topupOpenBtn" disabled>Top up</button>
+      </div>
+
+      <!-- CLUBS -->
+      <h2>Club</h2>
+      <div class="row">
+        <div>
+          <span class="label">New club name</span><br/>
+          <input type="text" id="clubNameInput" placeholder="My Club" />
+        </div>
+        <button id="createClubBtn" disabled>Create Club</button>
+      </div>
+
+      <div class="row">
+        <div>
+          <span class="label">Join club ID</span><br/>
+          <input type="number" id="joinClubIdInput" placeholder="1" />
+        </div>
+        <button id="joinClubBtn" disabled>Join Club</button>
+      </div>
+
+      <div class="row">
+        <span class="label">Active club:</span>
+        <span id="currentClubId">None</span>
+      </div>
+      <div class="row">
+        <div class="hint">Use the ID of a club you created or joined.</div>
+      </div>
+
+      <!-- TABLE SETUP -->
+      <h2>Table Setup</h2>
+      <div class="row">
+        <button id="createTableBtn" disabled>Create Table for Club</button>
+        <button id="sitMeBtn" disabled>Sit as Me</button>
+      </div>
+
+      <div class="row">
+        <span class="label">Join Table ID:</span><br/>
+        <input type="number" id="joinTableIdInput" placeholder="1" />
+        <button id="joinTableBtn" disabled>Join Table</button>
+      </div>
+
+      <div class="row">
+        <button id="addAliceBtn" disabled>Add Alice</button>
+        <button id="addBobBtn" disabled>Add Bob</button>
+        <button id="startHandBtn" disabled>Start Hand</button>
+      </div>
+
+      <!-- BETTING / STREETS -->
+      <h2>Streets & Showdown</h2>
+      <div class="row">
+        <button id="dealFlopBtn" disabled>Deal Flop (manual)</button>
+        <button id="dealTurnBtn" disabled>Deal Turn (manual)</button>
+        <button id="dealRiverBtn" disabled>Deal River (manual)</button>
+        <button id="showdownBtn" disabled>Showdown</button>
+      </div>
+
+      <!-- STATE -->
+      <h2>State</h2>
+      <div class="row">
+        <div><span class="label">Table:</span><span id="tableId">None</span></div>
+        <div><span class="label">Street:</span><span id="street">-</span></div>
+        <div><span class="label">Pot:</span><span id="pot">0</span></div>
+        <div><span class="label">Current Bet:</span><span id="currentBet">0</span></div>
+        <div><span class="label">Next Seat:</span><span id="nextToAct">-</span></div>
+      </div>
+
+      <div class="row">
+        <span class="label">Raw JSON</span>
+        <pre id="rawState">{}</pre>
+      </div>
+    </div>
+
+    <!-- RIGHT: Table + bottom action bar -->
+    <div class="panel">
+      <h2>Table</h2>
+      <div class="table-wrapper">
+        <div class="felt">
+          <!-- 6 seat slots -->
+          <div class="seat" data-seat="0"> ... </div>
+          <div class="seat" data-seat="1"> ... </div>
+          <div class="seat" data-seat="2"> ... </div>
+          <div class="seat" data-seat="3"> ... </div>
+          <div class="seat" data-seat="4"> ... </div>
+          <div class="seat" data-seat="5"> ... </div>
+        </div> <!-- end .felt -->
+      </div>   <!-- end .table-wrapper -->
+    
+      <!-- Action dock NOW sits under the table -->
+      <div class="action-dock">
+        <div class="action-left">
+          <button id="foldMainBtn" class="btn-danger" disabled>Fold</button>
+        </div>
+    
+        <div class="action-middle">
+          <div>
+            <div class="bottom-label">Acting Player</div>
+            <div id="actingPlayerLabel">None</div>
+          </div>
+          <div class="action-middle-main">
+            <button id="callMainBtn" disabled>Call / Check</button>
+            <span id="callAmountLabel">0</span>
+          </div>
+        </div>
+    
+        <div class="action-right">
+          <div>
+            <div class="bottom-label">Raise</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+              <input type="number" id="raiseCustomInput" placeholder="Amt" />
+              <button id="raiseCustomBtn" disabled>Raise</button>
+              <button id="raise30Btn" disabled>30%</button>
+              <button id="raise50Btn" disabled>50%</button>
+              <button id="raise100Btn" disabled>100%</button>
+            </div>
+          </div>
+        </div>
+      </div> <!-- end .action-dock -->
+    </div>   <!-- end .panel -->
+    
+          
+
+          <div class="seat" data-seat="1">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
+          
+
+          <div class="seat" data-seat="2">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
+          
+
+          <div class="seat" data-seat="3">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
+
+          <div class="seat" data-seat="4">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
+          
+
+          <div class="seat" data-seat="5">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
+          
+
+      <!-- Action dock -->
+      <div class="action-dock">
+        <div class="action-left">
+          <button id="foldMainBtn" class="btn-danger" disabled>Fold</button>
+        </div>
+
+        <div class="action-middle">
+          <div>
+            <div class="bottom-label">Acting Player</div>
+            <div id="actingPlayerLabel">None</div>
+          </div>
+          <div class="action-middle-main">
+            <button id="callMainBtn" disabled>Call / Check</button>
+            <span id="callAmountLabel">0</span>
+          </div>
+        </div>
+
+        <div class="action-right">
+          <div>
+            <div class="bottom-label">Raise</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
+              <input type="number" id="raiseCustomInput" placeholder="Amt" />
+              <button id="raiseCustomBtn" disabled>Raise</button>
+              <button id="raise30Btn" disabled>30%</button>
+              <button id="raise50Btn" disabled>50%</button>
+              <button id="raise100Btn" disabled>100%</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top up modal -->
+  <div id="topupModal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Top up balance</h3>
+      <input type="number" id="topupAmount" min="1" step="1" value="1000" />
+      <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px;">
+        <button id="topupCancelBtn" class="btn-danger">Cancel</button>
+        <button id="topupConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Big card overlay -->
+  <div id="bigCardOverlay">
+    <div id="bigCard">
+      <div id="bigCardRank" class="big-card-rank"></div>
+      <div id="bigCardSuit" class="big-card-suit"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "";
+    let tableId = null;
+    let lastState = null;
+    let tableSocket = null;
+    let accessToken = null;
+    let currentUserEmail = null;
+    let currentClubId = null;
+    let actingPlayer = null; // current acting player object from state
+    let bigBlind = 2; // default; update if you change createTable values
+    let currentUserBalance = 0;
+
+    // DOM elements
+    const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const registerBtn = document.getElementById("registerBtn");
+    const loginBtn = document.getElementById("loginBtn");
+    const currentUserEmailSpan = document.getElementById("currentUserEmail");
+
+    const balanceTextSpan = document.getElementById("balanceText");
+    const topupOpenBtn = document.getElementById("topupOpenBtn");
+    const topupModal = document.getElementById("topupModal");
+    const topupAmountInput = document.getElementById("topupAmount");
+    const topupConfirmBtn = document.getElementById("topupConfirmBtn");
+    const topupCancelBtn = document.getElementById("topupCancelBtn");
+
+    const clubNameInput = document.getElementById("clubNameInput");
+    const createClubBtn = document.getElementById("createClubBtn");
+    const joinClubIdInput = document.getElementById("joinClubIdInput");
+    const joinClubBtn = document.getElementById("joinClubBtn");
+    const currentClubIdSpan = document.getElementById("currentClubId");
+
+    const createTableBtn = document.getElementById("createTableBtn");
+    const sitMeBtn = document.getElementById("sitMeBtn");
+    const joinTableIdInput = document.getElementById("joinTableIdInput");
+    const joinTableBtn = document.getElementById("joinTableBtn");
+
+    const addAliceBtn = document.getElementById("addAliceBtn");
+    const addBobBtn = document.getElementById("addBobBtn");
+    const startHandBtn = document.getElementById("startHandBtn");
+
+    const dealFlopBtn = document.getElementById("dealFlopBtn");
+    const dealTurnBtn = document.getElementById("dealTurnBtn");
+    const dealRiverBtn = document.getElementById("dealRiverBtn");
+    const showdownBtn = document.getElementById("showdownBtn");
+
+    const tableIdSpan = document.getElementById("tableId");
+    const streetSpan = document.getElementById("street");
+    const potSpan = document.getElementById("pot");
+    const currentBetSpan = document.getElementById("currentBet");
+    const nextToActSpan = document.getElementById("nextToAct");
+    const rawStatePre = document.getElementById("rawState");
+
+    const boardCardsSpan = document.getElementById("boardCards");
+    const potCenterSpan = document.getElementById("potCenter");
+    const betCenterSpan = document.getElementById("betCenter");
+    const streetCenterSpan = document.getElementById("streetCenter");
+
+    // Action dock elements
+    const foldMainBtn = document.getElementById("foldMainBtn");
+    const callMainBtn = document.getElementById("callMainBtn");
+    const callAmountLabel = document.getElementById("callAmountLabel");
+    const actingPlayerLabel = document.getElementById("actingPlayerLabel");
+
+    const raiseCustomInput = document.getElementById("raiseCustomInput");
+    const raiseCustomBtn = document.getElementById("raiseCustomBtn");
+    const raise30Btn = document.getElementById("raise30Btn");
+    const raise50Btn = document.getElementById("raise50Btn");
+    const raise100Btn = document.getElementById("raise100Btn");
+
+    // Big card popup elements
+    const bigCardOverlay = document.getElementById("bigCardOverlay");
+    const bigCard = document.getElementById("bigCard");
+    const bigCardRank = document.getElementById("bigCardRank");
+    const bigCardSuit = document.getElementById("bigCardSuit");
+
+    function getCardImageFilename(card) {
+      if (!card || card.length < 2) return null;
+
+      const rankChar = card[0].toUpperCase();
+      const suitChar = card[1].toLowerCase();
+
+      const rankMap = {
+        "A": "ace",
+        "K": "king",
+        "Q": "queen",
+        "J": "jack",
+        "T": "ten",
+        "9": "nine",
+        "8": "eight",
+        "7": "seven",
+        "6": "six",
+        "5": "five",
+        "4": "four",
+        "3": "three",
+        "2": "two",
+      };
+
+      const suitMap = {
+        "c": "clubs",
+        "d": "diamonds",
+        "h": "hearts",
+        "s": "spades",
+      };
+
+      const rankName = rankMap[rankChar];
+      const suitName = suitMap[suitChar];
+
+      if (!rankName || !suitName) return null;
+
+      return `${rankName}_of_${suitName}.png`; // e.g. "queen_of_clubs.png"
+    }
+
+    function getCardImageSrc(card) {
+      const filename = getCardImageFilename(card);
+      if (!filename) return null;
+      return `/static/cards/${filename}`;
+    }
+
+    async function api(path, options = {}) {
+      const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      };
+      if (accessToken) {
+        headers["Authorization"] = `Bearer ${accessToken}`;
+      }
+
+      const res = await fetch(API_BASE + path, {
+        ...options,
+        headers,
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Error ${res.status}: ${text}`);
+      }
+      return res.json();
+    }
+
+    function clearSeats() {
+  const seats = document.querySelectorAll(".seat");
+  seats.forEach(seat => {
+    seat.classList.add("empty");
+    seat.classList.remove("highlight");
+
+    const nameEl = seat.querySelector(".seat-name");
+    const stackEl = seat.querySelector(".seat-stack");
+    const statusEl = seat.querySelector(".seat-status");
+    const betEl = seat.querySelector(".seat-bet");
+    const avatarInitialEl = seat.querySelector(".seat-avatar-initial");
+    const cardsEl = seat.querySelector(".seat-cards");
+
+    if (nameEl) nameEl.textContent = "Empty";
+    if (stackEl) stackEl.textContent = "";
+    if (statusEl) statusEl.textContent = "Waiting for player...";
+    if (betEl) betEl.textContent = "";
+    if (avatarInitialEl) avatarInitialEl.textContent = "?";
+    if (cardsEl) cardsEl.innerHTML = "";
+  });
+}
+
+
+    function updateBalanceUI(amount) {
+      currentUserBalance = amount || 0;
+      if (balanceTextSpan) {
+        balanceTextSpan.textContent = currentUserBalance;
+      }
+    }
+
+    async function fetchMe() {
+      try {
+        const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`, {
+          method: "GET",
+        });
+        // assumes backend returns { email, balance, current_club_id }
+        if (me.email) {
+          currentUserEmailSpan.textContent = me.email;
+        }
+        if (typeof me.balance === "number") {
+          updateBalanceUI(me.balance);
+        }
+        currentClubId = me.current_club_id || null;
+        currentClubIdSpan.textContent = currentClubId ? String(currentClubId) : "None";
+        if (topupOpenBtn) topupOpenBtn.disabled = false;
+      } catch (e) {
+        console.warn("Failed to load /me:", e);
+      }
+    }
+
+    async function sendAction(playerId, action, amount = null) {
+      if (!tableId || !playerId) return;
+      try {
+        await api(`/tables/${tableId}/action`, {
+          method: "POST",
+          body: JSON.stringify({
+            player_id: playerId,
+            action: action,
+            amount: amount,
+          }),
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function showBigCard(card) {
+      if (!bigCardOverlay || !bigCard || !card) return;
+
+      const rank = card[0];
+      const suitChar = card[1] ? card[1].toLowerCase() : null;
+      const suitMap = { s: "♠", h: "♥", d: "♦", c: "♣" };
+
+      bigCardRank.textContent = rank ? rank.toUpperCase() : "?";
+      bigCardSuit.textContent = suitMap[suitChar] || "?";
+
+      bigCard.classList.remove("red", "black");
+      if (suitChar === "h" || suitChar === "d") {
+        bigCard.classList.add("red");
+      } else {
+        bigCard.classList.add("black");
+      }
+
+      bigCardOverlay.classList.add("show");
+      bigCard.classList.remove("animate");
+      void bigCard.offsetWidth; // restart animation
+      bigCard.classList.add("animate");
+
+      setTimeout(() => {
+        bigCardOverlay.classList.remove("show");
+      }, 600);
+    }
+
+    function updateActionDock(state) {
+      const pot = state.pot || 0;
+      const currentBet = state.current_bet || 0;
+      actingPlayer = null;
+
+      if (state.next_to_act_seat === null || state.next_to_act_seat === undefined) {
+        actingPlayerLabel.textContent = "None";
+        callMainBtn.disabled = true;
+        foldMainBtn.disabled = true;
+        raiseCustomBtn.disabled = true;
+        raise30Btn.disabled = true;
+        raise50Btn.disabled = true;
+        raise100Btn.disabled = true;
+        callAmountLabel.textContent = "0";
+        return;
+      }
+
+      actingPlayer = state.players.find(p => p.seat === state.next_to_act_seat);
+      if (!actingPlayer) {
+        actingPlayerLabel.textContent = "None";
+        callMainBtn.disabled = true;
+        foldMainBtn.disabled = true;
+        raiseCustomBtn.disabled = true;
+        raise30Btn.disabled = true;
+        raise50Btn.disabled = true;
+        raise100Btn.disabled = true;
+        callAmountLabel.textContent = "0";
+        return;
+      }
+
+      actingPlayerLabel.textContent = `${actingPlayer.name} (seat ${actingPlayer.seat})`;
+
+      const toCall = Math.max(0, currentBet - actingPlayer.committed);
+
+      callAmountLabel.textContent = toCall > 0 ? toCall.toString() : "0 (check)";
+      callMainBtn.disabled = false;
+      foldMainBtn.disabled = false;
+
+      const canRaise = !actingPlayer.all_in && !actingPlayer.has_folded;
+      raiseCustomBtn.disabled = !canRaise;
+      raise30Btn.disabled = !canRaise || pot <= 0;
+      raise50Btn.disabled = !canRaise || pot <= 0;
+      raise100Btn.disabled = !canRaise || pot <= 0;
+
+      callMainBtn.onclick = () => sendAction(actingPlayer.id, "call");
+      foldMainBtn.onclick = () => sendAction(actingPlayer.id, "fold");
+
+      raiseCustomBtn.onclick = () => {
+        const amt = Number(raiseCustomInput.value);
+        if (!amt || amt <= currentBet) {
+          alert("Raise must be > current bet");
+          return;
+        }
+        sendAction(actingPlayer.id, "raise_to", amt);
+      };
+
+      const makePctHandler = fraction => () => {
+        if (pot <= 0) {
+          alert("Pot is 0; enter a custom raise amount");
+          return;
+        }
+        let amt = Math.floor(pot * fraction);
+        if (amt <= currentBet) {
+          amt = currentBet + 1;
+        }
+        sendAction(actingPlayer.id, "raise_to", amt);
+      };
+
+      raise30Btn.onclick = makePctHandler(0.3);
+      raise50Btn.onclick = makePctHandler(0.5);
+      raise100Btn.onclick = makePctHandler(1.0);
+    }
+
+    function renderState(state) {
+      const prevState = lastState;
+      lastState = state;
+
+      tableIdSpan.textContent = state.id;
+      streetSpan.textContent = state.street;
+      potSpan.textContent = state.pot;
+      currentBetSpan.textContent = state.current_bet;
+      nextToActSpan.textContent = state.next_to_act_seat ?? "-";
+      console.log("STATE PLAYERS:", state.players);
+
+      potCenterSpan.textContent = state.pot;
+      betCenterSpan.textContent = state.current_bet;
+      streetCenterSpan.textContent = state.street;
+
+      // ---- BOARD CARDS ----
+      const prevBoardLen = prevState ? prevState.board.length : 0;
+      boardCardsSpan.innerHTML = "";
+      state.board.forEach((c, idx) => {
+      const span = document.createElement("span");
+      span.className = "card";
+      if (idx >= prevBoardLen) {
+        span.classList.add("dealt");
+        showBigCard(c);
+      }
+
+      const imgSrc = getCardImageSrc(c);
+      if (imgSrc) {
+        span.innerHTML = `<img class="card-img" src="${imgSrc}" alt="${c}">`;
+      } else {
+        // fallback to text if mapping fails
+        span.textContent = c;
+      }
+
+      boardCardsSpan.appendChild(span);
+    });
+
+
+      // ---- SEATS & HOLE CARDS ----
+      clearSeats();
+
+      state.players.forEach(p => {
+        const seatDiv = document.querySelector(`.seat[data-seat="${p.seat}"]`);
+        if (!seatDiv) {
+          console.warn("No seat div for seat", p.seat);
+          return;
+        }
+
+        seatDiv.classList.remove("empty");
+
+        const nameEl = seatDiv.querySelector(".seat-name");
+        const stackEl = seatDiv.querySelector(".seat-stack");
+        const statusEl = seatDiv.querySelector(".seat-status");
+        const betEl = seatDiv.querySelector(".seat-bet");
+        const avatarInitialEl = seatDiv.querySelector(".seat-avatar-initial");
+        const cardsEl = seatDiv.querySelector(".seat-cards");
+
+        // Name + stack
+        if (nameEl) nameEl.textContent = p.name || `Seat ${p.seat}`;
+        if (stackEl) stackEl.textContent = p.stack != null ? p.stack.toString() : "0";
+
+        // Avatar initial (first letter)
+        if (avatarInitialEl) {
+          const initialSource = p.name || p.email || "?";
+          avatarInitialEl.textContent = initialSource.trim().charAt(0).toUpperCase() || "?";
+        }
+
+        // Status
+        if (statusEl) {
+          if (p.has_folded) {
+            statusEl.textContent = "Folded";
+          } else if (p.all_in) {
+            statusEl.textContent = "All-in";
+          } else if (!p.in_hand) {
+            statusEl.textContent = "Sitting out";
+          } else {
+            statusEl.textContent = "In hand";
+          }
+        }
+
+        // Bet
+        if (betEl) {
+          betEl.textContent = p.committed > 0 ? `Bet: ${p.committed}` : "";
+        }
+
+        // Cards
+        if (cardsEl) {
+          cardsEl.innerHTML = "";
+          p.hole_cards.forEach(c => {
+            const span = document.createElement("span");
+            span.className = "seat-card";
+            const imgSrc = getCardImageSrc(c);
+            if (imgSrc) {
+              span.innerHTML = `<img class="card-img" src="${imgSrc}" alt="${c}">`;
+            } else {
+              span.textContent = c;
+            }
+            cardsEl.appendChild(span);
+          });
+        }
+
+        // Highlight next to act
+        if (state.next_to_act_seat === p.seat) {
+          seatDiv.classList.add("highlight");
+        }
+      });
+
+
+      rawStatePre.textContent = JSON.stringify(state, null, 2);
+
+      dealFlopBtn.disabled = state.street !== "preflop";
+      dealTurnBtn.disabled = state.street !== "flop";
+      dealRiverBtn.disabled = state.street !== "turn";
+      showdownBtn.disabled = state.street !== "river";
+
+      updateActionDock(state);
+    }
+
+    function connectWebSocket() {
+      if (!tableId) return;
+
+      if (tableSocket) {
+        tableSocket.close();
+        tableSocket = null;
+      }
+
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
+      const url = `${protocol}://${window.location.host}/ws/tables/${tableId}${tokenParam}`;
+      tableSocket = new WebSocket(url);
+
+      tableSocket.onmessage = (event) => {
+        try {
+          const state = JSON.parse(event.data);
+          renderState(state);
+        } catch (e) {
+          console.error("Bad WS message", e);
+        }
+      };
+
+      tableSocket.onclose = () => {
+        console.log("WebSocket closed");
+      };
+
+      tableSocket.onerror = (err) => {
+        console.error("WebSocket error", err);
+      };
+    }
+
+    // -------- Auth actions --------
+
+    registerBtn.onclick = async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        alert("Enter email and password");
+        return;
+      }
+      try {
+        const res = await fetch("/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Error ${res.status}: ${text}`);
+        }
+        await res.json();
+        alert("Registered. Now login.");
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    loginBtn.onclick = async () => {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        alert("Enter email and password");
+        return;
+      }
+      try {
+        const body = new URLSearchParams();
+        body.append("username", email);
+        body.append("password", password);
+
+        const res = await fetch("/auth/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Error ${res.status}: ${text}`);
+        }
+        const data = await res.json();
+        accessToken = data.access_token;
+        currentUserEmail = email;
+        currentUserEmailSpan.textContent = email;
+
+        createClubBtn.disabled = false;
+        joinClubBtn.disabled = false;
+        createTableBtn.disabled = false;
+        joinTableBtn.disabled = false;
+        if (topupOpenBtn) topupOpenBtn.disabled = false;
+
+        // Load persisted balance + club
+        fetchMe();
+
+        alert("Logged in!");
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    // -------- Wallet actions --------
+
+    if (topupOpenBtn) {
+      topupOpenBtn.onclick = () => {
+        if (!accessToken) {
+          alert("Login first");
+          return;
+        }
+        topupModal.classList.remove("hidden");
+      };
+    }
+
+    if (topupCancelBtn) {
+      topupCancelBtn.onclick = () => {
+        topupModal.classList.add("hidden");
+      };
+    }
+
+    if (topupConfirmBtn) {
+      topupConfirmBtn.onclick = async () => {
+        const amount = Number(topupAmountInput.value);
+        if (!amount || amount <= 0) {
+          alert("Enter a positive amount");
+          return;
+        }
+        try {
+          const me = await api(`/wallet/topup?email=${encodeURIComponent(currentUserEmail)}`, {
+            method: "POST",
+            body: JSON.stringify({ amount }),
+        });
+          if (typeof me.balance === "number") {
+            updateBalanceUI(me.balance);
+          }
+          topupModal.classList.add("hidden");
+        } catch (e) {
+          alert(e.message);
+        }
+      };
+    }
+
+    // -------- Club actions --------
+
+    createClubBtn.onclick = async () => {
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+      const name = clubNameInput.value.trim() || "My Club";
+
+      try {
+        const club = await api("/clubs/", {
+          method: "POST",
+          body: JSON.stringify({ name }),
+        });
+        currentClubId = club.id;
+        currentClubIdSpan.textContent = String(currentClubId);
+        alert(`Created club ID ${currentClubId}`);
+        // Tell backend to remember this as my active club
+        await api(`/me/club?email=${encodeURIComponent(currentUserEmail)}`, {
+          method: "POST",
+          body: JSON.stringify({ club_id: club.id }),
+        });
+
+   
+
+        // If your backend sets current_club_id on /clubs/ create, /me will reflect it next time
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    joinClubBtn.onclick = async () => {
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+      const cid = Number(joinClubIdInput.value);
+      if (!cid) {
+        alert("Enter a club ID");
+        return;
+      }
+      try {
+        const club = await api(`/clubs/${cid}/join`, {
+          method: "POST",
+        });
+        currentClubId = club.id;
+        currentClubIdSpan.textContent = String(currentClubId);
+        alert(`Joined club ID ${currentClubId}`);
+        // Tell backend to remember this as my active club
+        await api(`/me/club?email=${encodeURIComponent(currentUserEmail)}`, {
+          method: "POST",
+          body: JSON.stringify({ club_id: club.id }),
+        });
+
+    
+
+        // For "remember my club", you can also make this update current_club_id server-side
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    // -------- Table actions --------
+
+    createTableBtn.onclick = async () => {
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+      if (!currentClubId) {
+        alert("Create or join a club first");
+        return;
+      }
+      try {
+        const data = await api("/tables/", {
+          method: "POST",
+          body: JSON.stringify({
+            club_id: currentClubId,
+            max_seats: 6,
+            small_blind: 1,
+            big_blind: 2,
+          }),
+        });
+        tableId = data.table_id;
+        tableIdSpan.textContent = tableId;
+
+        bigBlind = 2;
+
+        sitMeBtn.disabled = false;
+        addAliceBtn.disabled = false;
+        addBobBtn.disabled = false;
+        startHandBtn.disabled = false;
+
+        connectWebSocket();
+        alert(`Created table ID ${tableId} for club ${currentClubId}`);
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    joinTableBtn.onclick = async () => {
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+      const tid = Number(joinTableIdInput.value);
+      if (!tid) {
+        alert("Enter a table ID");
+        return;
+      }
+      try {
+        const state = await api(`/tables/${tid}`, { method: "GET" });
+        tableId = tid;
+        tableIdSpan.textContent = String(tid);
+
+        sitMeBtn.disabled = false;
+        addAliceBtn.disabled = true;
+        addBobBtn.disabled = true;
+        startHandBtn.disabled = false;
+
+        connectWebSocket();
+        renderState(state);
+        alert(`Joined table ${tid}`);
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    sitMeBtn.onclick = async () => {
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+      if (!tableId) {
+        alert("Create or join a table first");
+        return;
+      }
+      try {
+        await api(`/tables/${tableId}/sit_me`, {
+          method: "POST",
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    addAliceBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/players`, {
+          method: "POST",
+          body: JSON.stringify({ name: "Alice", starting_stack: 100 }),
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    addBobBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/players`, {
+          method: "POST",
+          body: JSON.stringify({ name: "Bob", starting_stack: 100 }),
+        });
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    startHandBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/start_hand`, { method: "POST" });
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    dealFlopBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/deal_flop`, { method: "POST" });
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    dealTurnBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/deal_turn`, { method: "POST" });
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    dealRiverBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/deal_river`, { method: "POST" });
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+
+    showdownBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        const result = await api(`/tables/${tableId}/showdown`, { method: "POST" });
+        alert(
+          "Winners: " +
+            result.winners.map(w => w.name + " (stack " + w.stack + ")").join(", ")
+        );
+      } catch (e) {
+        alert(e.message);
+      }
+    };
+  </script>
+</body>
+</html>
