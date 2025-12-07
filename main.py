@@ -69,6 +69,9 @@ def read_root():
     return FileResponse(index_path)
 
 
+@app.get("/club-management")
+@app.get("/club-management.html")
+def read_club_management_page():
 @app.get("/clubs")
 @app.get("/clubs.html")
 def read_clubs_page():
