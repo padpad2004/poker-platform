@@ -35,6 +35,12 @@
       margin-bottom: 16px;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     .title {
       font-size: 24px;
       font-weight: 700;
@@ -113,6 +119,21 @@
     button:hover:not(:disabled) { background: var(--btn-hover); }
     button:disabled { background: #374151; cursor: not-allowed; }
 
+    .button-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: var(--btn);
+      color: white;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s ease;
+    }
+
+    .button-link:hover { background: var(--btn-hover); }
+
     .btn-danger { background: var(--danger); }
     .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
 
@@ -158,6 +179,17 @@
       color: #86efac;
       border: 1px solid rgba(34,197,94,0.2);
     }
+
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      background: #0b1020;
+      color: var(--text-main);
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
@@ -166,9 +198,14 @@
       <div class="title">Club Management</div>
       <div class="muted">Manage clubs, members, and open tables (ClubGG style)</div>
     </div>
-    <div class="pill">
-      <span>Signed in as</span>
-      <strong id="currentEmail">Guest</strong>
+    <div class="header-actions">
+      <a class="button-link" href="/">
+        <span aria-hidden="true">⟵</span> Back to Main Page
+      </a>
+      <div class="pill">
+        <span>Signed in as</span>
+        <strong id="currentEmail">Guest</strong>
+      </div>
     </div>
   </header>
 
@@ -226,6 +263,18 @@
             <tbody id="membersBody"></tbody>
           </table>
         </div>
+
+        <div id="balanceSection" style="margin-top: 12px; display:none;">
+          <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Adjust Member Balance</h3>
+          <label for="memberSelect">Member</label>
+          <select id="memberSelect"></select>
+          <label for="balanceDelta">Amount Change</label>
+          <input type="number" id="balanceDelta" placeholder="e.g. 100 or -50" />
+          <div class="stacked">
+            <button id="adjustBalanceBtn">Apply Balance Change</button>
+          </div>
+          <div class="muted" id="balanceFeedback">Only club owners can update balances.</div>
+        </div>
       </div>
 
       <div style="margin-top: 16px;">
@@ -240,6 +289,7 @@
     const API_BASE = "";
     let accessToken = "";
     let currentUserEmail = "";
+    let currentClubId = null;
 
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
@@ -262,6 +312,11 @@
     const membersBody = document.getElementById("membersBody");
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
+    const balanceSection = document.getElementById("balanceSection");
+    const memberSelect = document.getElementById("memberSelect");
+    const balanceDelta = document.getElementById("balanceDelta");
+    const balanceFeedback = document.getElementById("balanceFeedback");
+    const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
 
     async function api(path, options = {}) {
       const headers = {
@@ -320,11 +375,14 @@
       if (!members.length) {
         membersEmpty.style.display = "block";
         membersTableWrap.style.display = "none";
+        balanceSection.style.display = "none";
         return;
       }
       membersEmpty.style.display = "none";
       membersTableWrap.style.display = "block";
       membersBody.innerHTML = "";
+      balanceSection.style.display = "block";
+      memberSelect.innerHTML = "";
       members.forEach((m) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -333,6 +391,11 @@
           <td>${new Date(m.created_at).toLocaleString()}</td>
         `;
         membersBody.appendChild(tr);
+
+        const option = document.createElement("option");
+        option.value = m.user_id;
+        option.textContent = `${m.user_email} (${m.role})`;
+        memberSelect.appendChild(option);
       });
     }
 
@@ -361,6 +424,7 @@
       requireAuth();
       try {
         const detail = await api(`/clubs/${clubId}`);
+        currentClubId = detail.id;
         clubDetailEmpty.style.display = "none";
         clubDetail.style.display = "block";
         clubTitle.textContent = detail.name;
@@ -454,6 +518,28 @@
         loadClubs();
       } catch (e) {
         alert(e.message);
+      }
+    };
+
+    adjustBalanceBtn.onclick = async () => {
+      requireAuth();
+      if (!currentClubId) return alert("Select a club first.");
+      const userId = Number(memberSelect.value);
+      const amountDelta = Number(balanceDelta.value);
+      if (!userId || Number.isNaN(amountDelta)) {
+        return alert("Select a member and enter an amount change.");
+      }
+
+      balanceFeedback.textContent = "Updating balance...";
+      try {
+        const res = await api(`/clubs/${currentClubId}/members/${userId}/balance`, {
+          method: "POST",
+          body: JSON.stringify({ amount_delta: amountDelta }),
+        });
+        balanceFeedback.textContent = `Balance updated. New balance: ${res.new_balance}`;
+        balanceDelta.value = "";
+      } catch (e) {
+        balanceFeedback.textContent = e.message;
       }
     };
   </script>
