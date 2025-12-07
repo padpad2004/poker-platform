@@ -42,6 +42,37 @@ class ClubRead(ClubBase):
         orm_mode = True
 
 
+class ClubMemberRead(BaseModel):
+    id: int
+    club_id: int
+    user_id: int
+    role: str
+    created_at: datetime
+    user_email: EmailStr
+
+    class Config:
+        orm_mode = True
+
+
+class PokerTableMeta(BaseModel):
+    id: int
+    club_id: int
+    created_by_user_id: int
+    max_seats: int
+    small_blind: int
+    big_blind: int
+    status: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class ClubDetail(ClubRead):
+    members: List[ClubMemberRead]
+    tables: List[PokerTableMeta]
+
+
 # ---------- Poker Engine ----------
 
 class PlayerState(BaseModel):
