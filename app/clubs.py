@@ -73,3 +73,65 @@ def join_club(
     db.add(member)
     db.commit()
     return club
+
+
+@router.get("/{club_id}", response_model=schemas.ClubDetail)
+def get_club_detail(
+    club_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    is_owner = club.owner_id == current_user.id
+    is_member = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club.id,
+            models.ClubMember.user_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
+    if not (is_owner or is_member):
+        raise HTTPException(status_code=403, detail="Not a member of this club")
+
+    member_rows = (
+        db.query(models.ClubMember, models.User.email.label("email"))
+        .join(models.User, models.ClubMember.user_id == models.User.id)
+        .filter(models.ClubMember.club_id == club_id)
+        .all()
+    )
+
+    members = [
+        schemas.ClubMemberRead(
+            id=member.id,
+            club_id=member.club_id,
+            user_id=member.user_id,
+            role=member.role,
+            created_at=member.created_at,
+            user_email=email,
+        )
+        for member, email in member_rows
+    ]
+
+    tables = (
+        db.query(models.PokerTable)
+        .filter(
+            models.PokerTable.club_id == club_id,
+            models.PokerTable.status == "active",
+        )
+        .all()
+    )
+
+    return schemas.ClubDetail(
+        id=club.id,
+        name=club.name,
+        owner_id=club.owner_id,
+        status=club.status,
+        created_at=club.created_at,
+        members=members,
+        tables=tables,
+    )
