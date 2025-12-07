@@ -1,6 +1,8 @@
+from pathlib import Path
+
 from fastapi import FastAPI
-from fastapi.security import OAuth2PasswordBearer
 from fastapi.openapi.utils import get_openapi
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine, ensure_schema
@@ -13,8 +15,9 @@ ensure_schema()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Poker Platform MVP")
+static_dir = Path(__file__).resolve().parent.parent / "static"
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 # ---- ADD OAUTH2 SECURITY SCHEME (THIS CREATES THE AUTHORIZE BUTTON) ----
@@ -58,4 +61,4 @@ app.include_router(clubs_router)
 app.include_router(routes_user.router)
 
 # Serve static/index.html at the root URL
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

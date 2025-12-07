@@ -1,10 +1,10 @@
+from pathlib import Path
+
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.security import OAuth2PasswordBearer
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
-
-from pathlib import Path
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
 from app import models
@@ -17,6 +17,7 @@ from app.ws_api import ws_router
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Poker Platform MVP")
+static_dir = Path(__file__).resolve().parent / "static"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
@@ -59,10 +60,10 @@ app.include_router(tables_router)        # /tables/...
 app.include_router(ws_router)            # /ws/tables/{id}
 
 # ---- Static files (/static/...) ----
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/")
 def read_root():
-    index_path = Path(__file__).resolve().parent / "static" / "index.html"
+    index_path = static_dir / "index.html"
     return FileResponse(index_path)
