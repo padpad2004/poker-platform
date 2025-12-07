@@ -603,7 +603,7 @@
       <div class="row">
         <button id="addAliceBtn" disabled>Add Alice</button>
         <button id="addBobBtn" disabled>Add Bob</button>
-        <button id="startHandBtn" disabled>Start Hand</button>
+        <button id="startHandBtn" disabled title="Hands auto-start when two players are seated">Hands Auto-Start</button>
       </div>
 
       <!-- BETTING / STREETS -->
@@ -857,6 +857,7 @@
     const addAliceBtn = document.getElementById("addAliceBtn");
     const addBobBtn = document.getElementById("addBobBtn");
     const startHandBtn = document.getElementById("startHandBtn");
+    startHandBtn.title = "Hands start automatically once two players are seated";
 
     const dealFlopBtn = document.getElementById("dealFlopBtn");
     const dealTurnBtn = document.getElementById("dealTurnBtn");
@@ -1469,7 +1470,7 @@
         sitMeBtn.disabled = false;
         addAliceBtn.disabled = false;
         addBobBtn.disabled = false;
-        startHandBtn.disabled = false;
+        startHandBtn.disabled = true;
 
         connectWebSocket();
         alert(`Created table ID ${tableId} for club ${currentClubId}`);
@@ -1496,7 +1497,7 @@
         sitMeBtn.disabled = false;
         addAliceBtn.disabled = true;
         addBobBtn.disabled = true;
-        startHandBtn.disabled = false;
+        startHandBtn.disabled = true;
 
         connectWebSocket();
         renderState(state);
@@ -1548,13 +1549,8 @@
       }
     };
 
-    startHandBtn.onclick = async () => {
-      if (!tableId) return;
-      try {
-        await api(`/tables/${tableId}/start_hand`, { method: "POST" });
-      } catch (e) {
-        alert(e.message);
-      }
+    startHandBtn.onclick = () => {
+      alert("Hands now start automatically when two players are seated.");
     };
 
     dealFlopBtn.onclick = async () => {

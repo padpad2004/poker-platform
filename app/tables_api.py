@@ -98,8 +98,75 @@ def _apply_timeouts(table_id: int) -> Table:
     return engine_table
 
 
+def _auto_progress_hand(engine_table: Table) -> bool:
+    """
+    Advance the hand automatically when possible.
+
+    Returns True if the hand reached showdown (finished), else False.
+    """
+    # If only one player remains in the hand, award them the pot.
+    remaining = [p for p in engine_table.active_players() if not p.has_folded]
+    if len(remaining) == 1 and engine_table.street != "showdown":
+        winner = remaining[0]
+        winner.stack += engine_table.pot
+        engine_table.pot = 0
+        engine_table.street = "showdown"
+        engine_table.next_to_act_seat = None
+        engine_table.action_deadline = None
+        return True
+
+    # No further automatic action if the hand already ended.
+    if engine_table.street == "showdown":
+        return True
+
+    # Auto-advance streets when betting is complete.
+    if engine_table.next_to_act_seat is None and engine_table.betting_round_complete():
+        try:
+            if remaining and all(p.all_in for p in remaining):
+                if engine_table.street == "preflop":
+                    engine_table.deal_flop()
+                    engine_table.deal_turn()
+                    engine_table.deal_river()
+                elif engine_table.street == "flop":
+                    engine_table.deal_turn()
+                    engine_table.deal_river()
+                elif engine_table.street == "turn":
+                    engine_table.deal_river()
+                engine_table.showdown()
+                return True
+
+            if engine_table.street == "preflop":
+                engine_table.deal_flop()
+            elif engine_table.street == "flop":
+                engine_table.deal_turn()
+            elif engine_table.street == "turn":
+                engine_table.deal_river()
+            elif engine_table.street == "river":
+                engine_table.showdown()
+                return True
+        except ValueError:
+            # If an invalid transition is hit, leave the hand as-is.
+            pass
+
+    return engine_table.street == "showdown"
+
+
+def _auto_start_hand_if_ready(engine_table: Table) -> bool:
+    """Start a fresh hand when at least two players are seated."""
+    if len(engine_table.players) < 2:
+        return False
+
+    if engine_table.street not in {"prehand", "showdown"}:
+        return False
+
+    engine_table.start_new_hand()
+    return True
+
+
 async def broadcast_table_state(table_id: int):
     engine_table = _apply_timeouts(table_id)
+    _auto_progress_hand(engine_table)
+    _auto_start_hand_if_ready(engine_table)
     connections = TABLE_CONNECTIONS.get(table_id, {})
     for ws, viewer_user_id in list(connections.items()):
         try:
@@ -222,26 +289,9 @@ async def player_action(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # 🔹 Auto-advance street when betting round is complete
-    if engine_table.next_to_act_seat is None and engine_table.betting_round_complete():
-        active = [p for p in engine_table.active_players() if not p.has_folded]
-        if len(active) >= 2 and not all(p.all_in for p in active):
-            if engine_table.street == "preflop":
-                try:
-                    engine_table.deal_flop()
-                except ValueError:
-                    pass
-            elif engine_table.street == "flop":
-                try:
-                    engine_table.deal_turn()
-                except ValueError:
-                    pass
-            elif engine_table.street == "turn":
-                try:
-                    engine_table.deal_river()
-                except ValueError:
-                    pass
-
+    hand_finished = _auto_progress_hand(engine_table)
+    if hand_finished:
+        _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
     return _table_state(table_id, engine_table)
 
@@ -305,6 +355,7 @@ async def showdown(
     _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _get_engine_table(table_id)
     winners, best_rank, results = engine_table.showdown()
+    started = _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
 
     return {
