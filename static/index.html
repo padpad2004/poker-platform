@@ -632,48 +632,26 @@
       <div class="table-wrapper">
         <div class="felt">
           <!-- 6 seat slots -->
-          <div class="seat" data-seat="0"> ... </div>
-          <div class="seat" data-seat="1"> ... </div>
-          <div class="seat" data-seat="2"> ... </div>
-          <div class="seat" data-seat="3"> ... </div>
-          <div class="seat" data-seat="4"> ... </div>
-          <div class="seat" data-seat="5"> ... </div>
-        </div> <!-- end .felt -->
-      </div>   <!-- end .table-wrapper -->
-    
-      <!-- Action dock NOW sits under the table -->
-      <div class="action-dock">
-        <div class="action-left">
-          <button id="foldMainBtn" class="btn-danger" disabled>Fold</button>
-        </div>
-    
-        <div class="action-middle">
-          <div>
-            <div class="bottom-label">Acting Player</div>
-            <div id="actingPlayerLabel">None</div>
-          </div>
-          <div class="action-middle-main">
-            <button id="callMainBtn" disabled>Call / Check</button>
-            <span id="callAmountLabel">0</span>
-          </div>
-        </div>
-    
-        <div class="action-right">
-          <div>
-            <div class="bottom-label">Raise</div>
-            <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-              <input type="number" id="raiseCustomInput" placeholder="Amt" />
-              <button id="raiseCustomBtn" disabled>Raise</button>
-              <button id="raise30Btn" disabled>30%</button>
-              <button id="raise50Btn" disabled>50%</button>
-              <button id="raise100Btn" disabled>100%</button>
+          <div class="seat" data-seat="0">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
             </div>
           </div>
-        </div>
-      </div> <!-- end .action-dock -->
-    </div>   <!-- end .panel -->
-    
-          
 
           <div class="seat" data-seat="1">
             <div class="seat-inner">
@@ -695,7 +673,6 @@
               <div class="seat-cards"></div>
             </div>
           </div>
-          
 
           <div class="seat" data-seat="2">
             <div class="seat-inner">
@@ -717,7 +694,6 @@
               <div class="seat-cards"></div>
             </div>
           </div>
-          
 
           <div class="seat" data-seat="3">
             <div class="seat-inner">
@@ -760,7 +736,6 @@
               <div class="seat-cards"></div>
             </div>
           </div>
-          
 
           <div class="seat" data-seat="5">
             <div class="seat-inner">
@@ -782,14 +757,15 @@
               <div class="seat-cards"></div>
             </div>
           </div>
-          
-
-      <!-- Action dock -->
+        </div> <!-- end .felt -->
+      </div>   <!-- end .table-wrapper -->
+    
+      <!-- Action dock NOW sits under the table -->
       <div class="action-dock">
         <div class="action-left">
           <button id="foldMainBtn" class="btn-danger" disabled>Fold</button>
         </div>
-
+    
         <div class="action-middle">
           <div>
             <div class="bottom-label">Acting Player</div>
@@ -800,7 +776,7 @@
             <span id="callAmountLabel">0</span>
           </div>
         </div>
-
+    
         <div class="action-right">
           <div>
             <div class="bottom-label">Raise</div>
@@ -813,9 +789,8 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
+        </div> <!-- end .action-dock -->
+      </div>   <!-- end .panel -->
 
   <!-- Top up modal -->
   <div id="topupModal" class="modal hidden">
