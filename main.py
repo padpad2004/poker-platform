@@ -67,3 +67,10 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 def read_root():
     index_path = static_dir / "index.html"
     return FileResponse(index_path)
+
+
+@app.get("/club-management")
+@app.get("/club-management.html")
+def read_club_management_page():
+    clubs_path = static_dir / "clubs.html"
+    return FileResponse(clubs_path)
