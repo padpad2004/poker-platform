@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import FileResponse
+
+from pathlib import Path
 
 from app.database import Base, engine
 from app import models
@@ -61,4 +64,5 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def read_root():
-    return {"status": "ok"}
+    index_path = Path(__file__).resolve().parent / "static" / "index.html"
+    return FileResponse(index_path)
