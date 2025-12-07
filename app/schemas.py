@@ -61,6 +61,8 @@ class PokerTableMeta(BaseModel):
     max_seats: int
     small_blind: int
     big_blind: int
+    bomb_pot_every_n_hands: Optional[int]
+    bomb_pot_amount: Optional[int]
     status: str
     created_at: datetime
 
@@ -95,6 +97,7 @@ class TableState(BaseModel):
     board: List[str]
     current_bet: int
     next_to_act_seat: Optional[int]
+    action_deadline: Optional[float]
     players: List[PlayerState]
 
     class Config:
@@ -106,6 +109,8 @@ class CreateTableRequest(BaseModel):
     max_seats: int = 6
     small_blind: int = 1
     big_blind: int = 2
+    bomb_pot_every_n_hands: Optional[int] = None
+    bomb_pot_amount: Optional[int] = None
 
 
 class CreateTableResponse(BaseModel):
@@ -127,6 +132,15 @@ class ActionRequest(BaseModel):
     player_id: int
     action: Literal["fold", "call", "raise_to"]
     amount: Optional[int] = None
+
+
+class BalanceUpdateRequest(BaseModel):
+    amount_delta: int
+
+
+class BalanceUpdateResponse(BaseModel):
+    user_id: int
+    new_balance: int
 
 from pydantic import EmailStr
 from typing import Optional

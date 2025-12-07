@@ -62,6 +62,7 @@ def _table_state_for_viewer(
         board=[str(c) for c in engine_table.board],
         current_bet=engine_table.current_bet,
         next_to_act_seat=engine_table.next_to_act_seat,
+        action_deadline=engine_table.action_deadline,
         players=[
             schemas.PlayerState(
                 id=p.id,
@@ -88,8 +89,17 @@ def _table_state(table_id: int, engine_table: Table) -> schemas.TableState:
     return _table_state_for_viewer(table_id, engine_table, viewer_user_id=None)
 
 
-async def broadcast_table_state(table_id: int):
+def _apply_timeouts(table_id: int) -> Table:
     engine_table = _get_engine_table(table_id)
+    while True:
+        result = engine_table.enforce_action_timeout()
+        if result is None:
+            break
+    return engine_table
+
+
+async def broadcast_table_state(table_id: int):
+    engine_table = _apply_timeouts(table_id)
     connections = TABLE_CONNECTIONS.get(table_id, {})
     for ws, viewer_user_id in list(connections.items()):
         try:
@@ -110,17 +120,11 @@ def create_table(
         raise HTTPException(status_code=404, detail="Club not found")
 
     is_owner = club.owner_id == current_user.id
-    is_member = (
-        db.query(models.ClubMember)
-        .filter(
-            models.ClubMember.club_id == club.id,
-            models.ClubMember.user_id == current_user.id,
+    if not is_owner:
+        raise HTTPException(
+            status_code=403,
+            detail="Only club owners can create tables",
         )
-        .first()
-        is not None
-    )
-    if not (is_owner or is_member):
-        raise HTTPException(status_code=403, detail="Not a member of this club")
 
     table_meta = models.PokerTable(
         club_id=req.club_id,
@@ -128,6 +132,8 @@ def create_table(
         max_seats=req.max_seats,
         small_blind=req.small_blind,
         big_blind=req.big_blind,
+        bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
+        bomb_pot_amount=req.bomb_pot_amount,
         status="active",
     )
     db.add(table_meta)
@@ -138,6 +144,8 @@ def create_table(
         max_seats=req.max_seats,
         small_blind=req.small_blind,
         big_blind=req.big_blind,
+        bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
+        bomb_pot_amount=req.bomb_pot_amount,
     )
     TABLES[table_meta.id] = engine_table
 
@@ -192,9 +200,9 @@ async def start_hand(
     table_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-):
+): 
     _ensure_user_in_table_club(table_id, db, current_user)
-    engine_table = _get_engine_table(table_id)
+    engine_table = _apply_timeouts(table_id)
     engine_table.start_new_hand()
     await broadcast_table_state(table_id)
     return _table_state(table_id, engine_table)
@@ -208,7 +216,7 @@ async def player_action(
     current_user: models.User = Depends(get_current_user),
 ):
     _ensure_user_in_table_club(table_id, db, current_user)
-    engine_table = _get_engine_table(table_id)
+    engine_table = _apply_timeouts(table_id)
     try:
         engine_table.player_action(req.player_id, req.action, req.amount)
     except ValueError as e:
@@ -243,9 +251,9 @@ async def deal_flop(
     table_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-):
+): 
     _ensure_user_in_table_club(table_id, db, current_user)
-    engine_table = _get_engine_table(table_id)
+    engine_table = _apply_timeouts(table_id)
     engine_table.deal_flop()
     await broadcast_table_state(table_id)
     return _table_state(table_id, engine_table)
@@ -258,7 +266,7 @@ async def deal_turn(
     current_user: models.User = Depends(get_current_user),
 ):
     _ensure_user_in_table_club(table_id, db, current_user)
-    engine_table = _get_engine_table(table_id)
+    engine_table = _apply_timeouts(table_id)
     engine_table.deal_turn()
     await broadcast_table_state(table_id)
     return _table_state(table_id, engine_table)
@@ -271,7 +279,7 @@ async def deal_river(
     current_user: models.User = Depends(get_current_user),
 ):
     _ensure_user_in_table_club(table_id, db, current_user)
-    engine_table = _get_engine_table(table_id)
+    engine_table = _apply_timeouts(table_id)
     engine_table.deal_river()
     await broadcast_table_state(table_id)
     return _table_state(table_id, engine_table)
@@ -284,7 +292,7 @@ async def get_table_state(
     current_user: models.User = Depends(get_current_user),
 ):
     _ensure_user_in_table_club(table_id, db, current_user)
-    engine_table = _get_engine_table(table_id)
+    engine_table = _apply_timeouts(table_id)
     return _table_state(table_id, engine_table)
 
 
