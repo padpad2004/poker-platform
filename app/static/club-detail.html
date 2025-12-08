@@ -157,6 +157,17 @@
       background: rgba(255,255,255,0.02);
     }
 
+    .cta-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .cta-actions > * {
+      flex: 1 1 180px;
+    }
+
     .modal.hidden { display: none; }
     .modal {
       position: fixed;
@@ -273,7 +284,10 @@
       <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Open Tables</h3>
       <div class="create-table-cta">
         <div class="muted">Open a fresh table for this club with custom blinds and seating.</div>
-        <button id="quickCreateTableBtn" disabled style="width: 100%; max-width: 240px; margin-top: 10px;">Create New Table</button>
+        <div class="cta-actions">
+          <button id="quickCreateTableBtn" disabled style="width: 100%;">Create New Table</button>
+          <button id="createTournamentBtn" disabled style="width: 100%;">Create New Tournament</button>
+        </div>
       </div>
       <div id="tablesEmpty" class="muted">No active tables for this club.</div>
       <div id="tablesList" class="list"></div>
@@ -344,6 +358,7 @@
     const tablesList = document.getElementById("tablesList");
     const manageMembersLink = document.getElementById("manageMembersLink");
     const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
+    const createTournamentBtn = document.getElementById("createTournamentBtn");
     const createTableModal = document.getElementById("createTableModal");
     const createTableForm = document.getElementById("createTableForm");
     const smallBlindInput = document.getElementById("smallBlindInput");
@@ -526,6 +541,10 @@
           quickCreateTableBtn.disabled = !isCurrentUserOwner;
           quickCreateTableBtn.textContent = isCurrentUserOwner ? "Create New Table" : "Owner access required";
         }
+        if (createTournamentBtn) {
+          createTournamentBtn.disabled = !isCurrentUserOwner;
+          createTournamentBtn.textContent = isCurrentUserOwner ? "Create New Tournament" : "Owner access required";
+        }
         renderMembers(detail.members || []);
         renderTables(detail.tables || []);
       } catch (e) {
@@ -626,6 +645,14 @@
 
     if (quickCreateTableBtn) {
       quickCreateTableBtn.onclick = showCreateTableModal;
+    }
+
+    if (createTournamentBtn) {
+      createTournamentBtn.onclick = () => {
+        requireAuth();
+        if (!currentClubId) return alert("Select a club first.");
+        window.location.href = `/tournament.html?club_id=${currentClubId}`;
+      };
     }
 
     async function init() {
