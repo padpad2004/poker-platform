@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 
-from app.database import Base, engine
+from app.database import Base, engine, ensure_schema
 from app import models
 from app.auth import router as auth_router
 from app.clubs import router as clubs_router
@@ -15,6 +15,7 @@ from app import routes_user
 from app.ws_api import ws_router
 
 Base.metadata.create_all(bind=engine)
+ensure_schema()
 
 app = FastAPI(title="Poker Platform MVP")
 static_dir = Path(__file__).resolve().parent / "static"

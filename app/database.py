@@ -20,23 +20,46 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def ensure_schema():
-    """Apply lightweight migrations for existing SQLite databases.
-
-    Adds missing bomb pot columns to the ``poker_tables`` table so older
-    database files created before these fields existed keep working.
-    """
+    """Apply lightweight migrations for existing SQLite databases."""
 
     with engine.begin() as conn:
-        columns = {
-            row[1] for row in conn.execute(text("PRAGMA table_info(poker_tables);"))
+        existing_tables = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table';")
+            )
         }
 
-        if "bomb_pot_every_n_hands" not in columns:
-            conn.execute(
-                text("ALTER TABLE poker_tables ADD COLUMN bomb_pot_every_n_hands INTEGER")
-            )
+        if "poker_tables" in existing_tables:
+            columns = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(poker_tables);"))
+            }
 
-        if "bomb_pot_amount" not in columns:
+            if "bomb_pot_every_n_hands" not in columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE poker_tables ADD COLUMN bomb_pot_every_n_hands INTEGER"
+                    )
+                )
+
+            if "bomb_pot_amount" not in columns:
+                conn.execute(
+                    text("ALTER TABLE poker_tables ADD COLUMN bomb_pot_amount INTEGER")
+                )
+
+        if "users" in existing_tables:
+            user_columns = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(users);"))
+            }
+
+            if "username" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN username TEXT"))
+                conn.execute(
+                    text(
+                        "UPDATE users SET username = email WHERE username IS NULL OR username = ''"
+                    )
+                )
+
             conn.execute(
-                text("ALTER TABLE poker_tables ADD COLUMN bomb_pot_amount INTEGER")
+                text("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);")
             )

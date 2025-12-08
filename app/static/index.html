@@ -578,6 +578,13 @@
       <h2>Auth</h2>
       <div class="row">
         <div>
+          <span class="label">Username</span><br/>
+          <input type="text" id="usernameInput" placeholder="pokerfan" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
           <span class="label">Email</span><br/>
           <input type="text" id="emailInput" placeholder="you@example.com" />
         </div>
@@ -590,9 +597,11 @@
         <button id="registerBtn">Register</button>
         <button id="loginBtn">Login</button>
       </div>
-      <div class="row">
+      <div class="row" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <span class="label">User:</span>
-        <span id="currentUserEmail">Not logged in</span>
+        <span id="currentUsername">Not logged in</span>
+        <span id="currentUserEmail" class="hint" style="display:none;"></span>
+        <button id="logoutBtn" class="btn-danger" style="margin-left:auto;">Logout</button>
       </div>
 
       <!-- WALLET -->
@@ -694,7 +703,7 @@
 
     <!-- RIGHT: Table + bottom action bar -->
     <div class="panel">
-      <h2>Table</h2>
+      <h2>Table <span id="tableHeadingLabel">-</span></h2>
       <div class="table-wrapper">
         <div class="felt">
           <div class="center-area">
@@ -922,16 +931,20 @@
     let tableSocket = null;
     let accessToken = null;
     let currentUserEmail = null;
+    let currentUsername = null;
     let currentClubId = null;
     let actingPlayer = null; // current acting player object from state
     let bigBlind = 2; // default; update if you change createTable values
     let currentUserBalance = 0;
 
     // DOM elements
+    const usernameInput = document.getElementById("usernameInput");
     const emailInput = document.getElementById("emailInput");
     const passwordInput = document.getElementById("passwordInput");
     const registerBtn = document.getElementById("registerBtn");
     const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const currentUsernameSpan = document.getElementById("currentUsername");
     const currentUserEmailSpan = document.getElementById("currentUserEmail");
 
     const balanceTextSpan = document.getElementById("balanceText");
@@ -978,6 +991,9 @@
     const potCenterSpan = document.getElementById("potCenter");
     const betCenterSpan = document.getElementById("betCenter");
     const streetCenterSpan = document.getElementById("streetCenter");
+    const tableHeadingLabel = document.getElementById("tableHeadingLabel");
+
+    if (logoutBtn) logoutBtn.disabled = true;
 
     // Action dock elements
     const foldMainBtn = document.getElementById("foldMainBtn");
@@ -1043,9 +1059,10 @@
     function persistAuth() {
       if (!accessToken || !currentUserEmail) return;
       try {
+        localStorage.setItem("poker_token", accessToken);
         localStorage.setItem(
           AUTH_STORAGE_KEY,
-          JSON.stringify({ token: accessToken, email: currentUserEmail })
+          JSON.stringify({ token: accessToken, email: currentUserEmail, username: currentUsername })
         );
       } catch (err) {
         console.warn("Failed to persist auth", err);
@@ -1055,13 +1072,25 @@
     function restoreAuth() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed.token || !parsed.email) return;
-        accessToken = parsed.token;
-        currentUserEmail = parsed.email;
-        currentUserEmailSpan.textContent = parsed.email;
-        if (emailInput) emailInput.value = parsed.email;
+        const parsed = raw ? JSON.parse(raw) : null;
+        const storedToken = parsed?.token || localStorage.getItem("poker_token");
+        const storedEmail = parsed?.email;
+        const storedUsername = parsed?.username;
+
+        if (!storedToken || !storedEmail) return;
+
+        accessToken = storedToken;
+        currentUserEmail = storedEmail;
+        currentUsername = storedUsername || null;
+        if (currentUsernameSpan && currentUsername) {
+          currentUsernameSpan.textContent = currentUsername;
+        }
+        if (currentUserEmailSpan) {
+          currentUserEmailSpan.textContent = storedEmail;
+          currentUserEmailSpan.style.display = "inline";
+        }
+        if (emailInput) emailInput.value = storedEmail;
+        if (usernameInput && currentUsername) usernameInput.value = currentUsername;
         setAuthEnabled(true);
         fetchMe();
       } catch (err) {
@@ -1075,6 +1104,7 @@
       createTableBtn.disabled = !enabled;
       joinTableBtn.disabled = !enabled;
       if (topupOpenBtn) topupOpenBtn.disabled = !enabled;
+      if (logoutBtn) logoutBtn.disabled = !enabled;
     }
 
     async function api(path, options = {}) {
@@ -1204,9 +1234,15 @@
         const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`, {
           method: "GET",
         });
-        // assumes backend returns { email, balance, current_club_id }
+        // assumes backend returns { username, email, balance, current_club_id }
+        if (me.username) {
+          currentUsername = me.username;
+          if (currentUsernameSpan) currentUsernameSpan.textContent = me.username;
+        }
         if (me.email) {
+          currentUserEmail = me.email;
           currentUserEmailSpan.textContent = me.email;
+          currentUserEmailSpan.style.display = "inline";
         }
         if (typeof me.balance === "number") {
           updateBalanceUI(me.balance);
@@ -1214,6 +1250,7 @@
         currentClubId = me.current_club_id || null;
         currentClubIdSpan.textContent = currentClubId ? String(currentClubId) : "None";
         if (topupOpenBtn) topupOpenBtn.disabled = false;
+        persistAuth();
       } catch (e) {
         console.warn("Failed to load /me:", e);
       }
@@ -1340,6 +1377,7 @@
       lastState = state;
 
       tableIdSpan.textContent = state.id;
+      if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
       streetSpan.textContent = state.street;
       potSpan.textContent = state.pot;
       currentBetSpan.textContent = state.current_bet;
@@ -1502,17 +1540,18 @@
     // -------- Auth actions --------
 
     registerBtn.onclick = async () => {
+      const username = usernameInput.value.trim();
       const email = emailInput.value.trim();
       const password = passwordInput.value;
-      if (!email || !password) {
-        alert("Enter email and password");
+      if (!username || !email || !password) {
+        alert("Enter username, email, and password");
         return;
       }
       try {
         const res = await fetch("/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, username }),
         });
         if (!res.ok) {
           const text = await res.text();
@@ -1526,6 +1565,7 @@
     };
 
     loginBtn.onclick = async () => {
+      const username = usernameInput.value.trim();
       const email = emailInput.value.trim();
       const password = passwordInput.value;
       if (!email || !password) {
@@ -1549,13 +1589,15 @@
         const data = await res.json();
         accessToken = data.access_token;
         currentUserEmail = email;
+        currentUsername = username || currentUsername;
+        if (currentUsernameSpan && currentUsername) {
+          currentUsernameSpan.textContent = currentUsername;
+        }
         currentUserEmailSpan.textContent = email;
+        currentUserEmailSpan.style.display = "inline";
 
-        createClubBtn.disabled = false;
-        joinClubBtn.disabled = false;
-        createTableBtn.disabled = false;
-        joinTableBtn.disabled = false;
-        if (topupOpenBtn) topupOpenBtn.disabled = false;
+        setAuthEnabled(true);
+        persistAuth();
 
         // Load persisted balance + club
         fetchMe();
@@ -1565,6 +1607,30 @@
         alert(e.message);
       }
     };
+
+    if (logoutBtn) {
+      logoutBtn.onclick = () => {
+        accessToken = null;
+        currentUserEmail = null;
+        currentUsername = null;
+        tableId = null;
+        if (tableHeadingLabel) tableHeadingLabel.textContent = "-";
+        if (tableIdSpan) tableIdSpan.textContent = "None";
+        if (tableSocket) {
+          tableSocket.close();
+          tableSocket = null;
+        }
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        localStorage.removeItem("poker_token");
+        if (currentUsernameSpan) currentUsernameSpan.textContent = "Not logged in";
+        if (currentUserEmailSpan) {
+          currentUserEmailSpan.textContent = "";
+          currentUserEmailSpan.style.display = "none";
+        }
+        setAuthEnabled(false);
+        window.location.href = "/";
+      };
+    }
 
     // -------- Wallet actions --------
 
@@ -1702,6 +1768,7 @@
         });
         tableId = data.table_id;
         tableIdSpan.textContent = tableId;
+        if (tableHeadingLabel) tableHeadingLabel.textContent = `#${tableId}`;
         bigBlind = bbVal;
 
         sitMeBtn.disabled = false;
@@ -1729,6 +1796,7 @@
         const state = await api(`/tables/${tid}`, { method: "GET" });
         tableId = tid;
         tableIdSpan.textContent = String(tid);
+        if (tableHeadingLabel) tableHeadingLabel.textContent = `#${tid}`;
 
         sitMeBtn.disabled = false;
         addAliceBtn.disabled = true;

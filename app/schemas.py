@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime
 from typing import Optional, List, Literal
 
@@ -6,6 +6,7 @@ from typing import Optional, List, Literal
 # ---------- User ----------
 
 class UserBase(BaseModel):
+    username: str
     email: EmailStr
 
 
@@ -18,8 +19,15 @@ class UserRead(UserBase):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserMe(UserBase):
+    id: int
+    balance: int
+    current_club_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ---------- Club ----------
@@ -38,8 +46,7 @@ class ClubRead(ClubBase):
     status: str
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClubMemberRead(BaseModel):
@@ -50,8 +57,7 @@ class ClubMemberRead(BaseModel):
     created_at: datetime
     user_email: EmailStr
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PokerTableMeta(BaseModel):
@@ -66,8 +72,7 @@ class PokerTableMeta(BaseModel):
     status: str
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ClubDetail(ClubRead):
@@ -105,8 +110,7 @@ class TableState(BaseModel):
     big_blind: int
     players: List[PlayerState]
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CreateTableRequest(BaseModel):
@@ -152,15 +156,3 @@ class BalanceUpdateRequest(BaseModel):
 class BalanceUpdateResponse(BaseModel):
     user_id: int
     new_balance: int
-
-from pydantic import EmailStr
-from typing import Optional
-
-class UserMe(BaseModel):
-    id: int
-    email: EmailStr
-    balance: int
-    current_club_id: Optional[int] = None
-
-    class Config:
-        orm_mode = True

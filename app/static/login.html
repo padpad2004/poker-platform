@@ -81,6 +81,7 @@
       text-transform: uppercase;
     }
 
+    input[type="text"],
     input[type="email"],
     input[type="password"] {
       width: 100%;
@@ -132,6 +133,30 @@
       display: none;
       font-size: 13px;
     }
+
+    .success {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      border-radius: 10px;
+      color: #bbf7d0;
+      display: none;
+      font-size: 13px;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--panel-border);
+      margin: 20px 0;
+      border-radius: 999px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0 0 8px;
+    }
   </style>
   <script>
     // Redirect straight to the table if a token already exists
@@ -162,12 +187,36 @@
       <div class="error" id="error-box"></div>
     </form>
 
-    <p class="helper">Use your PadPad Poker credentials. Need an account? Register via the API.</p>
+    <p class="helper">Use your PadPad Poker credentials or create a new account below.</p>
+
+    <div class="divider"></div>
+
+    <p class="section-title">Create an account</p>
+    <form id="register-form">
+      <label for="register-username">Username</label>
+      <input type="text" id="register-username" name="username" placeholder="pokerfan" required />
+
+      <label for="register-email">Email</label>
+      <input type="email" id="register-email" name="email" placeholder="you@example.com" required />
+
+      <label for="register-password">Password</label>
+      <input type="password" id="register-password" name="password" placeholder="•••••••" required />
+
+      <button type="submit">Register</button>
+      <div class="error" id="register-error"></div>
+      <div class="success" id="register-success"></div>
+    </form>
   </div>
 
   <script>
     const form = document.getElementById("login-form");
     const errorBox = document.getElementById("error-box");
+    const registerForm = document.getElementById("register-form");
+    const registerErrorBox = document.getElementById("register-error");
+    const registerSuccessBox = document.getElementById("register-success");
+    const registerEmailInput = document.getElementById("register-email");
+    const registerPasswordInput = document.getElementById("register-password");
+    const registerUsernameInput = document.getElementById("register-username");
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -189,10 +238,51 @@
 
         const data = await response.json();
         localStorage.setItem("poker_token", data.access_token);
+        localStorage.setItem(
+          "pokerAuth",
+          JSON.stringify({ token: data.access_token, email })
+        );
         window.location.href = "/poker";
       } catch (error) {
         errorBox.textContent = error.message || "Unable to log in. Please try again.";
         errorBox.style.display = "block";
+      }
+    });
+
+    registerForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      registerErrorBox.style.display = "none";
+      registerSuccessBox.style.display = "none";
+
+      const email = registerEmailInput.value.trim();
+      const password = registerPasswordInput.value;
+      const username = registerUsernameInput.value.trim();
+
+      if (!email || !password || !username) {
+        registerErrorBox.textContent = "Please enter username, email, and password.";
+        registerErrorBox.style.display = "block";
+        return;
+      }
+
+      try {
+        const response = await fetch("/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, username }),
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "Unable to register");
+        }
+
+        registerSuccessBox.textContent = "Account created! You can log in now.";
+        registerSuccessBox.style.display = "block";
+        document.getElementById("email").value = email;
+        document.getElementById("password").value = password;
+      } catch (error) {
+        registerErrorBox.textContent = error.message || "Unable to register. Please try again.";
+        registerErrorBox.style.display = "block";
       }
     });
   </script>

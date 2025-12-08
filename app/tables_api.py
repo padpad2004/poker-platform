@@ -277,7 +277,7 @@ async def sit_me(
     try:
         player = engine_table.add_player(
             player_id=len(engine_table.players) + 1,
-            name=current_user.email,
+            name=current_user.username,
             starting_stack=req.buy_in,
             user_id=current_user.id,
             seat=req.seat,
