@@ -39,6 +39,18 @@
       max-width: 1300px;
     }
 
+    body.controls-hidden .layout {
+      grid-template-columns: 1fr;
+    }
+
+    body.controls-hidden .control-panel {
+      display: none;
+    }
+
+    body.controls-hidden .table-panel {
+      grid-column: 1 / -1;
+    }
+
     .panel {
       background: var(--panel);
       border-radius: 12px;
@@ -47,6 +59,21 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
+    }
+
+    .table-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .table-subtitle {
+      margin-top: 4px;
+      color: var(--text-muted);
+      font-size: 12px;
     }
 
     h1 { margin: 0 0 8px; font-size: 20px; }
@@ -696,7 +723,7 @@
 <body>
   <div class="layout">
     <!-- LEFT SIDE: Auth, wallet, clubs, controls -->
-    <div class="panel">
+    <div class="panel control-panel">
       <h1>Poker Engine Control</h1>
       <div class="row" style="margin-bottom: 12px;">
         <a href="/club-management" style="color: #93c5fd; text-decoration: none; font-size: 12px;">
@@ -852,8 +879,14 @@
     </div>
 
     <!-- RIGHT: Table + bottom action bar -->
-    <div class="panel">
-      <h2>Table <span id="tableHeadingLabel">-</span></h2>
+    <div class="panel table-panel">
+      <div class="table-panel-header">
+        <div>
+          <h2>Table <span id="tableHeadingLabel">-</span></h2>
+          <div class="table-subtitle">Focused table view</div>
+        </div>
+        <button id="controlsToggleBtn" class="btn secondary">Hide Poker Engine UI</button>
+      </div>
       <div class="table-wrapper">
         <div class="felt">
           <div class="center-area">
@@ -1088,6 +1121,7 @@
     let actingPlayer = null; // current acting player object from state
     let bigBlind = 2; // default; update if you change createTable values
     let currentUserBalance = 0;
+    let controlsHidden = false;
 
     // DOM elements
     const usernameInput = document.getElementById("usernameInput");
@@ -1121,6 +1155,7 @@
     const refreshTablesBtn = document.getElementById("refreshTablesBtn");
     const hideFullTablesCheckbox = document.getElementById("hideFullTables");
     const tableListEl = document.getElementById("tableList");
+    const controlsToggleBtn = document.getElementById("controlsToggleBtn");
 
     const addAliceBtn = document.getElementById("addAliceBtn");
     const addBobBtn = document.getElementById("addBobBtn");
@@ -1167,6 +1202,18 @@
     const bigCard = document.getElementById("bigCard");
     const bigCardRank = document.getElementById("bigCardRank");
     const bigCardSuit = document.getElementById("bigCardSuit");
+
+    function setControlsHidden(hidden) {
+      controlsHidden = hidden;
+      document.body.classList.toggle("controls-hidden", hidden);
+      if (controlsToggleBtn) {
+        controlsToggleBtn.textContent = hidden ? "Show Poker Engine UI" : "Hide Poker Engine UI";
+      }
+    }
+
+    if (controlsToggleBtn) {
+      controlsToggleBtn.onclick = () => setControlsHidden(!controlsHidden);
+    }
 
     function getCardImageFilename(card) {
       if (!card || card.length < 2) return null;
@@ -2057,6 +2104,7 @@
 
         connectWebSocket();
         renderState(state);
+        setControlsHidden(true);
       } catch (e) {
         alert(e.message);
       }
@@ -2104,6 +2152,7 @@
         connectWebSocket();
         loadTableList();
         alert(`Created table ID ${tableId} for club ${currentClubId}`);
+        setControlsHidden(true);
       } catch (e) {
         alert(e.message);
       }
@@ -2203,6 +2252,8 @@
         alert(e.message);
       }
     };
+
+    setControlsHidden(false);
 
     // Attempt to rehydrate authentication when the page loads
     restoreAuth();
