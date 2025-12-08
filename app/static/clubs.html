@@ -751,6 +751,13 @@
         const detail = await api(`/clubs/${clubId}`);
         currentClubId = detail.id;
         isCurrentUserOwner = currentUserId === detail.owner_id;
+
+        if (!isCurrentUserOwner) {
+          alert("Only the club owner can use the management page for this club.");
+          window.location.href = "/";
+          return;
+        }
+
         clubDetailEmpty.style.display = "none";
         clubDetail.style.display = "block";
         clubTitle.textContent = detail.name;
@@ -765,9 +772,22 @@
 
     async function loadClubs() {
       requireAuth();
+      // Ensure we have the user id so we can enforce owner-only access
+      if (!currentUserId) {
+        await loadBalance();
+      }
       try {
         const clubs = await api("/clubs/");
-        renderClubList(clubs);
+        const ownedClubs = clubs.filter((club) => club.owner_id === currentUserId);
+
+        if (!ownedClubs.length) {
+          clubList.classList.add("muted");
+          clubList.innerHTML =
+            "Only club owners can access this page. Create a club to continue.";
+          return;
+        }
+
+        renderClubList(ownedClubs);
       } catch (e) {
         alert(e.message);
       }
