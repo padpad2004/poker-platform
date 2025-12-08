@@ -483,17 +483,6 @@
           </table>
         </div>
 
-        <div id="balanceSection" style="margin-top: 12px; display:none;">
-          <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Adjust Member Balance</h3>
-          <label for="memberSelect">Member</label>
-          <select id="memberSelect"></select>
-          <label for="balanceDelta">Amount Change</label>
-          <input type="number" id="balanceDelta" placeholder="e.g. 100 or -50" />
-          <div class="stacked">
-            <button id="adjustBalanceBtn">Apply Balance Change</button>
-          </div>
-          <div class="muted" id="balanceFeedback">Only club owners can update balances.</div>
-        </div>
       </div>
 
       <div style="margin-top: 16px;">
@@ -595,11 +584,6 @@
     const createTableError = document.getElementById("createTableError");
     const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
     const submitCreateTableBtn = document.getElementById("submitCreateTableBtn");
-    const balanceSection = document.getElementById("balanceSection");
-    const memberSelect = document.getElementById("memberSelect");
-    const balanceDelta = document.getElementById("balanceDelta");
-    const balanceFeedback = document.getElementById("balanceFeedback");
-    const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
     const manageMembersLink = document.getElementById("manageMembersLink");
     const crestGrid = document.getElementById("crestGrid");
     const crestUrlInput = document.getElementById("crestUrlInput");
@@ -818,12 +802,11 @@
 
         const actions = document.createElement("div");
         actions.className = "chip-actions";
-        const viewBtn = document.createElement("button");
-        viewBtn.dataset.club = club.id;
-        viewBtn.className = "viewClub";
-        viewBtn.textContent = "View";
-        viewBtn.onclick = () => loadClubDetail(Number(viewBtn.dataset.club));
-        actions.appendChild(viewBtn);
+        const viewLink = document.createElement("a");
+        viewLink.className = "button-link";
+        viewLink.href = `/club-detail.html?club_id=${club.id}`;
+        viewLink.textContent = "View Club";
+        actions.appendChild(viewLink);
 
         row.appendChild(info);
         row.appendChild(actions);
@@ -835,14 +818,11 @@
       if (!members.length) {
         membersEmpty.style.display = "block";
         membersTableWrap.style.display = "none";
-        balanceSection.style.display = "none";
         return;
       }
       membersEmpty.style.display = "none";
       membersTableWrap.style.display = "block";
       membersBody.innerHTML = "";
-      balanceSection.style.display = "block";
-      memberSelect.innerHTML = "";
       members.forEach((m) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -851,11 +831,6 @@
           <td>${new Date(m.created_at).toLocaleString()}</td>
         `;
         membersBody.appendChild(tr);
-
-        const option = document.createElement("option");
-        option.value = m.user_id;
-        option.textContent = `${m.user_email} (${m.role})`;
-        memberSelect.appendChild(option);
       });
     }
 
@@ -1145,27 +1120,6 @@
       quickCreateTableBtn.onclick = showCreateTableModal;
     }
 
-    adjustBalanceBtn.onclick = async () => {
-      requireAuth();
-      if (!currentClubId) return alert("Select a club first.");
-      const userId = Number(memberSelect.value);
-      const amountDelta = Number(balanceDelta.value);
-      if (!userId || Number.isNaN(amountDelta)) {
-        return alert("Select a member and enter an amount change.");
-      }
-
-      balanceFeedback.textContent = "Updating balance...";
-      try {
-        const res = await api(`/clubs/${currentClubId}/members/${userId}/balance`, {
-          method: "POST",
-          body: JSON.stringify({ amount_delta: amountDelta }),
-        });
-        balanceFeedback.textContent = `Balance updated. New balance: ${res.new_balance}`;
-        balanceDelta.value = "";
-      } catch (e) {
-        balanceFeedback.textContent = e.message;
-      }
-    };
   </script>
 
 <div class="legal-footer">
