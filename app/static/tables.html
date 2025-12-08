@@ -386,6 +386,21 @@
       }
     }
 
+    async function ensureClubMembership() {
+      try {
+        const clubs = await api("/clubs/", { method: "GET" });
+        if (!Array.isArray(clubs) || clubs.length === 0) {
+          window.location.href = "/join-club";
+          return false;
+        }
+        return true;
+      } catch (err) {
+        errorBox.textContent = err.message || "Unable to load club info";
+        errorBox.style.display = "block";
+        return false;
+      }
+    }
+
     function renderAvatar(targetEl, url, fallbackText) {
       if (!targetEl) return;
 
@@ -526,7 +541,9 @@
     restoreAuthMetadata();
     loadProfileAvatar();
     determineClubOwnership();
-    loadTables();
+    ensureClubMembership().then((ok) => {
+      if (ok) loadTables();
+    });
   </script>
 
   <div class="legal-footer">

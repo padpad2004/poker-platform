@@ -391,6 +391,26 @@
           "pokerAuth",
           JSON.stringify({ token: data.access_token, email })
         );
+
+        try {
+          const clubsRes = await fetch("/clubs/", {
+            method: "GET",
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          });
+
+          if (!clubsRes.ok) {
+            throw new Error("Unable to check clubs");
+          }
+
+          const clubs = await clubsRes.json();
+          if (Array.isArray(clubs) && clubs.length === 0) {
+            window.location.href = "/join-club";
+            return;
+          }
+        } catch (err) {
+          console.warn("Club check failed", err);
+        }
+
         window.location.href = "/available-tables";
       } catch (error) {
         errorBox.textContent = error.message || "Unable to log in. Please try again.";
