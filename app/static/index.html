@@ -1077,6 +1077,8 @@
     const API_BASE = "";
     const AUTH_STORAGE_KEY = "pokerAuth";
     let tableId = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const preselectedTableId = urlParams.get("tableId");
     let lastState = null;
     let tableSocket = null;
     let accessToken = null;
@@ -2204,6 +2206,14 @@
 
     // Attempt to rehydrate authentication when the page loads
     restoreAuth();
+
+    if (preselectedTableId) {
+      if (accessToken) {
+        joinTableById(preselectedTableId);
+      } else {
+        alert("Please log in to join table " + preselectedTableId);
+      }
+    }
   </script>
 </body>
 </html>
