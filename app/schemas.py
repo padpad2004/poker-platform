@@ -85,6 +85,14 @@ class ClubDetail(ClubRead):
     tables: List[PokerTableMeta]
 
 
+class ClubTableCreate(BaseModel):
+    max_seats: int = 6
+    small_blind: int = 1
+    big_blind: int = 2
+    bomb_pot_every_n_hands: Optional[int] = None
+    bomb_pot_amount: Optional[int] = None
+
+
 # ---------- Poker Engine ----------
 
 class PlayerState(BaseModel):

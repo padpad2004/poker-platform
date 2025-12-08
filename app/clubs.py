@@ -177,3 +177,47 @@ def adjust_member_balance(
     db.refresh(user)
 
     return schemas.BalanceUpdateResponse(user_id=user.id, new_balance=user.balance)
+
+
+@router.post(
+    "/{club_id}/tables",
+    response_model=schemas.PokerTableMeta,
+    status_code=status.HTTP_201_CREATED,
+)
+def open_table(
+    club_id: int,
+    payload: schemas.ClubTableCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only club owners can open tables",
+        )
+
+    if payload.small_blind <= 0 or payload.big_blind <= 0:
+        raise HTTPException(status_code=400, detail="Blinds must be positive")
+    if payload.big_blind <= payload.small_blind:
+        raise HTTPException(status_code=400, detail="Big blind must exceed small blind")
+
+    table = models.PokerTable(
+        club_id=club_id,
+        created_by_user_id=current_user.id,
+        max_seats=payload.max_seats,
+        small_blind=payload.small_blind,
+        big_blind=payload.big_blind,
+        bomb_pot_every_n_hands=payload.bomb_pot_every_n_hands,
+        bomb_pot_amount=payload.bomb_pot_amount,
+        status="active",
+    )
+
+    db.add(table)
+    db.commit()
+    db.refresh(table)
+
+    return table
