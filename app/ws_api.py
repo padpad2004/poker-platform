@@ -5,6 +5,7 @@ from jose import jwt
 
 from .tables_api import TABLE_CONNECTIONS, broadcast_table_state, _get_engine_table
 from .deps import SECRET_KEY, ALGORITHM
+from .database import SessionLocal
 
 ws_router = APIRouter()
 
@@ -26,11 +27,15 @@ async def table_ws(websocket: WebSocket, table_id: int):
     await websocket.accept()
 
     # Ensure engine table exists
+    db = SessionLocal()
     try:
-        _get_engine_table(table_id)
+        _get_engine_table(table_id, db)
     except Exception:
         await websocket.close()
+        db.close()
         return
+    finally:
+        db.close()
 
     # Get token from query string: ws://.../ws/tables/1?token=...
     token = websocket.query_params.get("token")
