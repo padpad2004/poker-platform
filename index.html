@@ -49,6 +49,11 @@
       flex-direction: column;
     }
 
+    /* Hide the legacy control surface on the poker view; controls now live on the Club Management page. */
+    .control-panel {
+      display: none;
+    }
+
     h1 { margin: 0 0 8px; font-size: 20px; }
     h2 {
       font-size: 14px;
@@ -545,7 +550,7 @@
 <body>
   <div class="layout">
     <!-- LEFT SIDE: Auth, wallet, clubs, controls -->
-    <div class="panel">
+    <div class="panel control-panel">
       <h1>Poker Engine Control</h1>
 
       <!-- AUTH -->
@@ -852,6 +857,7 @@
 
   <script>
     const API_BASE = "";
+    const AUTH_STORAGE_KEY = "pokerAuth";
     let tableId = null;
     let lastState = null;
     let tableSocket = null;
@@ -968,6 +974,26 @@
       const filename = getCardImageFilename(card);
       if (!filename) return null;
       return `/static/cards/${filename}`;
+    }
+
+    function restoreAuthFromStorage() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed.token || !parsed.email) return;
+        accessToken = parsed.token;
+        currentUserEmail = parsed.email;
+        if (currentUserEmailSpan) currentUserEmailSpan.textContent = parsed.email;
+        if (emailInput) emailInput.value = parsed.email;
+        createClubBtn.disabled = false;
+        joinClubBtn.disabled = false;
+        createTableBtn.disabled = false;
+        joinTableBtn.disabled = false;
+        fetchMe();
+      } catch (err) {
+        console.warn("Failed to restore auth", err);
+      }
     }
 
     async function api(path, options = {}) {
@@ -1301,6 +1327,8 @@
 
     // -------- Auth actions --------
 
+    restoreAuthFromStorage();
+
     registerBtn.onclick = async () => {
       const email = emailInput.value.trim();
       const password = passwordInput.value;
@@ -1506,12 +1534,11 @@
       }
     };
 
-    joinTableBtn.onclick = async () => {
+    async function joinTableById(tid) {
       if (!accessToken) {
         alert("Login first");
         return;
       }
-      const tid = Number(joinTableIdInput.value);
       if (!tid) {
         alert("Enter a table ID");
         return;
@@ -1532,6 +1559,11 @@
       } catch (e) {
         alert(e.message);
       }
+    }
+
+    joinTableBtn.onclick = async () => {
+      const tid = Number(joinTableIdInput.value);
+      joinTableById(tid);
     };
 
     sitMeBtn.onclick = async () => {
@@ -1619,6 +1651,13 @@
         alert(e.message);
       }
     };
+
+    const params = new URLSearchParams(window.location.search);
+    const queryTableId = Number(params.get("tableId"));
+    if (queryTableId) {
+      joinTableIdInput.value = String(queryTableId);
+      joinTableById(queryTableId);
+    }
   </script>
 </body>
 </html>

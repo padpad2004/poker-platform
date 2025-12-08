@@ -180,6 +180,26 @@
       border: 1px solid rgba(34,197,94,0.2);
     }
 
+    .modal.hidden { display: none; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+    .modal-content {
+      background: var(--panel);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+      min-width: 280px;
+    }
+    .modal-content h3 { margin-top: 0; }
+
     select {
       width: 100%;
       padding: 8px 10px;
@@ -285,12 +305,75 @@
     </div>
   </div>
 
+  <div class="panel" style="margin-top: 16px;">
+    <h2>Poker Engine Control</h2>
+    <div class="muted" style="margin-bottom: 10px;">Login above, pick a club, and manage tables from here. The poker table view stays clean—controls live in Club Management now.</div>
+
+    <div class="chip" style="margin-bottom: 12px;">
+      <div>
+        <div class="muted">Balance</div>
+        <strong id="balanceText">0</strong>
+      </div>
+      <button id="topupOpenBtn" disabled>Top up</button>
+    </div>
+
+    <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Table Setup</h3>
+    <div class="stacked">
+      <button id="createTableBtn" disabled>Create Table for Club</button>
+      <button id="sitMeBtn" disabled>Sit as Me</button>
+    </div>
+    <div class="stacked">
+      <input type="number" id="joinTableIdInput" placeholder="Join table ID" style="max-width: 160px;" />
+      <button id="joinTableBtn" disabled>Join Table</button>
+    </div>
+    <div class="stacked">
+      <button id="addAliceBtn" disabled>Add Alice</button>
+      <button id="addBobBtn" disabled>Add Bob</button>
+      <button id="startHandBtn" disabled title="Hands auto-start when two players are seated">Hands Auto-Start</button>
+    </div>
+
+    <h3 style="margin: 12px 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Streets & Showdown</h3>
+    <div class="stacked">
+      <button id="dealFlopBtn" disabled>Deal Flop (manual)</button>
+      <button id="dealTurnBtn" disabled>Deal Turn (manual)</button>
+      <button id="dealRiverBtn" disabled>Deal River (manual)</button>
+      <button id="showdownBtn" disabled>Showdown</button>
+    </div>
+
+    <h3 style="margin: 12px 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">State</h3>
+    <div class="muted" style="margin-bottom: 6px;">
+      <div><strong>Table:</strong> <span id="tableId">None</span></div>
+      <div><strong>Street:</strong> <span id="street">-</span></div>
+      <div><strong>Pot:</strong> <span id="pot">0</span></div>
+      <div><strong>Current Bet:</strong> <span id="currentBet">0</span></div>
+      <div><strong>Next Seat:</strong> <span id="nextToAct">-</span></div>
+    </div>
+    <pre id="rawState" style="background:#0b1020;border:1px solid #1f2937;padding:10px;border-radius:10px;max-height:200px;overflow:auto;">{}</pre>
+
+    <div style="margin-top: 12px;">
+      <a id="openTableLink" class="button-link" href="/">Open Table View</a>
+    </div>
+  </div>
+
+  <div id="topupModal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Top up balance</h3>
+      <input type="number" id="topupAmount" min="1" step="1" value="1000" />
+      <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px;">
+        <button id="topupCancelBtn" class="btn-danger">Cancel</button>
+        <button id="topupConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = "";
     const AUTH_STORAGE_KEY = "pokerAuth";
     let accessToken = "";
     let currentUserEmail = "";
     let currentClubId = null;
+    let tableId = null;
+    let tableSocket = null;
 
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
@@ -319,9 +402,38 @@
     const balanceFeedback = document.getElementById("balanceFeedback");
     const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
 
+    // Engine controls
+    const balanceTextSpan = document.getElementById("balanceText");
+    const topupOpenBtn = document.getElementById("topupOpenBtn");
+    const topupModal = document.getElementById("topupModal");
+    const topupAmountInput = document.getElementById("topupAmount");
+    const topupConfirmBtn = document.getElementById("topupConfirmBtn");
+    const topupCancelBtn = document.getElementById("topupCancelBtn");
+    const createTableBtn = document.getElementById("createTableBtn");
+    const sitMeBtn = document.getElementById("sitMeBtn");
+    const joinTableIdInput = document.getElementById("joinTableIdInput");
+    const joinTableBtn = document.getElementById("joinTableBtn");
+    const addAliceBtn = document.getElementById("addAliceBtn");
+    const addBobBtn = document.getElementById("addBobBtn");
+    const startHandBtn = document.getElementById("startHandBtn");
+    const dealFlopBtn = document.getElementById("dealFlopBtn");
+    const dealTurnBtn = document.getElementById("dealTurnBtn");
+    const dealRiverBtn = document.getElementById("dealRiverBtn");
+    const showdownBtn = document.getElementById("showdownBtn");
+    const tableIdSpan = document.getElementById("tableId");
+    const streetSpan = document.getElementById("street");
+    const potSpan = document.getElementById("pot");
+    const currentBetSpan = document.getElementById("currentBet");
+    const nextToActSpan = document.getElementById("nextToAct");
+    const rawStatePre = document.getElementById("rawState");
+    const openTableLink = document.getElementById("openTableLink");
+
     function setAuthEnabled(enabled) {
       createClubBtn.disabled = !enabled;
       joinClubBtn.disabled = !enabled;
+      topupOpenBtn.disabled = !enabled;
+      createTableBtn.disabled = !enabled;
+      joinTableBtn.disabled = !enabled;
     }
 
     function persistAuth() {
@@ -347,9 +459,16 @@
         currentEmail.textContent = parsed.email;
         if (emailInput) emailInput.value = parsed.email;
         setAuthEnabled(true);
+        loadBalance();
         loadClubs();
       } catch (err) {
         console.warn("Failed to restore auth", err);
+      }
+    }
+
+    function updateBalanceUI(amount) {
+      if (balanceTextSpan) {
+        balanceTextSpan.textContent = amount ?? 0;
       }
     }
 
@@ -380,6 +499,59 @@
         alert("Please login first.");
         throw new Error("Not authenticated");
       }
+    }
+
+    async function loadBalance() {
+      if (!currentUserEmail) return;
+      try {
+        const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`);
+        if (typeof me.balance === "number") updateBalanceUI(me.balance);
+        currentClubId = me.current_club_id || currentClubId;
+      } catch (err) {
+        console.warn("Failed to load balance", err);
+      }
+    }
+
+    function updateTableLink() {
+      if (tableId && openTableLink) {
+        openTableLink.href = `/?tableId=${tableId}`;
+        openTableLink.textContent = `Open Table View (#${tableId})`;
+      } else if (openTableLink) {
+        openTableLink.href = "/";
+        openTableLink.textContent = "Open Table View";
+      }
+    }
+
+    function renderTableState(state) {
+      if (!state) return;
+      tableIdSpan.textContent = state.table_id ?? tableId ?? "None";
+      streetSpan.textContent = state.street ?? "-";
+      potSpan.textContent = state.pot ?? 0;
+      currentBetSpan.textContent = state.current_bet ?? 0;
+      nextToActSpan.textContent = state.next_to_act ?? "-";
+      rawStatePre.textContent = JSON.stringify(state, null, 2);
+
+      dealFlopBtn.disabled = state.street !== "preflop";
+      dealTurnBtn.disabled = state.street !== "flop";
+      dealRiverBtn.disabled = state.street !== "turn";
+      showdownBtn.disabled = state.street !== "river";
+    }
+
+    function connectTableSocket() {
+      if (!tableId) return;
+      if (tableSocket) tableSocket.close();
+
+      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+      const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
+      const url = `${protocol}://${window.location.host}/ws/tables/${tableId}${tokenParam}`;
+      tableSocket = new WebSocket(url);
+      tableSocket.onmessage = (event) => {
+        try {
+          renderTableState(JSON.parse(event.data));
+        } catch (err) {
+          console.error("Bad WS message", err);
+        }
+      };
     }
 
     function renderClubList(clubs) {
@@ -525,6 +697,7 @@
         currentEmail.textContent = email;
         setAuthEnabled(true);
         persistAuth();
+        loadBalance();
         loadClubs();
         alert("Logged in!");
       } catch (e) {
@@ -556,9 +729,135 @@
       try {
         await api(`/clubs/${clubId}/join`, { method: "POST" });
         alert(`Joined club #${clubId}`);
+        currentClubId = clubId;
+        updateTableLink();
         loadClubs();
       } catch (e) {
         alert(e.message);
+      }
+    };
+
+    if (topupOpenBtn) {
+      topupOpenBtn.onclick = () => {
+        requireAuth();
+        topupModal.classList.remove("hidden");
+      };
+    }
+
+    if (topupCancelBtn) {
+      topupCancelBtn.onclick = () => topupModal.classList.add("hidden");
+    }
+
+    if (topupConfirmBtn) {
+      topupConfirmBtn.onclick = async () => {
+        requireAuth();
+        const amount = Number(topupAmountInput.value);
+        if (!amount || amount <= 0) return alert("Enter a positive amount");
+        try {
+          const me = await api(`/wallet/topup?email=${encodeURIComponent(currentUserEmail)}`, {
+            method: "POST",
+            body: JSON.stringify({ amount }),
+          });
+          if (typeof me.balance === "number") updateBalanceUI(me.balance);
+          topupModal.classList.add("hidden");
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    }
+
+    createTableBtn.onclick = async () => {
+      requireAuth();
+      if (!currentClubId) return alert("Create or join a club first.");
+      try {
+        const data = await api("/tables/", {
+          method: "POST",
+          body: JSON.stringify({ club_id: currentClubId, max_seats: 6, small_blind: 1, big_blind: 2 }),
+        });
+        tableId = data.table_id;
+        tableIdSpan.textContent = tableId;
+        sitMeBtn.disabled = false;
+        addAliceBtn.disabled = false;
+        addBobBtn.disabled = false;
+        startHandBtn.disabled = true;
+        updateTableLink();
+        connectTableSocket();
+        alert(`Created table ID ${tableId}`);
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    joinTableBtn.onclick = async () => {
+      requireAuth();
+      const tid = Number(joinTableIdInput.value);
+      if (!tid) return alert("Enter a table ID");
+      try {
+        const state = await api(`/tables/${tid}`);
+        tableId = tid;
+        tableIdSpan.textContent = tid;
+        sitMeBtn.disabled = false;
+        addAliceBtn.disabled = true;
+        addBobBtn.disabled = true;
+        startHandBtn.disabled = true;
+        updateTableLink();
+        connectTableSocket();
+        renderTableState(state);
+        alert(`Joined table ${tid}`);
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    sitMeBtn.onclick = async () => {
+      requireAuth();
+      if (!tableId) return alert("Create or join a table first");
+      try {
+        await api(`/tables/${tableId}/sit_me`, { method: "POST" });
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    addAliceBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/players`, { method: "POST", body: JSON.stringify({ name: "Alice", starting_stack: 100 }) });
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    addBobBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/players`, { method: "POST", body: JSON.stringify({ name: "Bob", starting_stack: 100 }) });
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    startHandBtn.onclick = () => alert("Hands now start automatically when two players are seated.");
+
+    dealFlopBtn.onclick = async () => {
+      if (!tableId) return;
+      try { await api(`/tables/${tableId}/deal_flop`, { method: "POST" }); } catch (err) { alert(err.message); }
+    };
+    dealTurnBtn.onclick = async () => {
+      if (!tableId) return;
+      try { await api(`/tables/${tableId}/deal_turn`, { method: "POST" }); } catch (err) { alert(err.message); }
+    };
+    dealRiverBtn.onclick = async () => {
+      if (!tableId) return;
+      try { await api(`/tables/${tableId}/deal_river`, { method: "POST" }); } catch (err) { alert(err.message); }
+    };
+    showdownBtn.onclick = async () => {
+      if (!tableId) return;
+      try {
+        const result = await api(`/tables/${tableId}/showdown`, { method: "POST" });
+        alert("Winners: " + result.winners.map((w) => `${w.name} (stack ${w.stack})`).join(", "));
+      } catch (err) {
+        alert(err.message);
       }
     };
 
