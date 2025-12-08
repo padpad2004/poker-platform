@@ -554,7 +554,12 @@
 
     async function closeTable(tableId) {
       if (!currentClubId) return alert("Select a club first");
-      const confirmed = window.confirm("Close this table? Players will be disconnected.");
+      const confirmed = await showCustomConfirm({
+        title: "Close this table?",
+        message: "Players will be disconnected immediately and the table will be removed from your club list.",
+        confirmText: "Close table",
+        cancelText: "Keep open",
+      });
       if (!confirmed) return;
 
       try {
