@@ -47,6 +47,12 @@ class ProfileResponse(UserMe):
     hand_history: List[HandHistoryRead]
 
 
+class AdminUser(UserRead):
+    balance: int
+    current_club_id: Optional[int] = None
+    profile_picture_url: Optional[str] = None
+
+
 # ---------- Club ----------
 
 class ClubBase(BaseModel):
@@ -181,3 +187,10 @@ class BalanceUpdateRequest(BaseModel):
 class BalanceUpdateResponse(BaseModel):
     user_id: int
     new_balance: int
+
+
+class AdminOverview(BaseModel):
+    users: List[AdminUser]
+    clubs: List[ClubRead]
+
+    model_config = ConfigDict(from_attributes=True)
