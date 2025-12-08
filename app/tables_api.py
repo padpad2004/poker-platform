@@ -234,6 +234,7 @@ async def add_player(
         name=req.name,
         starting_stack=req.starting_stack,
         user_id=None,
+        seat=req.seat,
     )
     await broadcast_table_state(table_id)
     return schemas.AddPlayerResponse(table_id=table_id, player_id=player.id, seat=player.seat)
@@ -242,6 +243,7 @@ async def add_player(
 @router.post("/{table_id}/sit_me", response_model=schemas.AddPlayerResponse)
 async def sit_me(
     table_id: int,
+    req: schemas.SitMeRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -252,12 +254,32 @@ async def sit_me(
         if p.user_id == current_user.id:
             raise HTTPException(status_code=400, detail="User already seated at this table")
 
-    player = engine_table.add_player(
-        player_id=len(engine_table.players) + 1,
-        name=current_user.email,
-        starting_stack=100,
-        user_id=current_user.id,
-    )
+    if req.buy_in <= 0:
+        raise HTTPException(status_code=400, detail="Buy-in must be positive")
+
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.balance < req.buy_in:
+        raise HTTPException(status_code=400, detail="Insufficient balance for buy-in")
+
+    try:
+        player = engine_table.add_player(
+            player_id=len(engine_table.players) + 1,
+            name=current_user.email,
+            starting_stack=req.buy_in,
+            user_id=current_user.id,
+            seat=req.seat,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    user.balance -= req.buy_in
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
     await broadcast_table_state(table_id)
     return schemas.AddPlayerResponse(table_id=table_id, player_id=player.id, seat=player.seat)
 

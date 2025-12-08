@@ -120,6 +120,12 @@ class CreateTableResponse(BaseModel):
 class AddPlayerRequest(BaseModel):
     name: str
     starting_stack: int = 100
+    seat: Optional[int] = None
+
+
+class SitMeRequest(BaseModel):
+    seat: Optional[int] = None
+    buy_in: int
 
 
 class AddPlayerResponse(BaseModel):

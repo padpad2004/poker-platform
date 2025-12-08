@@ -65,7 +65,14 @@ class Table:
 
     # ---------- Player & seating ----------
 
-    def add_player(self, player_id: int, name: str, starting_stack: int = 100, user_id: Optional[int] = None) -> Player:
+    def add_player(
+        self,
+        player_id: int,
+        name: str,
+        starting_stack: int = 100,
+        user_id: Optional[int] = None,
+        seat: Optional[int] = None,
+    ) -> Player:
         """
         Add a player to the table.
         user_id = real user id (for human seat), or None for generic/bot seat.
@@ -74,19 +81,32 @@ class Table:
             raise ValueError("Table is full")
 
         taken_seats = {p.seat for p in self.players}
-        for seat in range(self.max_seats):
-            if seat not in taken_seats:
-                new_player = Player(
-                    id=player_id,
-                    name=name,
-                    seat=seat,
-                    stack=starting_stack,
-                    user_id=user_id,
-                )
-                self.players.append(new_player)
-                return new_player
 
-        raise ValueError("No available seats")
+        if seat is not None:
+            if seat < 0 or seat >= self.max_seats:
+                raise ValueError("Invalid seat number")
+            if seat in taken_seats:
+                raise ValueError("Seat already occupied")
+            chosen_seat = seat
+        else:
+            chosen_seat = None
+            for possible in range(self.max_seats):
+                if possible not in taken_seats:
+                    chosen_seat = possible
+                    break
+
+            if chosen_seat is None:
+                raise ValueError("No available seats")
+
+        new_player = Player(
+            id=player_id,
+            name=name,
+            seat=chosen_seat,
+            stack=starting_stack,
+            user_id=user_id,
+        )
+        self.players.append(new_player)
+        return new_player
 
     def get_player_by_id(self, player_id: int) -> Player:
         for p in self.players:

@@ -334,6 +334,14 @@
       border-style: dashed;
     }
 
+    .seat.empty {
+      cursor: pointer;
+    }
+
+    .seat.empty .seat-inner:hover {
+      opacity: 0.35;
+    }
+
     /* Seat positions (6-max) */
     .seat[data-seat="0"] { top: 20%; left: 50%; }
     .seat[data-seat="1"] { top: 32%; left: 82%; }
@@ -610,7 +618,6 @@
       <div class="row">
         <button id="addAliceBtn" disabled>Add Alice</button>
         <button id="addBobBtn" disabled>Add Bob</button>
-        <button id="startHandBtn" disabled title="Hands auto-start when two players are seated">Hands Auto-Start</button>
       </div>
 
       <!-- BETTING / STREETS -->
@@ -662,7 +669,7 @@
                     <span class="seat-stack">0</span>
                   </div>
                   <div class="seat-meta-row">
-                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
                 </div>
@@ -683,7 +690,7 @@
                     <span class="seat-stack">0</span>
                   </div>
                   <div class="seat-meta-row">
-                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
                 </div>
@@ -704,7 +711,7 @@
                     <span class="seat-stack">0</span>
                   </div>
                   <div class="seat-meta-row">
-                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
                 </div>
@@ -725,7 +732,7 @@
                     <span class="seat-stack">0</span>
                   </div>
                   <div class="seat-meta-row">
-                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
                 </div>
@@ -746,7 +753,7 @@
                     <span class="seat-stack">0</span>
                   </div>
                   <div class="seat-meta-row">
-                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
                 </div>
@@ -767,7 +774,7 @@
                     <span class="seat-stack">0</span>
                   </div>
                   <div class="seat-meta-row">
-                    <span class="seat-status">Waiting for player...</span>
+                    <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
                 </div>
@@ -870,8 +877,7 @@
 
     const addAliceBtn = document.getElementById("addAliceBtn");
     const addBobBtn = document.getElementById("addBobBtn");
-    const startHandBtn = document.getElementById("startHandBtn");
-    startHandBtn.title = "Hands start automatically once two players are seated";
+    const seatElements = document.querySelectorAll(".seat");
 
     const dealFlopBtn = document.getElementById("dealFlopBtn");
     const dealTurnBtn = document.getElementById("dealTurnBtn");
@@ -1013,26 +1019,84 @@
     }
 
     function clearSeats() {
-  const seats = document.querySelectorAll(".seat");
-  seats.forEach(seat => {
-    seat.classList.add("empty");
-    seat.classList.remove("highlight");
+      const seats = document.querySelectorAll(".seat");
+      seats.forEach(seat => {
+        seat.classList.add("empty");
+        seat.classList.remove("highlight");
 
-    const nameEl = seat.querySelector(".seat-name");
-    const stackEl = seat.querySelector(".seat-stack");
-    const statusEl = seat.querySelector(".seat-status");
-    const betEl = seat.querySelector(".seat-bet");
-    const avatarInitialEl = seat.querySelector(".seat-avatar-initial");
-    const cardsEl = seat.querySelector(".seat-cards");
+        const nameEl = seat.querySelector(".seat-name");
+        const stackEl = seat.querySelector(".seat-stack");
+        const statusEl = seat.querySelector(".seat-status");
+        const betEl = seat.querySelector(".seat-bet");
+        const avatarInitialEl = seat.querySelector(".seat-avatar-initial");
+        const cardsEl = seat.querySelector(".seat-cards");
 
-    if (nameEl) nameEl.textContent = "Empty";
-    if (stackEl) stackEl.textContent = "";
-    if (statusEl) statusEl.textContent = "Waiting for player...";
-    if (betEl) betEl.textContent = "";
-    if (avatarInitialEl) avatarInitialEl.textContent = "?";
-    if (cardsEl) cardsEl.innerHTML = "";
-  });
-}
+        if (nameEl) nameEl.textContent = "Empty";
+        if (stackEl) stackEl.textContent = "";
+        if (statusEl) statusEl.textContent = "Click to sit";
+        if (betEl) betEl.textContent = "";
+        if (avatarInitialEl) avatarInitialEl.textContent = "?";
+        if (cardsEl) cardsEl.innerHTML = "";
+      });
+    }
+
+    async function handleSeatClick(seatEl) {
+      if (!seatEl.classList.contains("empty")) {
+        return;
+      }
+
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+
+      if (!tableId) {
+        alert("Create or join a table first");
+        return;
+      }
+
+      if (currentUserBalance <= 0) {
+        alert("You need chips in your wallet to sit down. Top up first.");
+        return;
+      }
+
+      const seatIndex = Number(seatEl.dataset.seat);
+      const defaultBuyIn = Math.min(currentUserBalance, 100) || currentUserBalance;
+      const input = prompt(
+        `Enter buy-in for seat ${seatIndex} (Balance: ${currentUserBalance})`,
+        defaultBuyIn ? defaultBuyIn.toString() : ""
+      );
+
+      if (input === null) {
+        return;
+      }
+
+      const buyIn = Number(input);
+
+      if (!Number.isFinite(buyIn) || buyIn <= 0) {
+        alert("Enter a positive buy-in amount");
+        return;
+      }
+
+      if (buyIn > currentUserBalance) {
+        alert("Buy-in cannot exceed your wallet balance");
+        return;
+      }
+
+      try {
+        await api(`/tables/${tableId}/sit_me`, {
+          method: "POST",
+          body: JSON.stringify({ seat: seatIndex, buy_in: buyIn }),
+        });
+        await fetchMe();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    seatElements.forEach(seat => {
+      seat.addEventListener("click", () => handleSeatClick(seat));
+    });
 
 
     function updateBalanceUI(amount) {
@@ -1525,7 +1589,6 @@
         sitMeBtn.disabled = false;
         addAliceBtn.disabled = false;
         addBobBtn.disabled = false;
-        startHandBtn.disabled = true;
 
         connectWebSocket();
         alert(`Created table ID ${tableId} for club ${currentClubId}`);
@@ -1552,7 +1615,6 @@
         sitMeBtn.disabled = false;
         addAliceBtn.disabled = true;
         addBobBtn.disabled = true;
-        startHandBtn.disabled = true;
 
         connectWebSocket();
         renderState(state);
@@ -1604,10 +1666,6 @@
       } catch (e) {
         alert(e.message);
       }
-    };
-
-    startHandBtn.onclick = () => {
-      alert("Hands now start automatically when two players are seated.");
     };
 
     dealFlopBtn.onclick = async () => {
