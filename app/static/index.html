@@ -570,6 +570,35 @@
       gap: 6px;
     }
 
+    .seat-timer {
+      margin-top: 6px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      position: relative;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .seat-timer.active {
+      opacity: 1;
+    }
+
+    .seat-timer-fill {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      transition: width 0.2s linear;
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+    }
+
+    .seat.timer-warning .seat-timer-fill {
+      background: linear-gradient(90deg, #f97316, #ef4444);
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.4);
+    }
+
     .seat-card img {
       width: 72px;
       height: 102px;
@@ -1047,6 +1076,9 @@
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
+                  </div>
                   <div class="seat-buttons">
                     <span class="button-chip dealer-chip hidden">DEALER</span>
                     <span class="button-chip sb-chip hidden">SB</span>
@@ -1073,6 +1105,9 @@
                   <div class="seat-meta-row">
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
                   </div>
                   <div class="seat-buttons">
                     <span class="button-chip dealer-chip hidden">DEALER</span>
@@ -1101,6 +1136,9 @@
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
+                  </div>
                   <div class="seat-buttons">
                     <span class="button-chip dealer-chip hidden">DEALER</span>
                     <span class="button-chip sb-chip hidden">SB</span>
@@ -1127,6 +1165,9 @@
                   <div class="seat-meta-row">
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
                   </div>
                   <div class="seat-buttons">
                     <span class="button-chip dealer-chip hidden">DEALER</span>
@@ -1155,6 +1196,9 @@
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
+                  </div>
                   <div class="seat-buttons">
                     <span class="button-chip dealer-chip hidden">DEALER</span>
                     <span class="button-chip sb-chip hidden">SB</span>
@@ -1181,6 +1225,9 @@
                   <div class="seat-meta-row">
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
                   </div>
                   <div class="seat-buttons">
                     <span class="button-chip dealer-chip hidden">DEALER</span>
@@ -1300,6 +1347,12 @@
     let tableOwnerUserId = null;
     let controlsHidden = false;
     let pendingSeatIndex = null;
+    let actingTimerInterval = null;
+    let actingTimerSeat = null;
+    let timerWarningFired = false;
+
+    const ACTING_TIME_MS = 30000;
+    const TIMER_WARNING_MS = 5000;
 
     const TOTAL_SEATS = 6;
     const VIEWER_DISPLAY_SEAT = 3; // bottom center anchor
@@ -1397,6 +1450,76 @@
     const seatChangeOptions = document.getElementById("seatChangeOptions");
     const seatChangeCancelBtn = document.getElementById("seatChangeCancelBtn");
     const seatChangeError = document.getElementById("seatChangeError");
+
+    function playTimerWarningSound() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 880;
+        gain.gain.value = 0.18;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        osc.stop(ctx.currentTime + 0.5);
+      } catch (err) {
+        console.warn("Timer warning sound failed", err);
+      }
+    }
+
+    function clearActingTimer() {
+      if (actingTimerInterval) {
+        clearInterval(actingTimerInterval);
+      }
+      actingTimerInterval = null;
+      actingTimerSeat = null;
+      timerWarningFired = false;
+      document.querySelectorAll(".seat-timer").forEach(bar => bar.classList.remove("active"));
+      document.querySelectorAll(".seat-timer-fill").forEach(fill => {
+        fill.style.width = "0%";
+      });
+      document.querySelectorAll(".seat.timer-warning").forEach(seat => seat.classList.remove("timer-warning"));
+    }
+
+    function startActingTimer(seatNumber) {
+      clearActingTimer();
+      if (seatNumber == null) return;
+
+      const seatDiv = document.querySelector(`.seat[data-seat="${seatNumber}"]`);
+      const fill = seatDiv?.querySelector(".seat-timer-fill");
+      const bar = seatDiv?.querySelector(".seat-timer");
+      if (!seatDiv || !fill || !bar) return;
+
+      bar.classList.add("active");
+      seatDiv.classList.remove("timer-warning");
+      actingTimerSeat = seatNumber;
+      timerWarningFired = false;
+
+      const deadline = Date.now() + ACTING_TIME_MS;
+
+      actingTimerInterval = setInterval(() => {
+        const remaining = Math.max(0, deadline - Date.now());
+        const pct = Math.max(0, Math.min(1, remaining / ACTING_TIME_MS));
+        fill.style.width = `${pct * 100}%`;
+
+        if (!timerWarningFired && remaining <= TIMER_WARNING_MS) {
+          timerWarningFired = true;
+          seatDiv.classList.add("timer-warning");
+          playTimerWarningSound();
+          if (seatActionMessage) {
+            seatActionMessage.textContent = "Hurry! 5 seconds left to act.";
+          }
+        }
+
+        if (remaining <= 0) {
+          clearActingTimer();
+        }
+      }, 200);
+    }
 
     // Big card popup elements
     const bigCardOverlay = document.getElementById("bigCardOverlay");
@@ -2018,6 +2141,15 @@
       const prevState = lastState;
       lastState = state;
 
+      const nextSeatChanged = prevState?.next_to_act_seat !== state.next_to_act_seat;
+      if (nextSeatChanged) {
+        if (state.next_to_act_seat == null) {
+          clearActingTimer();
+        } else {
+          startActingTimer(state.next_to_act_seat);
+        }
+      }
+
       applySeatLayout(state);
 
       tableIdSpan.textContent = state.id;
@@ -2155,9 +2287,22 @@
           });
         }
 
-        // Highlight next to act
-        if (state.next_to_act_seat === p.seat) {
+        const timerBar = seatDiv.querySelector(".seat-timer");
+        const timerFill = seatDiv.querySelector(".seat-timer-fill");
+        const isActingSeat = state.next_to_act_seat === p.seat;
+
+        if (timerBar) {
+          timerBar.classList.toggle("active", isActingSeat || actingTimerSeat === p.seat);
+        }
+
+        if (!isActingSeat && timerFill && actingTimerSeat !== p.seat) {
+          timerFill.style.width = "0%";
+        }
+
+        if (isActingSeat) {
           seatDiv.classList.add("highlight");
+        } else {
+          seatDiv.classList.remove("highlight", "timer-warning");
         }
       });
 
