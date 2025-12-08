@@ -518,6 +518,12 @@
       }
     }
   </style>
+  <script>
+    const token = localStorage.getItem("poker_token");
+    if (!token) {
+      window.location.href = "/";
+    }
+  </script>
 </head>
 <body>
   <div class="layout">
