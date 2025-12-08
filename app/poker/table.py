@@ -43,6 +43,7 @@ class Table:
         big_blind: float = 2,
         bomb_pot_every_n_hands: Optional[int] = None,
         bomb_pot_amount: Optional[float] = None,
+        action_time_limit: float = 30,
     ):
         self.max_seats = max_seats
         self.players: List[Player] = []
@@ -62,6 +63,7 @@ class Table:
         self.big_blind: float = big_blind
         self.next_to_act_seat: Optional[int] = None
         self.action_deadline: Optional[float] = None  # epoch seconds for timer
+        self.action_time_limit = action_time_limit
 
         # Bomb pot configuration
         self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
@@ -215,7 +217,7 @@ class Table:
 
         self.current_bet = max(self.current_bet, self.big_blind)
 
-        self.next_to_act_seat = self._next_seat(bb_player.seat)
+        self.next_to_act_seat = self._next_player_to_act(bb_player.seat)
         self._set_action_deadline()
 
     def _apply_bomb_pot_if_needed(self) -> None:
@@ -258,6 +260,22 @@ class Table:
         idx = occupied.index(seat)
         return occupied[(idx + 1) % len(occupied)]
 
+    def _next_player_to_act(self, start_from_seat: int) -> Optional[int]:
+        """Return the next eligible seat to act, starting after the given seat."""
+        if not self.players:
+            return None
+
+        seat = start_from_seat
+        while True:
+            seat = self._next_seat(seat)
+            player = self._player_by_seat(seat)
+
+            if player.in_hand and not player.has_folded and not player.all_in:
+                return seat
+
+            if seat == start_from_seat:
+                return None
+
     def remove_player_by_user(self, user_id: int) -> Player:
         """Remove a seated player by their user id and clear related markers."""
 
@@ -286,7 +304,7 @@ class Table:
         if self.next_to_act_seat is None:
             self.action_deadline = None
             return
-        self.action_deadline = time.time() + 30
+        self.action_deadline = time.time() + self.action_time_limit
 
     def enforce_action_timeout(self) -> Optional[str]:
         """Auto-act if the current player has exceeded the 30 second window."""
@@ -426,7 +444,7 @@ class Table:
         self.current_bet = 0
         for p in self.players:
             p.committed = 0
-        self.next_to_act_seat = self._next_seat(self.dealer_seat)
+        self.next_to_act_seat = self._next_player_to_act(self.dealer_seat)
         self._set_action_deadline()
 
     def deal_flop(self) -> None:
