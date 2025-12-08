@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 
@@ -63,21 +63,30 @@ app.include_router(ws_router)            # /ws/tables/{id}
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
+def _serve_html(filename: str) -> HTMLResponse:
+    """Serve an HTML file from the static directory.
+
+    Using HTMLResponse ensures the correct content type is always returned,
+    which avoids browsers trying to pretty-print JSON or other fallback
+    responses when hitting the root domain.
+    """
+
+    file_path = static_dir / filename
+    return HTMLResponse(file_path.read_text(encoding="utf-8"))
+
+
 @app.get("/")
 def read_root():
-    index_path = static_dir / "index.html"
-    return FileResponse(index_path)
+    return _serve_html("index.html")
 
 
 @app.get("/club-management")
 @app.get("/club-management.html")
 def read_club_management_page():
-    clubs_path = static_dir / "clubs.html"
-    return FileResponse(clubs_path)
+    return _serve_html("clubs.html")
 
 
 @app.get("/clubs")
 @app.get("/clubs.html")
 def read_clubs_page():
-    clubs_path = static_dir / "clubs.html"
-    return FileResponse(clubs_path)
+    return _serve_html("clubs.html")
