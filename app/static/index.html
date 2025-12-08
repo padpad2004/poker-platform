@@ -336,6 +336,20 @@
       max-width: 480px;
       text-align: center;
       color: #ecfdf5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pot-display {
+      padding: 6px 12px;
+      background: rgba(0,0,0,0.25);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.35);
     }
 
     .board-cards { margin-bottom: 6px; }
@@ -959,10 +973,8 @@
       <div class="table-wrapper">
         <div class="felt">
           <div class="center-area">
+            <div class="pot-display">Pot: <span id="potCenter">0</span></div>
             <div class="board-cards" id="boardCards"></div>
-            <div>Pot: <span id="potCenter">0</span></div>
-            <div>Bet: <span id="betCenter">0</span></div>
-            <div>Street: <span id="streetCenter">-</span></div>
           </div>
           <!-- 6 seat slots -->
           <div class="seat" data-seat="0">
@@ -1283,8 +1295,6 @@
 
     const boardCardsSpan = document.getElementById("boardCards");
     const potCenterSpan = document.getElementById("potCenter");
-    const betCenterSpan = document.getElementById("betCenter");
-    const streetCenterSpan = document.getElementById("streetCenter");
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
 
     if (logoutBtn) logoutBtn.disabled = true;
@@ -1901,8 +1911,6 @@
       console.log("STATE PLAYERS:", state.players);
 
       potCenterSpan.textContent = state.pot;
-      betCenterSpan.textContent = state.current_bet;
-      streetCenterSpan.textContent = state.street;
 
       // ---- BOARD CARDS ----
       const prevBoardLen = prevState ? prevState.board.length : 0;
