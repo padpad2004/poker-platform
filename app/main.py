@@ -95,3 +95,9 @@ def read_club_management_page():
 @app.get("/clubs.html")
 def read_clubs_page():
     return _serve_html("clubs.html")
+
+
+@app.get("/available-tables")
+@app.get("/available-tables.html")
+def read_available_tables_page():
+    return _serve_html("tables.html")

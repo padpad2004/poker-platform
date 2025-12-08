@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PadPad Poker | Tables</title>
+  <style>
+    :root {
+      --bg: #0b1224;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --danger: #dc2626;
+      --gold: #c8a36b;
+      --card: #11192e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(15, 23, 42, 0.9);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: #0b1224;
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .panel h2 {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtext {
+      color: var(--text-muted);
+      margin: 6px 0 0;
+      font-size: 14px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 14px;
+      user-select: none;
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: linear-gradient(135deg, var(--btn), var(--btn-hover));
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn.secondary {
+      background: transparent;
+      color: var(--text-main);
+      border-color: #1f2a3c;
+    }
+
+    .table-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .table-card-main {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .table-title { font-weight: 800; font-size: 18px; }
+    .table-meta { color: var(--text-muted); font-size: 14px; }
+
+    .table-seats {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .seat-pill {
+      padding: 8px 12px;
+      border-radius: 12px;
+      background: rgba(34, 197, 94, 0.15);
+      color: #a7f3d0;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      font-weight: 700;
+    }
+
+    .table-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .tag-chip.success {
+      color: #befae3;
+      border-color: rgba(34, 197, 94, 0.4);
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-muted);
+      border: 1px dashed var(--panel-border);
+      border-radius: 14px;
+    }
+
+    .error {
+      color: #fca5a5;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .table-card-main { flex-direction: column; align-items: flex-start; }
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo-circle">P</div>
+      <div>
+        <p class="page-title">Available Tables</p>
+        <p class="subtext">Pick a table created by your club owner.</p>
+      </div>
+    </div>
+    <button class="btn secondary" id="logoutBtn">Logout</button>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2>Club tables</h2>
+          <p class="subtext">Join a table to be redirected to the poker view.</p>
+        </div>
+        <div class="controls">
+          <label class="checkbox-row">
+            <input type="checkbox" id="hideFullTables" /> Hide full tables
+          </label>
+          <button class="btn secondary" id="refreshBtn">Refresh</button>
+        </div>
+      </div>
+
+      <div id="tableList" class="table-list"></div>
+      <div id="errorBox" class="error" style="display:none"></div>
+    </div>
+  </main>
+
+  <script>
+    const AUTH_KEY = "poker_token";
+    let accessToken = localStorage.getItem(AUTH_KEY);
+
+    if (!accessToken) {
+      window.location.href = "/";
+    }
+
+    const tableList = document.getElementById("tableList");
+    const hideFullCheckbox = document.getElementById("hideFullTables");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const errorBox = document.getElementById("errorBox");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    async function api(path, options = {}) {
+      const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+
+      const res = await fetch(path, { ...options, headers });
+      if (res.status === 401) {
+        localStorage.removeItem(AUTH_KEY);
+        window.location.href = "/";
+        return Promise.reject(new Error("Unauthorized"));
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Error ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function renderTables(tables) {
+      tableList.innerHTML = "";
+      if (!tables.length) {
+        tableList.innerHTML = '<div class="empty-state">No tables available right now.</div>';
+        return;
+      }
+
+      tables.forEach((tbl) => {
+        const card = document.createElement("div");
+        card.className = "table-card";
+
+        const title = document.createElement("div");
+        title.className = "table-title";
+        title.textContent = `Table #${tbl.id}`;
+
+        const meta = document.createElement("div");
+        meta.className = "table-meta";
+        meta.textContent = `Blinds ${tbl.small_blind}/${tbl.big_blind} • Club ${tbl.club_id}`;
+
+        const left = document.createElement("div");
+        left.appendChild(title);
+        left.appendChild(meta);
+
+        const seats = document.createElement("div");
+        seats.className = "seat-pill";
+        const seatsLabel = (tbl.playersCount ?? null) !== null
+          ? `${tbl.playersCount}/${tbl.max_seats}`
+          : `${tbl.max_seats} seats`;
+        seats.textContent = seatsLabel;
+
+        const joinBtn = document.createElement("button");
+        joinBtn.className = "btn";
+        joinBtn.textContent = "Join";
+        joinBtn.onclick = () => {
+          window.location.href = `/poker?tableId=${tbl.id}`;
+        };
+
+        const seatWrap = document.createElement("div");
+        seatWrap.className = "table-seats";
+        seatWrap.appendChild(seats);
+        seatWrap.appendChild(joinBtn);
+
+        const mainRow = document.createElement("div");
+        mainRow.className = "table-card-main";
+        mainRow.appendChild(left);
+        mainRow.appendChild(seatWrap);
+
+        const tags = document.createElement("div");
+        tags.className = "table-tags";
+        const statusTag = document.createElement("span");
+        statusTag.className = "tag-chip success";
+        statusTag.textContent = tbl.status ? tbl.status.toUpperCase() : "ACTIVE";
+        const seatsTag = document.createElement("span");
+        seatsTag.className = "tag-chip";
+        seatsTag.textContent = `${tbl.max_seats}-max table`;
+        tags.appendChild(statusTag);
+        tags.appendChild(seatsTag);
+
+        card.appendChild(mainRow);
+        card.appendChild(tags);
+        tableList.appendChild(card);
+      });
+    }
+
+    async function loadTables() {
+      tableList.innerHTML = '<div class="empty-state">Loading tables...</div>';
+      errorBox.style.display = "none";
+      try {
+        const tables = await api("/tables/", { method: "GET" });
+        const hideFull = hideFullCheckbox?.checked;
+        const enriched = [];
+
+        for (const tbl of tables) {
+          let playersCount = null;
+          try {
+            const state = await api(`/tables/${tbl.id}`, { method: "GET" });
+            if (Array.isArray(state.players)) playersCount = state.players.length;
+          } catch (err) {
+            console.warn("Failed to load table state", err);
+          }
+
+          if (hideFull && playersCount !== null && playersCount >= tbl.max_seats) {
+            continue;
+          }
+
+          enriched.push({ ...tbl, playersCount });
+        }
+
+        renderTables(enriched);
+      } catch (err) {
+        errorBox.textContent = err.message || "Unable to load tables";
+        errorBox.style.display = "block";
+        tableList.innerHTML = "";
+      }
+    }
+
+    refreshBtn.addEventListener("click", loadTables);
+    hideFullCheckbox.addEventListener("change", loadTables);
+
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem("pokerAuth");
+      window.location.href = "/";
+    });
+
+    loadTables();
+  </script>
+</body>
+</html>

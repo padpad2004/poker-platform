@@ -274,10 +274,10 @@
     }
   </style>
   <script>
-    // Redirect straight to the table if a token already exists
+    // Redirect straight to the tables lobby if a token already exists
     const existingToken = localStorage.getItem("poker_token");
     if (existingToken) {
-      window.location.href = "/poker";
+      window.location.href = "/available-tables";
     }
   </script>
 </head>
@@ -372,7 +372,7 @@
           "pokerAuth",
           JSON.stringify({ token: data.access_token, email })
         );
-        window.location.href = "/poker";
+        window.location.href = "/available-tables";
       } catch (error) {
         errorBox.textContent = error.message || "Unable to log in. Please try again.";
         errorBox.style.display = "block";
