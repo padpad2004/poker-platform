@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Club Detail | Poker Platform</title>
+  <style>
+    :root {
+      --bg: #0b1222;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: radial-gradient(circle at top, #111827 0, #0b1222 60%);
+      color: var(--text-main);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+
+    a { color: #93c5fd; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.45);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .muted { color: var(--text-muted); }
+
+    .crest-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(34,197,94,0.15));
+      border: 1px solid var(--panel-border);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #c7d2fe;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .crest-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(34, 197, 94, 0.1);
+      color: #86efac;
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+
+    .chip {
+      border: 1px solid #1f2937;
+      background: #0b1020;
+      padding: 10px 12px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chip-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .button-link, button {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: none;
+      background: var(--btn);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .button-link:hover,
+    button:hover:not(:disabled) { background: var(--btn-hover); }
+
+    button:disabled { background: #374151; cursor: not-allowed; }
+
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    th, td {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #1f2937;
+      font-size: 13px;
+    }
+    th { color: var(--text-muted); letter-spacing: 0.04em; }
+
+    .create-table-cta {
+      margin: 10px 0 14px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px dashed var(--panel-border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .modal.hidden { display: none; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      width: 100%; height: 100%;
+      background: rgba(7, 11, 23, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+    .modal-content {
+      background: linear-gradient(160deg, #0f172a 0%, #0b1222 100%);
+      padding: 18px 18px 16px;
+      border-radius: 16px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      min-width: 320px;
+      max-width: min(520px, calc(100% - 32px));
+      transform: translateY(12px);
+      opacity: 0;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .modal-content h3 { margin-top: 0; }
+
+    .modal.show { opacity: 1; pointer-events: auto; }
+    .modal.show .modal-content { transform: translateY(0); opacity: 1; }
+
+    .modal-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .modal .muted { margin-top: -4px; margin-bottom: 10px; }
+
+    .modal label { font-weight: 700; font-size: 13px; color: #e5e7eb; }
+
+    .modal input, .modal select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #25304b;
+      background: #0b1020;
+      color: var(--text-main);
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    .modal input:focus, .modal select:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.5);
+      border-color: #2563eb;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .ghost-button {
+      background: transparent;
+      border: 1px solid #374151;
+      color: var(--text-main);
+    }
+
+    .ghost-button:hover { background: rgba(255,255,255,0.04); }
+
+    .error-text { color: #fca5a5; margin: 6px 0 2px; font-size: 13px; }
+  </style>
+  <script src="custom-alert.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="title">Club Detail</div>
+    <div class="header-actions">
+      <a class="button-link" href="/club-management">Back to Club Management</a>
+    </div>
+  </header>
+
+  <div class="panel">
+    <div class="header-row">
+      <div style="display:flex; align-items:center; gap: 12px;">
+        <div class="crest-avatar" id="clubCrest"><span class="crest-letter">C</span></div>
+        <div>
+          <div class="title" id="clubTitle">Loading...</div>
+          <div class="muted" id="clubMeta">Fetching club details</div>
+        </div>
+      </div>
+      <div class="badge" id="clubStatus">--</div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Members</h3>
+      <a id="manageMembersLink" class="button-link" style="margin-bottom: 8px; display: inline-flex;" href="#">Open Member Controls</a>
+      <div id="membersEmpty" class="muted">No members yet.</div>
+      <div id="membersTableWrap" style="display:none;">
+        <table>
+          <thead>
+            <tr><th>User</th><th>Role</th><th>Joined</th></tr>
+          </thead>
+          <tbody id="membersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Open Tables</h3>
+      <div class="create-table-cta">
+        <div class="muted">Open a fresh table for this club with custom blinds and seating.</div>
+        <button id="quickCreateTableBtn" disabled style="width: 100%; max-width: 240px; margin-top: 10px;">Create New Table</button>
+      </div>
+      <div id="tablesEmpty" class="muted">No active tables for this club.</div>
+      <div id="tablesList" class="list"></div>
+    </div>
+  </div>
+
+  <div id="createTableModal" class="modal hidden" aria-hidden="true" role="dialog">
+    <div class="modal-content">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px;">
+        <div>
+          <h3 style="margin: 0;">Create a new table</h3>
+          <p class="muted" style="margin: 2px 0 0;">Set up blinds and seats before opening the table to members.</p>
+        </div>
+        <button type="button" class="ghost-button" id="cancelCreateTableBtn" aria-label="Close">✕</button>
+      </div>
+      <form id="createTableForm">
+        <div class="modal-row">
+          <div>
+            <label for="smallBlindInput">Small blind</label>
+            <input id="smallBlindInput" name="small_blind" type="number" min="0" step="0.01" value="0.5" />
+            <div class="muted">Enter the small blind amount.</div>
+          </div>
+          <div>
+            <label for="bigBlindInput">Big blind</label>
+            <input id="bigBlindInput" name="big_blind" type="number" min="0" step="0.01" value="1" />
+            <div class="muted">Big blind must be greater than small blind.</div>
+          </div>
+        </div>
+
+        <div class="modal-row">
+          <div>
+            <label for="maxSeatsInput">Max seats</label>
+            <input id="maxSeatsInput" name="max_seats" type="number" min="2" step="1" value="6" />
+            <div class="muted">Choose how many players can join.</div>
+          </div>
+          <div>
+            <label for="tableNote">Notes (optional)</label>
+            <input id="tableNote" name="table_note" type="text" placeholder="Friendly home game" />
+          </div>
+        </div>
+
+        <div class="muted" style="margin: 0 0 10px;">You can adjust table settings later by closing and reopening a new one.</div>
+        <div id="createTableError" class="error-text" role="alert"></div>
+        <div class="modal-footer">
+          <button type="button" id="cancelCreateTableBtnFooter" class="ghost-button">Cancel</button>
+          <button type="submit" id="submitCreateTableBtn">Create table</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const AUTH_STORAGE_KEY = "pokerAuth";
+    let accessToken = "";
+    let currentUserId = null;
+    let currentUserEmail = "";
+    let currentClubId = null;
+    let isCurrentUserOwner = false;
+
+    const clubTitle = document.getElementById("clubTitle");
+    const clubMeta = document.getElementById("clubMeta");
+    const clubStatus = document.getElementById("clubStatus");
+    const clubCrest = document.getElementById("clubCrest");
+    const membersEmpty = document.getElementById("membersEmpty");
+    const membersTableWrap = document.getElementById("membersTableWrap");
+    const membersBody = document.getElementById("membersBody");
+    const tablesEmpty = document.getElementById("tablesEmpty");
+    const tablesList = document.getElementById("tablesList");
+    const manageMembersLink = document.getElementById("manageMembersLink");
+    const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
+    const createTableModal = document.getElementById("createTableModal");
+    const createTableForm = document.getElementById("createTableForm");
+    const smallBlindInput = document.getElementById("smallBlindInput");
+    const bigBlindInput = document.getElementById("bigBlindInput");
+    const maxSeatsInput = document.getElementById("maxSeatsInput");
+    const tableNoteInput = document.getElementById("tableNote");
+    const createTableError = document.getElementById("createTableError");
+    const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
+    const cancelCreateTableBtnFooter = document.getElementById("cancelCreateTableBtnFooter");
+    const submitCreateTableBtn = document.getElementById("submitCreateTableBtn");
+
+    function setCrestAvatar(el, url, name = "Club") {
+      if (!el) return;
+      el.innerHTML = "";
+      el.classList.add("crest-avatar");
+
+      if (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = `${name} crest`;
+        img.onerror = () => {
+          el.innerHTML = `<span class="crest-letter">${name.charAt(0).toUpperCase()}</span>`;
+        };
+        el.appendChild(img);
+      } else {
+        const span = document.createElement("span");
+        span.className = "crest-letter";
+        span.textContent = name.charAt(0).toUpperCase();
+        el.appendChild(span);
+      }
+    }
+
+    function parseClubId() {
+      const params = new URLSearchParams(window.location.search);
+      const rawId = params.get("club_id");
+      const parsed = Number(rawId);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function restoreAuth() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed.token || !parsed.email) return;
+        accessToken = parsed.token;
+        currentUserEmail = parsed.email;
+      } catch (err) {
+        console.warn("Failed to restore auth", err);
+      }
+    }
+
+    async function api(path, options = {}) {
+      const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+      const res = await fetch(path, { ...options, headers });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Error ${res.status}`);
+      }
+      if (res.status === 204) return null;
+      return res.json();
+    }
+
+    function requireAuth() {
+      if (!accessToken) {
+        alert("Please login first.");
+        window.location.href = "/";
+        throw new Error("Not authenticated");
+      }
+    }
+
+    async function loadProfile() {
+      if (!currentUserEmail) return;
+      try {
+        const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`);
+        currentUserId = me.id;
+      } catch (err) {
+        console.warn("Failed to load profile", err);
+      }
+    }
+
+    function renderMembers(members) {
+      if (!members.length) {
+        membersEmpty.style.display = "block";
+        membersTableWrap.style.display = "none";
+        return;
+      }
+      membersEmpty.style.display = "none";
+      membersTableWrap.style.display = "block";
+      membersBody.innerHTML = "";
+      members.forEach((m) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${m.user_email}</td>
+          <td><span class="badge">${m.role}</span></td>
+          <td>${new Date(m.created_at).toLocaleString()}</td>
+        `;
+        membersBody.appendChild(tr);
+      });
+    }
+
+    function renderTables(tables) {
+      tablesList.innerHTML = "";
+      if (!tables.length) {
+        tablesEmpty.style.display = "block";
+        return;
+      }
+      tablesEmpty.style.display = "none";
+      tables.forEach((t) => {
+        const div = document.createElement("div");
+        div.className = "chip";
+
+        const info = document.createElement("div");
+        info.innerHTML = `
+          <strong>Table #${t.id}</strong>
+          <div class="muted">Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
+        `;
+
+        const actions = document.createElement("div");
+        actions.className = "chip-actions";
+
+        const statusBadge = document.createElement("div");
+        statusBadge.className = "badge";
+        statusBadge.textContent = t.status;
+        actions.appendChild(statusBadge);
+
+        if (isCurrentUserOwner) {
+          const closeBtn = document.createElement("button");
+          closeBtn.className = "btn-danger";
+          closeBtn.textContent = "Close";
+          closeBtn.onclick = () => closeTable(t.id);
+          actions.appendChild(closeBtn);
+        }
+
+        div.appendChild(info);
+        div.appendChild(actions);
+        tablesList.appendChild(div);
+      });
+    }
+
+    async function closeTable(tableId) {
+      if (!currentClubId) return alert("Select a club first");
+      const confirmed = await showCustomConfirm({
+        title: "Close this table?",
+        message: "Players will be disconnected immediately and the table will be removed from your club list.",
+        confirmText: "Close table",
+        cancelText: "Keep open",
+      });
+      if (!confirmed) return;
+
+      try {
+        await api(`/clubs/${currentClubId}/tables/${tableId}`, { method: "DELETE" });
+        await loadClubDetail();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function loadClubDetail() {
+      requireAuth();
+      try {
+        const detail = await api(`/clubs/${currentClubId}`);
+        isCurrentUserOwner = currentUserId === detail.owner_id;
+
+        if (!isCurrentUserOwner) {
+          alert("Only the club owner can use this page.");
+          window.location.href = "/";
+          return;
+        }
+
+        clubTitle.textContent = detail.name;
+        clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+        clubStatus.textContent = detail.status;
+        if (manageMembersLink) {
+          manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;
+        }
+        setCrestAvatar(clubCrest, detail.crest_url, detail.name || "Club");
+        if (quickCreateTableBtn) {
+          quickCreateTableBtn.disabled = !isCurrentUserOwner;
+          quickCreateTableBtn.textContent = isCurrentUserOwner ? "Create New Table" : "Owner access required";
+        }
+        renderMembers(detail.members || []);
+        renderTables(detail.tables || []);
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    function showCreateTableModal() {
+      requireAuth();
+      if (!currentClubId) return alert("Select a club first.");
+      createTableError.textContent = "";
+      if (createTableModal) {
+        createTableModal.classList.remove("hidden");
+        requestAnimationFrame(() => createTableModal.classList.add("show"));
+      }
+      if (smallBlindInput) smallBlindInput.focus();
+    }
+
+    function hideCreateTableModal() {
+      if (!createTableModal) return;
+      createTableModal.classList.remove("show");
+      setTimeout(() => createTableModal.classList.add("hidden"), 200);
+    }
+
+    function syncBigBlindFloor() {
+      if (!bigBlindInput) return;
+      const sbVal = Number(smallBlindInput?.value || 0);
+      if (!Number.isFinite(sbVal) || sbVal <= 0) return;
+      const suggested = (sbVal * 2).toFixed(2);
+      bigBlindInput.min = (sbVal * 1.01).toFixed(2);
+      if (!bigBlindInput.value || Number(bigBlindInput.value) <= sbVal) {
+        bigBlindInput.value = suggested;
+      }
+    }
+
+    smallBlindInput?.addEventListener("change", syncBigBlindFloor);
+    smallBlindInput?.addEventListener("blur", syncBigBlindFloor);
+    syncBigBlindFloor();
+
+    createTableForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      requireAuth();
+      if (!currentClubId) return alert("Select a club first.");
+
+      const sbVal = Number(smallBlindInput?.value || 0);
+      const bbVal = Number(bigBlindInput?.value || 0);
+      const seatsVal = Number(maxSeatsInput?.value || 6);
+
+      createTableError.textContent = "";
+      if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
+        createTableError.textContent = "Enter positive blind amounts.";
+        return;
+      }
+      if (bbVal <= sbVal) {
+        createTableError.textContent = "Big blind must be greater than small blind.";
+        return;
+      }
+      if (!seatsVal || seatsVal < 2) {
+        createTableError.textContent = "Choose at least two seats.";
+        return;
+      }
+
+      try {
+        if (submitCreateTableBtn) {
+          submitCreateTableBtn.textContent = "Creating...";
+          submitCreateTableBtn.disabled = true;
+        }
+        const data = await api("/tables/", {
+          method: "POST",
+          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal }),
+        });
+        await loadClubDetail();
+        hideCreateTableModal();
+        if (tableNoteInput) tableNoteInput.value = "";
+        alert(`Created table ID ${data.table_id}`);
+      } catch (err) {
+        createTableError.textContent = err.message || "Unable to create table.";
+      } finally {
+        if (submitCreateTableBtn) {
+          submitCreateTableBtn.textContent = "Create table";
+          submitCreateTableBtn.disabled = false;
+        }
+      }
+    });
+
+    createTableModal?.addEventListener("click", (event) => {
+      if (event.target === createTableModal) hideCreateTableModal();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && createTableModal?.classList.contains("show")) {
+        hideCreateTableModal();
+      }
+    });
+
+    cancelCreateTableBtn?.addEventListener("click", hideCreateTableModal);
+    cancelCreateTableBtnFooter?.addEventListener("click", hideCreateTableModal);
+
+    if (quickCreateTableBtn) {
+      quickCreateTableBtn.onclick = showCreateTableModal;
+    }
+
+    async function init() {
+      restoreAuth();
+      requireAuth();
+      currentClubId = parseClubId();
+      if (!currentClubId) {
+        alert("No club selected. Returning to club management.");
+        window.location.href = "/club-management";
+        return;
+      }
+      await loadProfile();
+      await loadClubDetail();
+    }
+
+    init();
+  </script>
+</body>
+</html>
