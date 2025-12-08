@@ -296,7 +296,13 @@ class Table:
         if time.time() < self.action_deadline:
             return None
 
-        player = self._player_by_seat(self.next_to_act_seat)
+        try:
+            player = self._player_by_seat(self.next_to_act_seat)
+        except ValueError:
+            # If the tracked seat was cleared due to a disconnect, stop the timer
+            self.next_to_act_seat = None
+            self.action_deadline = None
+            return None
         action = "check" if player.committed == self.current_bet else "fold"
         try:
             self._apply_action(player.id, action, auto=True)
