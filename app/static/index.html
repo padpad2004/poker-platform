@@ -336,13 +336,12 @@
     .table-wrapper {
       position: relative;
       width: 100%;
-      padding-top: 50%;
-      padding-bottom: 140px;
+      height: clamp(360px, 60vh, calc(100vh - 160px));
+      aspect-ratio: 16 / 10;
       background: radial-gradient(circle at top, #0b1120 0, #020617 60%);
       border-radius: 16px;
-      /* Reserve extra space so the action dock isn't clipped on shorter viewports */
       overflow: visible;
-      margin-bottom: 24px;
+      margin-bottom: 16px;
     }
 
     .felt {
