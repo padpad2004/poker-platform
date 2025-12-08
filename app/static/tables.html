@@ -243,6 +243,7 @@
       </div>
     </div>
     <div class="header-actions">
+      <a class="btn secondary" id="clubManagerBtn" href="/clubs" style="display:none">Club manager</a>
       <a class="btn secondary" href="/profile">Profile</a>
       <button class="btn secondary" id="logoutBtn">Logout</button>
     </div>
@@ -270,17 +271,34 @@
 
   <script>
     const AUTH_KEY = "poker_token";
+    const AUTH_STORAGE_KEY = "pokerAuth";
     let accessToken = localStorage.getItem(AUTH_KEY);
+    let currentUserEmail = "";
+    let currentUserId = null;
 
     if (!accessToken) {
       window.location.href = "/";
     }
 
+    const clubManagerBtn = document.getElementById("clubManagerBtn");
     const tableList = document.getElementById("tableList");
     const hideFullCheckbox = document.getElementById("hideFullTables");
     const refreshBtn = document.getElementById("refreshBtn");
     const errorBox = document.getElementById("errorBox");
     const logoutBtn = document.getElementById("logoutBtn");
+
+    function restoreAuthMetadata() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed.email) {
+          currentUserEmail = parsed.email;
+        }
+      } catch (err) {
+        console.warn("Failed to restore auth metadata", err);
+      }
+    }
 
     async function api(path, options = {}) {
       const headers = {
@@ -300,6 +318,30 @@
         throw new Error(text || `Error ${res.status}`);
       }
       return res.json();
+    }
+
+    async function determineClubOwnership() {
+      if (!clubManagerBtn) return;
+      clubManagerBtn.style.display = "none";
+
+      if (!currentUserEmail) restoreAuthMetadata();
+      if (!currentUserEmail) return;
+
+      try {
+        const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`, {
+          method: "GET",
+        });
+        currentUserId = me?.id ?? null;
+        if (!currentUserId) return;
+
+        const clubs = await api("/clubs/", { method: "GET" });
+        const ownsClub = Array.isArray(clubs)
+          ? clubs.some((club) => club.owner_id === currentUserId)
+          : false;
+        clubManagerBtn.style.display = ownsClub ? "inline-flex" : "none";
+      } catch (err) {
+        console.warn("Failed to determine club ownership", err);
+      }
     }
 
     function renderTables(tables) {
@@ -407,6 +449,8 @@
       window.location.href = "/";
     });
 
+    restoreAuthMetadata();
+    determineClubOwnership();
     loadTables();
   </script>
 </body>
