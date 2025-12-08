@@ -93,6 +93,12 @@ def read_club_management_page():
     return _serve_html("clubs.html")
 
 
+@app.get("/club-members")
+@app.get("/club-members.html")
+def read_club_members_page():
+    return _serve_html("club-members.html")
+
+
 @app.get("/clubs")
 @app.get("/clubs.html")
 def read_clubs_page():

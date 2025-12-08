@@ -308,6 +308,7 @@
 
       <div style="margin-top: 16px;">
         <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Members</h3>
+        <a id="manageMembersLink" class="button-link" style="margin-bottom: 8px; display: inline-flex;" href="#">Open Member Controls</a>
         <div id="membersEmpty" class="muted">No members yet.</div>
         <div id="membersTableWrap" style="display:none;">
           <table>
@@ -379,6 +380,7 @@
     const balanceDelta = document.getElementById("balanceDelta");
     const balanceFeedback = document.getElementById("balanceFeedback");
     const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
+    const manageMembersLink = document.getElementById("manageMembersLink");
 
     function setAuthEnabled(enabled) {
       createClubBtn.disabled = !enabled;
@@ -583,6 +585,9 @@
         clubTitle.textContent = detail.name;
         clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
         clubStatus.textContent = detail.status;
+        if (manageMembersLink) {
+          manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;
+        }
         if (quickCreateTableBtn) {
           quickCreateTableBtn.disabled = !isCurrentUserOwner;
           quickCreateTableBtn.textContent = isCurrentUserOwner ? "Create New Table" : "Owner access required";
