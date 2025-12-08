@@ -47,6 +47,7 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
         username=user_in.username,
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
+        is_active=False,
     )
     db.add(user)
     db.commit()
@@ -81,6 +82,12 @@ def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account pending approval by an administrator",
         )
 
     token = create_access_token({"sub": str(user.id)})

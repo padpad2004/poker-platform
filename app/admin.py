@@ -94,3 +94,23 @@ def delete_user(
 
     db.delete(user)
     db.commit()
+
+
+@router.post("/users/{user_id}/approve", response_model=schemas.AdminUser)
+def approve_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_site_admin),
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user.is_active:
+        return user
+
+    user.is_active = True
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
