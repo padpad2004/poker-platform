@@ -1527,6 +1527,8 @@
         await api(`/tables/${tableId}/sit_me`, {
           method: "POST",
         });
+        const state = await api(`/tables/${tableId}`, { method: "GET" });
+        renderState(state);
       } catch (e) {
         alert(e.message);
       }
