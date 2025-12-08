@@ -1438,7 +1438,6 @@
         <div class="table-panel-actions">
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
           <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
-          <button id="controlsToggleBtn" class="btn secondary">Hide Poker Engine UI</button>
         </div>
       </div>
       <div id="playerStatsCard" class="player-stats hidden">
@@ -1826,7 +1825,6 @@
     const refreshTablesBtn = document.getElementById("refreshTablesBtn");
     const hideFullTablesCheckbox = document.getElementById("hideFullTables");
     const tableListEl = document.getElementById("tableList");
-    const controlsToggleBtn = document.getElementById("controlsToggleBtn");
     const changeSeatBtn = document.getElementById("changeSeatBtn");
     const playerStatsCard = document.getElementById("playerStatsCard");
     const playerStatsName = document.getElementById("playerStatsName");
@@ -1966,27 +1964,15 @@
     function setControlsHidden(hidden) {
       controlsHidden = hidden;
       document.body.classList.toggle("controls-hidden", hidden);
-      if (controlsToggleBtn) {
-        controlsToggleBtn.textContent = hidden ? "Show Poker Engine UI" : "Hide Poker Engine UI";
-      }
     }
 
     function updateEngineControlsVisibility() {
-      if (!controlsToggleBtn) return;
       const isOwner =
         tableOwnerUserId != null &&
         currentUserId != null &&
         tableOwnerUserId === currentUserId;
 
-      controlsToggleBtn.style.display = isOwner ? "" : "none";
-
-      if (!isOwner) {
-        setControlsHidden(true);
-      }
-    }
-
-    if (controlsToggleBtn) {
-      controlsToggleBtn.onclick = () => setControlsHidden(!controlsHidden);
+      setControlsHidden(!isOwner ? true : false);
     }
 
     if (changeSeatBtn) {
