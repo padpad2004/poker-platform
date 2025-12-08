@@ -2,16 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from app.database import SessionLocal
 from app import models, schemas
-
-# Local get_db using SessionLocal from app.database
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+from app.deps import get_db, get_current_user
 
 router = APIRouter(tags=["users"])
 
@@ -57,21 +49,27 @@ class TopUpRequest(BaseModel):
 @router.post("/wallet/topup", response_model=schemas.UserMe)
 def wallet_topup(
     body: TopUpRequest,
-    email: str = Query(..., description="User email"),
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    user = db.query(models.User).filter(models.User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    owner_membership = (
+        db.query(models.ClubMember)
+        .filter(models.ClubMember.user_id == current_user.id, models.ClubMember.role == "owner")
+        .first()
+    )
+    if not owner_membership:
+        raise HTTPException(
+            status_code=403, detail="Only club owners can adjust wallet balances"
+        )
 
-    user.balance += body.amount
-    db.add(user)
+    current_user.balance += body.amount
+    db.add(current_user)
     db.commit()
-    db.refresh(user)
-    return user
+    db.refresh(current_user)
+    return current_user
 
 # ---------- /me/club (remember active club) ----------
 

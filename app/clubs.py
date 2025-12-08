@@ -180,6 +180,44 @@ def adjust_member_balance(
     return schemas.BalanceUpdateResponse(user_id=user.id, new_balance=user.balance)
 
 
+@router.delete(
+    "/{club_id}/members/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_member(
+    club_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only club owners can remove members")
+
+    membership = (
+        db.query(models.ClubMember)
+        .filter(models.ClubMember.club_id == club_id, models.ClubMember.user_id == user_id)
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="User is not a member of this club")
+
+    if membership.role == "owner":
+        raise HTTPException(status_code=400, detail="Cannot remove the club owner")
+
+    db.delete(membership)
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user and user.current_club_id == club_id:
+        user.current_club_id = None
+        db.add(user)
+
+    db.commit()
+
+
 @router.post(
     "/{club_id}/tables",
     response_model=schemas.PokerTableMeta,
