@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .deps import get_db, get_current_user
+from .tables_api import TABLES, TABLE_CONNECTIONS
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
@@ -221,3 +222,41 @@ def open_table(
     db.refresh(table)
 
     return table
+
+
+@router.delete(
+    "/{club_id}/tables/{table_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def close_table(
+    club_id: int,
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only club owners can close tables")
+
+    table = (
+        db.query(models.PokerTable)
+        .filter(
+            models.PokerTable.id == table_id,
+            models.PokerTable.club_id == club_id,
+            models.PokerTable.status == "active",
+        )
+        .first()
+    )
+
+    if not table:
+        raise HTTPException(status_code=404, detail="Active table not found")
+
+    table.status = "closed"
+    db.add(table)
+    db.commit()
+
+    TABLES.pop(table_id, None)
+    TABLE_CONNECTIONS.pop(table_id, None)
