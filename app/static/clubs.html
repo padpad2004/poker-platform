@@ -182,6 +182,14 @@
     .chip strong { font-size: 14px; }
     .muted { color: var(--text-muted); font-size: 12px; }
 
+    .create-table-cta {
+      margin: 10px 0 14px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px dashed var(--panel-border);
+      background: rgba(255,255,255,0.02);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -325,71 +333,12 @@
 
       <div style="margin-top: 16px;">
         <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Open Tables</h3>
+        <div class="create-table-cta">
+          <div class="muted">Open a fresh table for this club. You'll be prompted for blinds when you click.</div>
+          <button id="quickCreateTableBtn" disabled style="width: 100%; max-width: 240px; margin-top: 10px;">Create New Table</button>
+        </div>
         <div id="tablesEmpty" class="muted">No active tables for this club.</div>
         <div id="tablesList" class="list"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel" style="margin-top: 16px;">
-    <h2>Poker Engine Control</h2>
-    <div class="muted" style="margin-bottom: 10px;">Login above, pick a club, and manage tables from here. The poker table view stays clean—controls live in Club Management now.</div>
-
-    <div class="chip" style="margin-bottom: 12px;">
-      <div>
-        <div class="muted">Balance</div>
-        <strong id="balanceText">0</strong>
-      </div>
-      <button id="topupOpenBtn" disabled>Top up</button>
-    </div>
-
-    <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Table Setup</h3>
-    <div class="stacked" style="align-items:flex-start;">
-      <div style="flex:1; min-width: 160px;">
-        <label style="margin-bottom: 6px;">Blind Preset</label>
-        <select id="blindPresetSelect" style="width: 100%;"></select>
-      </div>
-      <div style="display:flex; gap: 10px; flex-wrap: wrap; width: 100%;">
-        <div style="min-width: 120px;">
-          <label>Small Blind</label>
-          <input type="number" id="smallBlindInput" min="0.01" step="0.01" value="0.05" />
-        </div>
-        <div style="min-width: 120px;">
-          <label>Big Blind</label>
-          <input type="number" id="bigBlindInput" min="0.02" step="0.01" value="0.10" />
-        </div>
-      </div>
-    </div>
-    <div class="stacked">
-      <button id="createTableBtn" disabled>Create Table for Club</button>
-      <button id="sitMeBtn" disabled>Sit as Me</button>
-    </div>
-    <div class="stacked">
-      <input type="number" id="joinTableIdInput" placeholder="Join table ID" style="max-width: 160px;" />
-      <button id="joinTableBtn" disabled>Join Table</button>
-    </div>
-    <h3 style="margin: 12px 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">State</h3>
-    <div class="muted" style="margin-bottom: 6px;">
-      <div><strong>Table:</strong> <span id="tableId">None</span></div>
-      <div><strong>Street:</strong> <span id="street">-</span></div>
-      <div><strong>Pot:</strong> <span id="pot">0</span></div>
-      <div><strong>Current Bet:</strong> <span id="currentBet">0</span></div>
-      <div><strong>Next Seat:</strong> <span id="nextToAct">-</span></div>
-    </div>
-    <pre id="rawState" style="background:#0b1020;border:1px solid #1f2937;padding:10px;border-radius:10px;max-height:200px;overflow:auto;">{}</pre>
-
-    <div style="margin-top: 12px;">
-      <a id="openTableLink" class="button-link" href="/">Open Table View</a>
-    </div>
-  </div>
-
-  <div id="topupModal" class="modal hidden">
-    <div class="modal-content">
-      <h3>Top up balance</h3>
-      <input type="number" id="topupAmount" min="1" step="1" value="1000" />
-      <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:8px;">
-        <button id="topupCancelBtn" class="btn-danger">Cancel</button>
-        <button id="topupConfirmBtn">Confirm</button>
       </div>
     </div>
   </div>
@@ -401,8 +350,6 @@
     let currentUserId = null;
     let currentUserEmail = "";
     let currentClubId = null;
-    let tableId = null;
-    let tableSocket = null;
     let isCurrentUserOwner = false;
 
     const emailInput = document.getElementById("email");
@@ -426,100 +373,17 @@
     const membersBody = document.getElementById("membersBody");
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
+    const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
     const balanceSection = document.getElementById("balanceSection");
     const memberSelect = document.getElementById("memberSelect");
     const balanceDelta = document.getElementById("balanceDelta");
     const balanceFeedback = document.getElementById("balanceFeedback");
     const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
 
-    // Engine controls
-    const balanceTextSpan = document.getElementById("balanceText");
-    const topupOpenBtn = document.getElementById("topupOpenBtn");
-    const topupModal = document.getElementById("topupModal");
-    const topupAmountInput = document.getElementById("topupAmount");
-    const topupConfirmBtn = document.getElementById("topupConfirmBtn");
-    const topupCancelBtn = document.getElementById("topupCancelBtn");
-    const createTableBtn = document.getElementById("createTableBtn");
-    const sitMeBtn = document.getElementById("sitMeBtn");
-    const blindPresetSelect = document.getElementById("blindPresetSelect");
-    const smallBlindInput = document.getElementById("smallBlindInput");
-    const bigBlindInput = document.getElementById("bigBlindInput");
-    const joinTableIdInput = document.getElementById("joinTableIdInput");
-    const joinTableBtn = document.getElementById("joinTableBtn");
-    const tableIdSpan = document.getElementById("tableId");
-    const streetSpan = document.getElementById("street");
-    const potSpan = document.getElementById("pot");
-    const currentBetSpan = document.getElementById("currentBet");
-    const nextToActSpan = document.getElementById("nextToAct");
-    const rawStatePre = document.getElementById("rawState");
-    const openTableLink = document.getElementById("openTableLink");
-
-    const BLIND_PRESETS = [
-      { small: 0.05, big: 0.1, label: "0.05 / 0.10" },
-      { small: 0.1, big: 0.2, label: "0.10 / 0.20" },
-      { small: 0.25, big: 0.5, label: "0.25 / 0.50" },
-      { small: 0.5, big: 1, label: "0.50 / 1" },
-      { small: 1, big: 2, label: "1 / 2" },
-    ];
-
-    function presetValue(preset) {
-      return `${preset.small}-${preset.big}`;
-    }
-
-    function applyBlindPreset(preset) {
-      if (!preset || !smallBlindInput || !bigBlindInput) return;
-      smallBlindInput.value = preset.small;
-      bigBlindInput.value = preset.big;
-    }
-
-    function syncPresetSelection() {
-      if (!blindPresetSelect || !smallBlindInput || !bigBlindInput) return;
-      const sbVal = Number(smallBlindInput.value);
-      const bbVal = Number(bigBlindInput.value);
-      const match = BLIND_PRESETS.find(p => p.small === sbVal && p.big === bbVal);
-      blindPresetSelect.value = match ? presetValue(match) : "custom";
-    }
-
-    function populateBlindPresets() {
-      if (!blindPresetSelect) return;
-      blindPresetSelect.innerHTML = "";
-
-      BLIND_PRESETS.forEach(preset => {
-        const opt = document.createElement("option");
-        opt.value = presetValue(preset);
-        opt.textContent = preset.label;
-        blindPresetSelect.appendChild(opt);
-      });
-
-      const customOption = document.createElement("option");
-      customOption.value = "custom";
-      customOption.textContent = "Custom";
-      blindPresetSelect.appendChild(customOption);
-
-      const firstPreset = BLIND_PRESETS[0];
-      if (firstPreset) {
-        blindPresetSelect.value = presetValue(firstPreset);
-        applyBlindPreset(firstPreset);
-      }
-    }
-
-    populateBlindPresets();
-
-    if (blindPresetSelect) {
-      blindPresetSelect.addEventListener("change", () => {
-        const preset = BLIND_PRESETS.find(p => presetValue(p) === blindPresetSelect.value);
-        if (preset) applyBlindPreset(preset);
-      });
-    }
-    if (smallBlindInput) smallBlindInput.addEventListener("input", syncPresetSelection);
-    if (bigBlindInput) bigBlindInput.addEventListener("input", syncPresetSelection);
-
     function setAuthEnabled(enabled) {
       createClubBtn.disabled = !enabled;
       joinClubBtn.disabled = !enabled;
-      topupOpenBtn.disabled = !enabled;
-      createTableBtn.disabled = !enabled;
-      joinTableBtn.disabled = !enabled;
+      if (quickCreateTableBtn) quickCreateTableBtn.disabled = true;
     }
 
     function persistAuth() {
@@ -549,12 +413,6 @@
         loadClubs();
       } catch (err) {
         console.warn("Failed to restore auth", err);
-      }
-    }
-
-    function updateBalanceUI(amount) {
-      if (balanceTextSpan) {
-        balanceTextSpan.textContent = amount ?? 0;
       }
     }
 
@@ -593,48 +451,10 @@
       try {
         const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`);
         currentUserId = me.id;
-        if (typeof me.balance === "number") updateBalanceUI(me.balance);
         currentClubId = me.current_club_id || currentClubId;
       } catch (err) {
         console.warn("Failed to load balance", err);
       }
-    }
-
-    function updateTableLink() {
-      if (tableId && openTableLink) {
-        openTableLink.href = `/?tableId=${tableId}`;
-        openTableLink.textContent = `Open Table View (#${tableId})`;
-      } else if (openTableLink) {
-        openTableLink.href = "/";
-        openTableLink.textContent = "Open Table View";
-      }
-    }
-
-    function renderTableState(state) {
-      if (!state) return;
-      tableIdSpan.textContent = state.table_id ?? tableId ?? "None";
-      streetSpan.textContent = state.street ?? "-";
-      potSpan.textContent = state.pot ?? 0;
-      currentBetSpan.textContent = state.current_bet ?? 0;
-      nextToActSpan.textContent = state.next_to_act ?? "-";
-      rawStatePre.textContent = JSON.stringify(state, null, 2);
-    }
-
-    function connectTableSocket() {
-      if (!tableId) return;
-      if (tableSocket) tableSocket.close();
-
-      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-      const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
-      const url = `${protocol}://${window.location.host}/ws/tables/${tableId}${tokenParam}`;
-      tableSocket = new WebSocket(url);
-      tableSocket.onmessage = (event) => {
-        try {
-          renderTableState(JSON.parse(event.data));
-        } catch (err) {
-          console.error("Bad WS message", err);
-        }
-      };
     }
 
     function renderClubList(clubs) {
@@ -763,6 +583,10 @@
         clubTitle.textContent = detail.name;
         clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
         clubStatus.textContent = detail.status;
+        if (quickCreateTableBtn) {
+          quickCreateTableBtn.disabled = !isCurrentUserOwner;
+          quickCreateTableBtn.textContent = isCurrentUserOwner ? "Create New Table" : "Owner access required";
+        }
         renderMembers(detail.members || []);
         renderTables(detail.tables || []);
       } catch (e) {
@@ -861,101 +685,49 @@
       requireAuth();
       const clubId = Number(clubIdInput.value);
       if (!clubId) return alert("Enter a valid club ID");
-      try {
-        await api(`/clubs/${clubId}/join`, { method: "POST" });
-        alert(`Joined club #${clubId}`);
-        currentClubId = clubId;
-        updateTableLink();
-        loadClubs();
-      } catch (e) {
-        alert(e.message);
-      }
+        try {
+          await api(`/clubs/${clubId}/join`, { method: "POST" });
+          alert(`Joined club #${clubId}`);
+          currentClubId = clubId;
+          loadClubs();
+        } catch (e) {
+          alert(e.message);
+        }
     };
 
-    if (topupOpenBtn) {
-      topupOpenBtn.onclick = () => {
-        requireAuth();
-        topupModal.classList.remove("hidden");
-      };
-    }
-
-    if (topupCancelBtn) {
-      topupCancelBtn.onclick = () => topupModal.classList.add("hidden");
-    }
-
-    if (topupConfirmBtn) {
-      topupConfirmBtn.onclick = async () => {
-        requireAuth();
-        const amount = Number(topupAmountInput.value);
-        if (!amount || amount <= 0) return alert("Enter a positive amount");
-        try {
-          const me = await api(`/wallet/topup?email=${encodeURIComponent(currentUserEmail)}`, {
-            method: "POST",
-            body: JSON.stringify({ amount }),
-          });
-          if (typeof me.balance === "number") updateBalanceUI(me.balance);
-          topupModal.classList.add("hidden");
-        } catch (err) {
-          alert(err.message);
-        }
-      };
-    }
-
-    createTableBtn.onclick = async () => {
+    async function promptCreateTable() {
       requireAuth();
       if (!currentClubId) return alert("Create or join a club first.");
-      const sbVal = Number(smallBlindInput.value);
-      const bbVal = Number(bigBlindInput.value);
+
+      const smallBlindInput = window.prompt("Small blind?", "0.05");
+      if (smallBlindInput === null) return;
+      const bigBlindInput = window.prompt("Big blind?", "0.10");
+      if (bigBlindInput === null) return;
+
+      const sbVal = Number(smallBlindInput);
+      const bbVal = Number(bigBlindInput);
       if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
         return alert("Enter positive blind amounts");
       }
       if (bbVal <= sbVal) {
         return alert("Big blind must be greater than small blind");
       }
+
       try {
         const data = await api("/tables/", {
           method: "POST",
           body: JSON.stringify({ club_id: currentClubId, max_seats: 6, small_blind: sbVal, big_blind: bbVal }),
         });
-        tableId = data.table_id;
-        tableIdSpan.textContent = tableId;
-        sitMeBtn.disabled = false;
-        updateTableLink();
-        connectTableSocket();
-        loadClubs();
-        alert(`Created table ID ${tableId}`);
+        await loadClubDetail(currentClubId);
+        alert(`Created table ID ${data.table_id}`);
       } catch (err) {
         alert(err.message);
       }
-    };
+    }
 
-    joinTableBtn.onclick = async () => {
-      requireAuth();
-      const tid = Number(joinTableIdInput.value);
-      if (!tid) return alert("Enter a table ID");
-      try {
-        const state = await api(`/tables/${tid}`);
-        tableId = tid;
-        tableIdSpan.textContent = tid;
-        sitMeBtn.disabled = false;
-        updateTableLink();
-        connectTableSocket();
-        renderTableState(state);
-        alert(`Joined table ${tid}`);
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-
-    sitMeBtn.onclick = async () => {
-      requireAuth();
-      if (!tableId) return alert("Create or join a table first");
-      try {
-        await api(`/tables/${tableId}/sit_me`, { method: "POST" });
-      } catch (err) {
-        alert(err.message);
-      }
-    };
+    if (quickCreateTableBtn) {
+      quickCreateTableBtn.onclick = promptCreateTable;
+    }
 
     adjustBalanceBtn.onclick = async () => {
       requireAuth();
