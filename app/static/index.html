@@ -826,6 +826,7 @@
 
   <script>
     const API_BASE = "";
+    const AUTH_STORAGE_KEY = "pokerAuth";
     let tableId = null;
     let lastState = null;
     let tableSocket = null;
@@ -944,6 +945,43 @@
       return `/static/cards/${filename}`;
     }
 
+    function persistAuth() {
+      if (!accessToken || !currentUserEmail) return;
+      try {
+        localStorage.setItem(
+          AUTH_STORAGE_KEY,
+          JSON.stringify({ token: accessToken, email: currentUserEmail })
+        );
+      } catch (err) {
+        console.warn("Failed to persist auth", err);
+      }
+    }
+
+    function restoreAuth() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed.token || !parsed.email) return;
+        accessToken = parsed.token;
+        currentUserEmail = parsed.email;
+        currentUserEmailSpan.textContent = parsed.email;
+        if (emailInput) emailInput.value = parsed.email;
+        setAuthEnabled(true);
+        fetchMe();
+      } catch (err) {
+        console.warn("Failed to restore auth", err);
+      }
+    }
+
+    function setAuthEnabled(enabled) {
+      createClubBtn.disabled = !enabled;
+      joinClubBtn.disabled = !enabled;
+      createTableBtn.disabled = !enabled;
+      joinTableBtn.disabled = !enabled;
+      if (topupOpenBtn) topupOpenBtn.disabled = !enabled;
+    }
+
     async function api(path, options = {}) {
       const headers = {
         "Content-Type": "application/json",
@@ -957,6 +995,10 @@
         ...options,
         headers,
       });
+      if (res.status === 401) {
+        console.warn("Auth expired; clearing stored token");
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`Error ${res.status}: ${text}`);
@@ -1601,6 +1643,9 @@
         alert(e.message);
       }
     };
+
+    // Attempt to rehydrate authentication when the page loads
+    restoreAuth();
   </script>
 </body>
 </html>

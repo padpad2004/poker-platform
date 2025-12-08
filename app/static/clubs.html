@@ -287,6 +287,7 @@
 
   <script>
     const API_BASE = "";
+    const AUTH_STORAGE_KEY = "pokerAuth";
     let accessToken = "";
     let currentUserEmail = "";
     let currentClubId = null;
@@ -318,6 +319,40 @@
     const balanceFeedback = document.getElementById("balanceFeedback");
     const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
 
+    function setAuthEnabled(enabled) {
+      createClubBtn.disabled = !enabled;
+      joinClubBtn.disabled = !enabled;
+    }
+
+    function persistAuth() {
+      if (!accessToken || !currentUserEmail) return;
+      try {
+        localStorage.setItem(
+          AUTH_STORAGE_KEY,
+          JSON.stringify({ token: accessToken, email: currentUserEmail })
+        );
+      } catch (err) {
+        console.warn("Failed to persist auth", err);
+      }
+    }
+
+    function restoreAuth() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed.token || !parsed.email) return;
+        accessToken = parsed.token;
+        currentUserEmail = parsed.email;
+        currentEmail.textContent = parsed.email;
+        if (emailInput) emailInput.value = parsed.email;
+        setAuthEnabled(true);
+        loadClubs();
+      } catch (err) {
+        console.warn("Failed to restore auth", err);
+      }
+    }
+
     async function api(path, options = {}) {
       const headers = {
         "Content-Type": "application/json",
@@ -329,6 +364,10 @@
         ...options,
         headers,
       });
+      if (res.status === 401) {
+        console.warn("Auth expired; clearing stored token");
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
       if (!res.ok) {
         const text = await res.text();
         throw new Error(`Error ${res.status}: ${text}`);
@@ -484,14 +523,16 @@
         accessToken = data.access_token;
         currentUserEmail = email;
         currentEmail.textContent = email;
-        createClubBtn.disabled = false;
-        joinClubBtn.disabled = false;
+        setAuthEnabled(true);
+        persistAuth();
         loadClubs();
         alert("Logged in!");
       } catch (e) {
         alert(e.message);
       }
     };
+
+    restoreAuth();
 
     createClubBtn.onclick = async () => {
       requireAuth();
