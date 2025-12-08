@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from .deck import Deck
 from .cards import Card
@@ -78,6 +78,10 @@ class Table:
         # Simple in-memory history of recent hands (action-only, non-persisted)
         self.recent_hands: List[Dict[str, Any]] = []
         self.current_hand_log: Optional[Dict[str, Any]] = None
+
+        # Track players who requested to leave during a hand so they can
+        # automatically stand up once the hand finishes.
+        self.pending_leave_user_ids: Set[int] = set()
 
     # ---------- Player & seating ----------
 
