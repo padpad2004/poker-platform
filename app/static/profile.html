@@ -268,6 +268,7 @@
     </div>
     <div class="actions">
       <a class="btn secondary" href="/available-tables">⬅ Back to tables</a>
+      <button class="btn secondary" id="downloadDataBtn">Download my data</button>
       <button class="btn secondary" id="logoutBtn">Logout</button>
     </div>
   </header>
@@ -287,6 +288,7 @@
         <div class="divider"></div>
         <p class="muted" style="margin:0">Wallet balance</p>
         <div style="font-size: 26px; font-weight: 800; margin-top: 4px;" id="balance">-</div>
+        <div id="downloadMessage" class="muted" style="margin-top: 8px;"></div>
       </div>
 
       <div class="panel">
@@ -337,6 +339,8 @@
     const refreshBtn = document.getElementById("refreshBtn");
     const historyList = document.getElementById("history");
     const presetGrid = document.getElementById("presetGrid");
+    const downloadDataBtn = document.getElementById("downloadDataBtn");
+    const downloadMessage = document.getElementById("downloadMessage");
 
     const presetAvatars = [
       { url: "/static/avatars/avatar-club.svg", label: "Club" },
@@ -481,6 +485,40 @@
     });
 
     refreshBtn.addEventListener("click", loadProfile);
+
+    async function downloadUserData() {
+      downloadMessage.textContent = "";
+      try {
+        const res = await fetch(`/me/export?email=${encodeURIComponent(authInfo.email)}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (res.status === 401) {
+          localStorage.removeItem(AUTH_KEY);
+          localStorage.removeItem("pokerAuth");
+          window.location.href = "/";
+          return;
+        }
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `Error ${res.status}`);
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `poker-user-data-${authInfo.email}.json`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+        downloadMessage.textContent = "Your data file has been downloaded.";
+      } catch (error) {
+        downloadMessage.textContent = error.message || "Unable to download data.";
+      }
+    }
+
+    downloadDataBtn.addEventListener("click", downloadUserData);
 
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem(AUTH_KEY);
