@@ -6,6 +6,7 @@ from typing import Optional, List, Literal
 # ---------- User ----------
 
 class UserBase(BaseModel):
+    username: str
     email: EmailStr
 
 
@@ -17,6 +18,15 @@ class UserRead(UserBase):
     id: int
     is_active: bool
     created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+
+class UserMe(UserBase):
+    id: int
+    balance: int
+    current_club_id: Optional[int] = None
 
     class Config:
         orm_mode = True
@@ -152,15 +162,3 @@ class BalanceUpdateRequest(BaseModel):
 class BalanceUpdateResponse(BaseModel):
     user_id: int
     new_balance: int
-
-from pydantic import EmailStr
-from typing import Optional
-
-class UserMe(BaseModel):
-    id: int
-    email: EmailStr
-    balance: int
-    current_club_id: Optional[int] = None
-
-    class Config:
-        orm_mode = True
