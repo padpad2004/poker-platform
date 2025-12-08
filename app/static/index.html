@@ -641,6 +641,42 @@
       width: 100%;
     }
 
+    .buyin-modal {
+      max-width: 400px;
+      width: 100%;
+    }
+
+    .buyin-balance {
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .buyin-slider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .buyin-slider input[type="range"] {
+      flex: 1;
+      accent-color: #22c55e;
+    }
+
+    .buyin-amount {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      margin: 6px 0 2px;
+    }
+
+    .buyin-seat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
     /* BIG CARD OVERLAY (ClubGG-style) */
 
     #bigCardOverlay {
@@ -1098,6 +1134,24 @@
     </div>
   </div>
 
+  <!-- Buy-in modal -->
+  <div id="buyinModal" class="modal hidden">
+    <div class="modal-content buyin-modal">
+      <h3>Join the table</h3>
+      <div class="buyin-seat-label" id="buyinSeatLabel"></div>
+      <div class="buyin-balance" id="buyinBalanceLabel"></div>
+      <div class="buyin-amount" id="buyinAmountDisplay"></div>
+      <div class="buyin-slider">
+        <input type="range" id="buyinRange" min="1" step="1" />
+        <div id="buyinRangeValue" style="width:48px;text-align:center;font-weight:600;"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button id="buyinCancelBtn" class="btn-danger">Cancel</button>
+        <button id="buyinConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Big card overlay -->
   <div id="bigCardOverlay">
     <div id="bigCard">
@@ -1122,6 +1176,7 @@
     let bigBlind = 2; // default; update if you change createTable values
     let currentUserBalance = 0;
     let controlsHidden = false;
+    let pendingSeatIndex = null;
 
     // DOM elements
     const usernameInput = document.getElementById("usernameInput");
@@ -1139,6 +1194,14 @@
     const topupAmountInput = document.getElementById("topupAmount");
     const topupConfirmBtn = document.getElementById("topupConfirmBtn");
     const topupCancelBtn = document.getElementById("topupCancelBtn");
+    const buyinModal = document.getElementById("buyinModal");
+    const buyinRange = document.getElementById("buyinRange");
+    const buyinRangeValue = document.getElementById("buyinRangeValue");
+    const buyinAmountDisplay = document.getElementById("buyinAmountDisplay");
+    const buyinSeatLabel = document.getElementById("buyinSeatLabel");
+    const buyinBalanceLabel = document.getElementById("buyinBalanceLabel");
+    const buyinConfirmBtn = document.getElementById("buyinConfirmBtn");
+    const buyinCancelBtn = document.getElementById("buyinCancelBtn");
 
     const clubNameInput = document.getElementById("clubNameInput");
     const createClubBtn = document.getElementById("createClubBtn");
@@ -1490,6 +1553,38 @@
       });
     }
 
+    function updateBuyinDisplay(amount) {
+      if (!buyinRange || !buyinRangeValue || !buyinAmountDisplay) return;
+      buyinRangeValue.textContent = amount;
+      buyinAmountDisplay.textContent = `${amount} chips`;
+    }
+
+    function showBuyinModal(seatIndex) {
+      if (!buyinModal || !buyinRange) return;
+
+      pendingSeatIndex = seatIndex;
+
+      const maxBuyIn = Math.max(1, Math.floor(currentUserBalance));
+      const suggestedBuyIn = Math.min(currentUserBalance, 100) || maxBuyIn;
+      const initialBuyIn = Math.min(Math.max(1, Math.floor(suggestedBuyIn)), maxBuyIn);
+
+      buyinRange.min = "1";
+      buyinRange.max = String(maxBuyIn);
+      buyinRange.value = String(initialBuyIn);
+
+      if (buyinSeatLabel) buyinSeatLabel.textContent = `Seat ${seatIndex}`;
+      if (buyinBalanceLabel) buyinBalanceLabel.textContent = `Wallet balance: ${currentUserBalance}`;
+
+      updateBuyinDisplay(initialBuyIn);
+      buyinModal.classList.remove("hidden");
+    }
+
+    function hideBuyinModal() {
+      if (!buyinModal) return;
+      pendingSeatIndex = null;
+      buyinModal.classList.add("hidden");
+    }
+
     async function handleSeatClick(seatEl) {
       if (!seatEl.classList.contains("empty")) {
         return;
@@ -1511,17 +1606,13 @@
       }
 
       const seatIndex = Number(seatEl.dataset.seat);
-      const defaultBuyIn = Math.min(currentUserBalance, 100) || currentUserBalance;
-      const input = prompt(
-        `Enter buy-in for seat ${seatIndex} (Balance: ${currentUserBalance})`,
-        defaultBuyIn ? defaultBuyIn.toString() : ""
-      );
+      showBuyinModal(seatIndex);
+    }
 
-      if (input === null) {
-        return;
-      }
+    async function submitBuyin() {
+      if (pendingSeatIndex === null || !buyinRange) return;
 
-      const buyIn = Number(input);
+      const buyIn = Number(buyinRange.value);
 
       if (!Number.isFinite(buyIn) || buyIn <= 0) {
         alert("Enter a positive buy-in amount");
@@ -1536,7 +1627,7 @@
       try {
         await api(`/tables/${tableId}/sit_me`, {
           method: "POST",
-          body: JSON.stringify({ seat: seatIndex, buy_in: buyIn }),
+          body: JSON.stringify({ seat: pendingSeatIndex, buy_in: buyIn }),
         });
         await fetchMe();
 
@@ -1549,6 +1640,8 @@
         } catch (fetchErr) {
           console.warn("Failed to refresh table after sitting:", fetchErr);
         }
+
+        hideBuyinModal();
       } catch (e) {
         alert(e.message);
       }
@@ -1988,6 +2081,20 @@
         }
         topupModal.classList.remove("hidden");
       };
+    }
+
+    if (buyinRange) {
+      buyinRange.addEventListener("input", () => {
+        updateBuyinDisplay(Number(buyinRange.value));
+      });
+    }
+
+    if (buyinCancelBtn) {
+      buyinCancelBtn.onclick = hideBuyinModal;
+    }
+
+    if (buyinConfirmBtn) {
+      buyinConfirmBtn.onclick = submitBuyin;
     }
 
     if (topupCancelBtn) {
