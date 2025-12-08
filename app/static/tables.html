@@ -300,7 +300,7 @@
       </div>
     </div>
     <div class="header-actions">
-      <a class="btn secondary" id="dataOverviewBtn" href="/admin" style="display:none">Data overview</a>
+      <a class="btn secondary" id="dataOverviewBtn" href="/admin" style="display:none">Admin</a>
       <a class="btn secondary" id="clubManagerBtn" href="/clubs" style="display:none">Club manager</a>
       <a class="btn secondary" href="/profile">Profile</a>
       <button class="btn secondary" id="logoutBtn">Logout</button>
@@ -356,7 +356,7 @@
       window.location.href = "/";
     }
 
-    const WEBSITE_OWNER_EMAIL = "padpadpoker@gmail.com";
+    const ADMIN_EMAILS = ["paddywarren99@gmail.com", "padpadpoker@gmail.com"];
 
     const navAvatar = document.getElementById("navAvatar");
     const clubManagerBtn = document.getElementById("clubManagerBtn");
@@ -413,7 +413,7 @@
       const normalizedEmail = currentUserEmail.toLowerCase();
       if (
         dataOverviewBtn &&
-        normalizedEmail === WEBSITE_OWNER_EMAIL.toLowerCase()
+        ADMIN_EMAILS.some((email) => email.toLowerCase() === normalizedEmail)
       ) {
         dataOverviewBtn.style.display = "inline-flex";
       }
