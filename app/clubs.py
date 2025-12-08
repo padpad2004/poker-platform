@@ -134,7 +134,11 @@ def get_club_detail(
         raise HTTPException(status_code=403, detail="Not a member of this club")
 
     member_rows = (
-        db.query(models.ClubMember, models.User.email.label("email"))
+        db.query(
+            models.ClubMember,
+            models.User.email.label("email"),
+            models.User.balance.label("balance"),
+        )
         .join(models.User, models.ClubMember.user_id == models.User.id)
         .filter(models.ClubMember.club_id == club_id)
         .all()
@@ -148,8 +152,9 @@ def get_club_detail(
             role=member.role,
             created_at=member.created_at,
             user_email=email,
+            balance=balance,
         )
-        for member, email in member_rows
+        for member, email, balance in member_rows
     ]
 
     tables = (
