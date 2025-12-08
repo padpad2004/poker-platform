@@ -1337,6 +1337,10 @@
     const preselectedTableId = urlParams.get("tableId");
     let lastState = null;
     let tableSocket = null;
+    let wsReconnectTimer = null;
+    let wsHeartbeatTimer = null;
+    let wsShouldReconnect = false;
+    let pollTimer = null;
     let accessToken = null;
     let currentUserEmail = null;
     let currentUserId = null;
@@ -1353,6 +1357,9 @@
 
     const ACTING_TIME_MS = 30000;
     const TIMER_WARNING_MS = 5000;
+    const WS_HEARTBEAT_MS = 15000;
+    const WS_RECONNECT_MS = 3000;
+    const POLL_INTERVAL_MS = 3000;
 
     const TOTAL_SEATS = 6;
     const VIEWER_DISPLAY_SEAT = 3; // bottom center anchor
@@ -1635,11 +1642,23 @@
     }
 
     function findViewerSeat(state) {
-      if (!currentUserEmail || !state?.players?.length) return null;
-      const viewer = state.players.find(
-        (p) => p.email && p.email.toLowerCase() === currentUserEmail.toLowerCase()
-      );
-      return viewer?.seat ?? null;
+      if (!state?.players?.length) return null;
+
+      // First try to match by the authenticated user id (authoritative)
+      if (currentUserId != null) {
+        const viewerById = state.players.find((p) => p.user_id === currentUserId);
+        if (viewerById) return viewerById.seat ?? null;
+      }
+
+      // Fallback to email matching for legacy payloads
+      if (currentUserEmail) {
+        const viewerByEmail = state.players.find(
+          (p) => p.email && p.email.toLowerCase() === currentUserEmail.toLowerCase()
+        );
+        if (viewerByEmail) return viewerByEmail.seat ?? null;
+      }
+
+      return null;
     }
 
     function applySeatLayout(state) {
@@ -2436,18 +2455,66 @@
       leaveTableBtn.onclick = handleLeaveTable;
     }
 
+    function clearWebSocketTimers() {
+      if (wsReconnectTimer) {
+        clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = null;
+      }
+      if (wsHeartbeatTimer) {
+        clearInterval(wsHeartbeatTimer);
+        wsHeartbeatTimer = null;
+      }
+    }
+
+    function stopPollingState() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    function startPollingState() {
+      stopPollingState();
+      if (!tableId) return;
+
+      pollTimer = setInterval(async () => {
+        if (!tableId) return;
+        try {
+          const state = await api(`/tables/${tableId}`, { method: "GET" });
+          renderState(state);
+        } catch (err) {
+          console.error("Polling failed", err);
+        }
+      }, POLL_INTERVAL_MS);
+    }
+
     function connectWebSocket() {
       if (!tableId) return;
 
       if (tableSocket) {
+        wsShouldReconnect = false;
         tableSocket.close();
         tableSocket = null;
       }
+
+      wsShouldReconnect = true;
+      clearWebSocketTimers();
+      stopPollingState();
 
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
       const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
       const url = `${protocol}://${window.location.host}/ws/tables/${tableId}${tokenParam}`;
       tableSocket = new WebSocket(url);
+
+      tableSocket.onopen = () => {
+        // keep the connection alive and give the backend a nudge to push the latest state
+        stopPollingState();
+        wsHeartbeatTimer = setInterval(() => {
+          if (tableSocket?.readyState === WebSocket.OPEN) {
+            tableSocket.send("ping");
+          }
+        }, WS_HEARTBEAT_MS);
+      };
 
       tableSocket.onmessage = (event) => {
         try {
@@ -2460,10 +2527,18 @@
 
       tableSocket.onclose = () => {
         console.log("WebSocket closed");
+        clearWebSocketTimers();
+        if (!wsShouldReconnect || !tableId) return;
+        startPollingState();
+        wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
       };
 
       tableSocket.onerror = (err) => {
         console.error("WebSocket error", err);
+        if (!wsShouldReconnect || !tableId) return;
+        clearWebSocketTimers();
+        startPollingState();
+        wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
       };
     }
 
@@ -2547,9 +2622,12 @@
         if (tableHeadingLabel) tableHeadingLabel.textContent = "-";
         if (tableIdSpan) tableIdSpan.textContent = "None";
         if (tableSocket) {
+          wsShouldReconnect = false;
           tableSocket.close();
           tableSocket = null;
         }
+        clearWebSocketTimers();
+        stopPollingState();
         localStorage.removeItem(AUTH_STORAGE_KEY);
         localStorage.removeItem("poker_token");
         if (currentUsernameSpan) currentUsernameSpan.textContent = "Not logged in";
