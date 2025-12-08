@@ -638,7 +638,8 @@
       justify-content: center;
       gap: 14px;
       backdrop-filter: blur(4px);
-      z-index: 20;
+      z-index: 200;
+      pointer-events: auto;
     }
 
     .action-left,
@@ -647,6 +648,11 @@
       display: flex;
       align-items: center;
       gap: 10px;
+    }
+
+    .action-dock button {
+      pointer-events: auto;
+      touch-action: manipulation;
     }
 
     .action-left button {
