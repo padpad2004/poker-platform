@@ -1351,6 +1351,8 @@
     let tableSocket = null;
     let wsReconnectTimer = null;
     let wsHeartbeatTimer = null;
+    let wsPollTimer = null;
+    const WS_POLL_MS = 5000;
     let wsShouldReconnect = false;
     let accessToken = null;
     let currentUserEmail = null;
@@ -2480,6 +2482,10 @@
         clearInterval(wsHeartbeatTimer);
         wsHeartbeatTimer = null;
       }
+      if (wsPollTimer) {
+        clearInterval(wsPollTimer);
+        wsPollTimer = null;
+      }
     }
 
     function connectWebSocket() {
@@ -2506,6 +2512,12 @@
             tableSocket.send("ping");
           }
         }, WS_HEARTBEAT_MS);
+
+        // Stop any HTTP polling once a websocket is active
+        if (wsPollTimer) {
+          clearInterval(wsPollTimer);
+          wsPollTimer = null;
+        }
       };
 
       tableSocket.onmessage = (event) => {
@@ -2522,6 +2534,17 @@
         clearWebSocketTimers();
         if (!wsShouldReconnect || !tableId) return;
         wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
+
+        // Fallback to periodic HTTP polling while websocket access is unavailable
+        wsPollTimer = setInterval(async () => {
+          if (!tableId) return;
+          try {
+            const state = await api(`/tables/${tableId}`, { method: "GET" });
+            renderState(state);
+          } catch (err) {
+            console.warn("Polling failed", err);
+          }
+        }, WS_POLL_MS);
       };
 
       tableSocket.onerror = (err) => {
