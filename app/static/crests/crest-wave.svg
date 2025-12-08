@@ -1,0 +1,12 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Wave crest">
+  <defs>
+    <linearGradient id="wave-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="136" height="136" rx="26" fill="url(#wave-bg)" stroke="#075985" stroke-width="5" />
+  <path d="M42 104c12-18 30-28 44-28 10 0 18 6 24 16 6-2 10-8 10-16 0-18-16-32-32-32-22 0-44 20-46 48Z" fill="#e0f2fe" opacity="0.9" />
+  <path d="M54 108c12-12 24-18 34-18 10 0 18 4 24 10" stroke="#075985" stroke-width="6" stroke-linecap="round" />
+  <circle cx="106" cy="70" r="6" fill="#fff" />
+</svg>

@@ -110,9 +110,53 @@
       letter-spacing: 0.04em;
     }
 
+    .crest-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .crest-option {
+      border: 1px solid var(--panel-border);
+      background: #0b1020;
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .crest-option:hover {
+      border-color: #2563eb;
+      transform: translateY(-2px);
+    }
+
+    .crest-option.selected {
+      border-color: #22c55e;
+      box-shadow: 0 8px 24px rgba(34, 197, 94, 0.15);
+    }
+
+    .crest-option img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 6px;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+    }
+
+    .crest-option span {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+    }
+
     input[type="text"],
     input[type="password"],
-    input[type="number"] {
+    input[type="number"],
+    input[type="url"] {
       width: 100%;
       padding: 8px 10px;
       border-radius: 10px;
@@ -172,6 +216,34 @@
       justify-content: space-between;
       align-items: center;
     }
+
+    .crest-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(34,197,94,0.15));
+      border: 1px solid var(--panel-border);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #c7d2fe;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .crest-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .crest-avatar.small { width: 40px; height: 40px; }
+    .crest-avatar.large { width: 64px; height: 64px; border-radius: 16px; }
+
+    .crest-line { display: flex; align-items: center; gap: 10px; }
+    .crest-preview { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .crest-helper { color: var(--text-muted); font-size: 12px; margin: 4px 0 6px; }
 
     .chip-actions {
       display: flex;
@@ -278,10 +350,21 @@
 
       <hr style="border: 1px solid #111827; margin: 16px 0;" />
 
-      <h2>Manage</h2>
-      <label>Club Name</label>
-      <input type="text" id="clubName" placeholder="My Poker Club" />
-      <button id="createClubBtn" disabled>Create Club</button>
+        <h2>Manage</h2>
+        <label>Club Name</label>
+        <input type="text" id="clubName" placeholder="My Poker Club" />
+
+        <label>Club Crest</label>
+        <div class="crest-preview">
+          <div class="crest-avatar" id="crestPreviewAvatar"><span class="crest-letter">?</span></div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="muted" id="crestPreviewLabel">Pick a crest avatar or paste your own URL.</div>
+            <input type="url" id="crestUrlInput" placeholder="Optional: https://example.com/crest.png" />
+          </div>
+        </div>
+        <div class="crest-grid" id="crestGrid"></div>
+        <div class="crest-helper">Choose one of our crests or paste a custom image link.</div>
+        <button id="createClubBtn" disabled>Create Club</button>
 
       <label>Join Existing Club by ID</label>
       <input type="number" id="clubIdInput" placeholder="e.g. 3" />
@@ -295,16 +378,19 @@
   </div>
 
   <div class="panel" style="margin-top: 16px;">
-    <h2>Club Details</h2>
-    <div id="clubDetailEmpty" class="muted">Select a club to view members and open tables.</div>
-    <div id="clubDetail" style="display:none;">
-      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <div>
-          <div class="title" id="clubTitle">Club</div>
-          <div class="muted" id="clubMeta"></div>
+      <h2>Club Details</h2>
+      <div id="clubDetailEmpty" class="muted">Select a club to view members and open tables.</div>
+      <div id="clubDetail" style="display:none;">
+        <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <div class="crest-line">
+            <div class="crest-avatar large" id="clubCrest"><span class="crest-letter">C</span></div>
+            <div>
+              <div class="title" id="clubTitle">Club</div>
+              <div class="muted" id="clubMeta"></div>
+            </div>
+          </div>
+          <div class="badge" id="clubStatus">Inactive</div>
         </div>
-        <div class="badge" id="clubStatus">Inactive</div>
-      </div>
 
       <div style="margin-top: 16px;">
         <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Members</h3>
@@ -379,6 +465,115 @@
     const balanceDelta = document.getElementById("balanceDelta");
     const balanceFeedback = document.getElementById("balanceFeedback");
     const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
+    const crestGrid = document.getElementById("crestGrid");
+    const crestUrlInput = document.getElementById("crestUrlInput");
+    const crestPreviewAvatar = document.getElementById("crestPreviewAvatar");
+    const crestPreviewLabel = document.getElementById("crestPreviewLabel");
+    const clubCrest = document.getElementById("clubCrest");
+
+    const crestOptions = [
+      { url: "/static/crests/crest-crown.svg", label: "Royal" },
+      { url: "/static/crests/crest-lion.svg", label: "Lion" },
+      { url: "/static/crests/crest-phoenix.svg", label: "Phoenix" },
+      { url: "/static/crests/crest-shield.svg", label: "Shield" },
+      { url: "/static/crests/crest-wave.svg", label: "Wave" },
+      { url: "/static/crests/crest-star.svg", label: "Star" },
+    ];
+
+    let selectedCrestUrl = crestOptions[0]?.url || "";
+
+    function setCrestAvatar(el, url, name = "Club", sizeClass = "") {
+      if (!el) return;
+      el.innerHTML = "";
+      el.classList.add("crest-avatar");
+      if (sizeClass) {
+        el.classList.remove("small", "large");
+        el.classList.add(sizeClass);
+      }
+
+      if (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = `${name} crest`;
+        img.onerror = () => {
+          el.innerHTML = `<span class="crest-letter">${name.charAt(0).toUpperCase()}</span>`;
+        };
+        el.appendChild(img);
+      } else {
+        const span = document.createElement("span");
+        span.className = "crest-letter";
+        span.textContent = name.charAt(0).toUpperCase();
+        el.appendChild(span);
+      }
+    }
+
+    function renderCrestOptions() {
+      if (!crestGrid) return;
+      crestGrid.innerHTML = "";
+      crestOptions.forEach((item) => {
+        const option = document.createElement("div");
+        option.className = "crest-option";
+        option.innerHTML = `
+          <img src="${item.url}" alt="${item.label} crest" loading="lazy" />
+          <span>${item.label}</span>
+        `;
+        option.onclick = () => selectCrestOption(item.url, item.label, option);
+        crestGrid.appendChild(option);
+      });
+    }
+
+    function selectCrestOption(url, label, optionEl) {
+      selectedCrestUrl = url;
+      if (crestUrlInput) crestUrlInput.value = url;
+      if (crestPreviewLabel) crestPreviewLabel.textContent = `${label} crest selected.`;
+      setCrestAvatar(
+        crestPreviewAvatar,
+        selectedCrestUrl,
+        clubNameInput?.value || label || "Club",
+        ""
+      );
+
+      document.querySelectorAll(".crest-option").forEach((el) => el.classList.remove("selected"));
+      if (optionEl) optionEl.classList.add("selected");
+    }
+
+    if (crestUrlInput) {
+      crestUrlInput.addEventListener("input", (event) => {
+        const value = event.target.value.trim();
+        selectedCrestUrl = value;
+        if (crestPreviewLabel) {
+          crestPreviewLabel.textContent = value
+            ? "Using custom crest URL."
+            : "Pick a crest avatar or paste your own URL.";
+        }
+        document
+          .querySelectorAll(".crest-option")
+          .forEach((el) => el.classList.remove("selected"));
+        setCrestAvatar(
+          crestPreviewAvatar,
+          selectedCrestUrl,
+          clubNameInput?.value || "Club",
+          ""
+        );
+      });
+    }
+
+    if (clubNameInput) {
+      clubNameInput.addEventListener("input", () => {
+        setCrestAvatar(
+          crestPreviewAvatar,
+          selectedCrestUrl,
+          clubNameInput.value || "Club",
+          ""
+        );
+      });
+    }
+
+    renderCrestOptions();
+    if (crestOptions.length) {
+      const firstOption = crestGrid?.querySelector(".crest-option");
+      selectCrestOption(selectedCrestUrl, crestOptions[0].label, firstOption || undefined);
+    }
 
     function setAuthEnabled(enabled) {
       createClubBtn.disabled = !enabled;
@@ -468,20 +663,35 @@
       clubs.forEach((club) => {
         const row = document.createElement("div");
         row.className = "chip";
-        row.innerHTML = `
-          <div>
-            <strong>${club.name}</strong>
-            <div class="muted">ID #${club.id} • Status: ${club.status}</div>
-          </div>
-          <div>
-            <button data-club="${club.id}" class="viewClub">View</button>
-          </div>
-        `;
-        clubList.appendChild(row);
-      });
 
-      document.querySelectorAll(".viewClub").forEach((btn) => {
-        btn.onclick = () => loadClubDetail(Number(btn.dataset.club));
+        const info = document.createElement("div");
+        info.className = "crest-line";
+
+        const crest = document.createElement("div");
+        crest.className = "crest-avatar small";
+        setCrestAvatar(crest, club.crest_url, club.name || "Club", "small");
+
+        const textWrap = document.createElement("div");
+        textWrap.innerHTML = `
+          <strong>${club.name}</strong>
+          <div class="muted">ID #${club.id} • Status: ${club.status}</div>
+        `;
+
+        info.appendChild(crest);
+        info.appendChild(textWrap);
+
+        const actions = document.createElement("div");
+        actions.className = "chip-actions";
+        const viewBtn = document.createElement("button");
+        viewBtn.dataset.club = club.id;
+        viewBtn.className = "viewClub";
+        viewBtn.textContent = "View";
+        viewBtn.onclick = () => loadClubDetail(Number(viewBtn.dataset.club));
+        actions.appendChild(viewBtn);
+
+        row.appendChild(info);
+        row.appendChild(actions);
+        clubList.appendChild(row);
       });
     }
 
@@ -583,6 +793,7 @@
         clubTitle.textContent = detail.name;
         clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
         clubStatus.textContent = detail.status;
+        setCrestAvatar(clubCrest, detail.crest_url, detail.name || "Club", "large");
         if (quickCreateTableBtn) {
           quickCreateTableBtn.disabled = !isCurrentUserOwner;
           quickCreateTableBtn.textContent = isCurrentUserOwner ? "Create New Table" : "Owner access required";
@@ -669,10 +880,11 @@
     createClubBtn.onclick = async () => {
       requireAuth();
       const name = clubNameInput.value.trim() || "My Club";
+      const crestUrlToSave = (selectedCrestUrl || crestUrlInput?.value || "").trim();
       try {
         const club = await api("/clubs/", {
           method: "POST",
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({ name, crest_url: crestUrlToSave || null }),
         });
         alert(`Created club #${club.id}`);
         loadClubs();

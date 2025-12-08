@@ -16,6 +16,7 @@ def create_club(
 ):
     club = models.Club(
         name=club_in.name,
+        crest_url=club_in.crest_url,
         owner_id=current_user.id,
         status="inactive",
     )
@@ -130,6 +131,7 @@ def get_club_detail(
     return schemas.ClubDetail(
         id=club.id,
         name=club.name,
+        crest_url=club.crest_url,
         owner_id=club.owner_id,
         status=club.status,
         created_at=club.created_at,

@@ -57,6 +57,7 @@ class AdminUser(UserRead):
 
 class ClubBase(BaseModel):
     name: str
+    crest_url: Optional[str] = None
 
 
 class ClubCreate(ClubBase):
