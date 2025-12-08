@@ -93,6 +93,27 @@
       margin-bottom: 8px;
     }
 
+    .table-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .table-blinds-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      font-size: 12px;
+      color: #e5e7eb;
+      letter-spacing: 0.02em;
+    }
+
     .table-subtitle {
       margin-top: 4px;
       color: var(--text-muted);
@@ -993,9 +1014,13 @@
         <div>
           <h2>Table <span id="tableHeadingLabel">-</span></h2>
           <div class="table-subtitle">Focused table view</div>
+          <div class="table-meta-row">
+            <span class="table-blinds-pill" id="tableBlindsBadge">Blinds -/-</span>
+          </div>
         </div>
         <div class="table-panel-actions">
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
+          <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
           <button id="controlsToggleBtn" class="btn secondary">Hide Poker Engine UI</button>
         </div>
       </div>
@@ -1347,8 +1372,12 @@
     const boardCardsSpan = document.getElementById("boardCards");
     const potCenterSpan = document.getElementById("potCenter");
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
+    const tableBlindsBadge = document.getElementById("tableBlindsBadge");
+    const leaveTableBtn = document.getElementById("leaveTableBtn");
 
     if (logoutBtn) logoutBtn.disabled = true;
+
+    updateLeaveButton();
 
     // Action dock elements
     const foldMainBtn = document.getElementById("foldMainBtn");
@@ -1993,6 +2022,7 @@
 
       tableIdSpan.textContent = state.id;
       if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
+      if (tableBlindsBadge) tableBlindsBadge.textContent = `Blinds ${state.small_blind}/${state.big_blind}`;
       streetSpan.textContent = state.street;
       potSpan.textContent = state.pot;
       currentBetSpan.textContent = state.current_bet;
@@ -2141,12 +2171,22 @@
 
       updateActionDock(state);
       updateSeatChangeUI();
+      updateLeaveButton();
     }
 
     function getViewerSeat(state) {
       if (!state || currentUserId == null) return null;
       const mine = state.players?.find(p => p.user_id === currentUserId);
       return mine ? mine.seat : null;
+    }
+
+    function updateLeaveButton() {
+      if (!leaveTableBtn) return;
+      const mySeat = getViewerSeat(lastState);
+      leaveTableBtn.disabled = !tableId || mySeat == null;
+      leaveTableBtn.textContent = mySeat == null
+        ? "Leave table"
+        : `Leave table (seat ${mySeat})`;
     }
 
     function updateSeatChangeUI() {
@@ -2222,6 +2262,31 @@
 
     if (seatChangeCancelBtn) {
       seatChangeCancelBtn.onclick = closeSeatChangeModal;
+    }
+
+    async function handleLeaveTable() {
+      if (!leaveTableBtn) return;
+      if (!tableId) return;
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+
+      try {
+        leaveTableBtn.disabled = true;
+        await api(`/tables/${tableId}/leave`, { method: "POST" });
+        await fetchMe();
+        const refreshedState = await api(`/tables/${tableId}`, { method: "GET" });
+        renderState(refreshedState);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        updateLeaveButton();
+      }
+    }
+
+    if (leaveTableBtn) {
+      leaveTableBtn.onclick = handleLeaveTable;
     }
 
     function connectWebSocket() {
@@ -2346,8 +2411,10 @@
           currentUserEmailSpan.style.display = "none";
         }
         tableOwnerUserId = null;
+        lastState = null;
         updateEngineControlsVisibility();
         setAuthEnabled(false);
+        updateLeaveButton();
         window.location.href = "/";
       };
     }

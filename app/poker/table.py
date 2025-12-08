@@ -255,6 +255,30 @@ class Table:
         idx = occupied.index(seat)
         return occupied[(idx + 1) % len(occupied)]
 
+    def remove_player_by_user(self, user_id: int) -> Player:
+        """Remove a seated player by their user id and clear related markers."""
+
+        for idx, p in enumerate(self.players):
+            if p.user_id == user_id:
+                removed = self.players.pop(idx)
+
+                if self.dealer_seat == removed.seat:
+                    self.dealer_seat = None
+                if self.dealer_button_seat == removed.seat:
+                    self.dealer_button_seat = None
+                if self.small_blind_seat == removed.seat:
+                    self.small_blind_seat = None
+                if self.big_blind_seat == removed.seat:
+                    self.big_blind_seat = None
+                if self.next_to_act_seat == removed.seat:
+                    self.next_to_act_seat = None
+                if self.next_to_act_seat is None:
+                    self.action_deadline = None
+
+                return removed
+
+        raise ValueError("No player for that user id")
+
     def _set_action_deadline(self) -> None:
         if self.next_to_act_seat is None:
             self.action_deadline = None
