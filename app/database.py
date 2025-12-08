@@ -69,6 +69,9 @@ def ensure_schema():
                     text("ALTER TABLE users ADD COLUMN profile_picture_url TEXT")
                 )
 
+            if "university" not in user_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN university TEXT"))
+
         if "clubs" in existing_tables:
             club_columns = {
                 row[1] for row in conn.execute(text("PRAGMA table_info(clubs);"))

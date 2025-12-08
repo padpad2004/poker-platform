@@ -290,6 +290,7 @@
           <div>
             <div id="username" style="font-size: 18px; font-weight: 800;">-</div>
             <div id="email" class="muted" style="margin-top: 4px;">-</div>
+            <div id="universityLabel" class="muted" style="margin-top: 4px; display:none;"></div>
             <div id="club" class="pill" style="display:none">Club</div>
             <div id="clubActions" class="club-actions" style="display:none">
               <button class="btn danger" id="leaveClubBtn" type="button">Leave club</button>
@@ -301,6 +302,17 @@
         <p class="muted" style="margin:0">Wallet balance</p>
         <div style="font-size: 26px; font-weight: 800; margin-top: 4px;" id="balance">-</div>
         <div id="downloadMessage" class="muted" style="margin-top: 8px;"></div>
+
+        <div class="divider" style="margin: 16px 0;"></div>
+
+        <form id="universityForm">
+          <label for="universitySelect">University</label>
+          <select id="universitySelect" name="universitySelect">
+            <option value="">Select your university</option>
+          </select>
+          <button type="submit" class="btn" style="margin-top: 10px;">Save university</button>
+          <div id="universityMessage" class="muted" style="margin-top: 6px;"></div>
+        </form>
       </div>
 
       <div class="panel">
@@ -343,6 +355,7 @@
     const navAvatar = document.getElementById("navAvatar");
     const usernameEl = document.getElementById("username");
     const emailEl = document.getElementById("email");
+    const universityLabel = document.getElementById("universityLabel");
     const clubEl = document.getElementById("club");
     const clubActions = document.getElementById("clubActions");
     const leaveClubBtn = document.getElementById("leaveClubBtn");
@@ -356,6 +369,9 @@
     const presetGrid = document.getElementById("presetGrid");
     const downloadDataBtn = document.getElementById("downloadDataBtn");
     const downloadMessage = document.getElementById("downloadMessage");
+    const universityForm = document.getElementById("universityForm");
+    const universitySelect = document.getElementById("universitySelect");
+    const universityMessage = document.getElementById("universityMessage");
 
     const presetAvatars = [
       { url: "/static/avatars/avatar-club.svg", label: "Club" },
@@ -363,6 +379,24 @@
       { url: "/static/avatars/avatar-heart.svg", label: "Heart" },
       { url: "/static/avatars/avatar-diamond.svg", label: "Diamond" },
       { url: "/static/avatars/avatar-chips.svg", label: "Chips" },
+    ];
+
+    const UK_UNIVERSITIES = [
+      "University of Oxford",
+      "University of Cambridge",
+      "Imperial College London",
+      "London School of Economics and Political Science",
+      "University College London",
+      "University of Edinburgh",
+      "King's College London",
+      "University of Manchester",
+      "University of Bristol",
+      "University of Warwick",
+      "University of Glasgow",
+      "University of Leeds",
+      "University of Birmingham",
+      "University of Nottingham",
+      "University of Southampton",
     ];
 
     async function api(path, options = {}) {
@@ -457,6 +491,34 @@
       });
     }
 
+    function renderUniversityOptions(activeUniversity = "") {
+      if (!universitySelect) return;
+      universitySelect.innerHTML = '<option value="">Select your university</option>';
+      UK_UNIVERSITIES.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        if (name === activeUniversity) option.selected = true;
+        universitySelect.appendChild(option);
+      });
+    }
+
+    async function saveUniversity(university) {
+      try {
+        const payload = { university: university || null };
+        await api(`/me/university?email=${encodeURIComponent(authInfo.email)}`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        universityMessage.textContent = university
+          ? "University saved."
+          : "University cleared.";
+        await loadProfile();
+      } catch (error) {
+        universityMessage.textContent = error.message || "Unable to save university.";
+      }
+    }
+
     async function saveAvatar(url, successText = "Profile picture updated.") {
       try {
         const payload = { profile_picture_url: (url || "").trim() };
@@ -500,6 +562,15 @@
         renderAvatar(avatarBox, data.profile_picture_url, fallbackInitial);
         renderAvatar(navAvatar, data.profile_picture_url, fallbackInitial || "P");
         renderPresetOptions(data.profile_picture_url || "");
+        renderUniversityOptions(data.university || "");
+
+        if (data.university) {
+          universityLabel.textContent = data.university;
+          universityLabel.style.display = "block";
+        } else {
+          universityLabel.textContent = "";
+          universityLabel.style.display = "none";
+        }
 
         if (data.current_club_name) {
           clubEl.textContent = data.current_club_name;
@@ -530,6 +601,14 @@
       avatarMessage.textContent = "";
       saveAvatar(avatarUrlInput.value.trim());
     });
+
+    if (universityForm) {
+      universityForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        universityMessage.textContent = "";
+        saveUniversity(universitySelect.value);
+      });
+    }
 
     refreshBtn.addEventListener("click", loadProfile);
 
