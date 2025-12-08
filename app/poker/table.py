@@ -170,6 +170,10 @@ class Table:
         self.big_blind_seat = None
         self.dealer_button_seat = None
 
+        # Remember each player's stack before blinds or bomb pots are taken so
+        # net changes can be calculated when the hand finishes.
+        self.hand_start_stacks = {p.id: p.stack for p in self.players}
+
         # Choose a valid dealer button seat and rotate when possible.
         # If the previous dealer seat is now empty (e.g., player moved seats),
         # fall back to the lowest occupied seat to avoid errors when
