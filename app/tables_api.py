@@ -1,10 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Dict, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, WebSocket
 from sqlalchemy.orm import Session
 
+from app.poker.table import Table
 from . import models, schemas
-from .deps import get_db, get_current_user
+from .deps import get_current_user, get_db
 
 router = APIRouter(prefix="/tables", tags=["tables"])
+
+# In-memory engine tables
+TABLES: Dict[int, Table] = {}
+
+# WebSocket connections per table: table_id -> { websocket: viewer_user_id or None }
+TABLE_CONNECTIONS: Dict[int, Dict[WebSocket, Optional[int]]] = {}
+
+
+def _get_engine_table(table_id: int) -> Table:
+    table = TABLES.get(table_id)
+    if not table:
+        raise HTTPException(status_code=404, detail="Engine table not found")
+    return table
 
 
 def _ensure_user_in_table_club(
@@ -33,6 +49,134 @@ def _ensure_user_in_table_club(
     return table_meta
 
 
+def _table_state_for_viewer(
+    table_id: int,
+    engine_table: Table,
+    viewer_user_id: Optional[int],
+) -> schemas.TableState:
+    return schemas.TableState(
+        id=table_id,
+        hand_number=engine_table.hand_number,
+        street=engine_table.street,
+        pot=engine_table.pot,
+        board=[str(c) for c in engine_table.board],
+        current_bet=engine_table.current_bet,
+        next_to_act_seat=engine_table.next_to_act_seat,
+        action_deadline=engine_table.action_deadline,
+        dealer_button_seat=engine_table.dealer_button_seat,
+        small_blind_seat=engine_table.small_blind_seat,
+        big_blind_seat=engine_table.big_blind_seat,
+        small_blind=engine_table.small_blind,
+        big_blind=engine_table.big_blind,
+        players=[
+            schemas.PlayerState(
+                id=p.id,
+                name=p.name,
+                seat=p.seat,
+                stack=p.stack,
+                committed=p.committed,
+                in_hand=p.in_hand,
+                has_folded=p.has_folded,
+                all_in=p.all_in,
+                hole_cards=(
+                    [str(c) for c in p.hole_cards]
+                    if (p.user_id is None or p.user_id == viewer_user_id)
+                    else ["XX"] * len(p.hole_cards)
+                ),
+                user_id=p.user_id,
+            )
+            for p in engine_table.players
+        ],
+    )
+
+
+def _table_state(table_id: int, engine_table: Table) -> schemas.TableState:
+    return _table_state_for_viewer(table_id, engine_table, viewer_user_id=None)
+
+
+def _apply_timeouts(table_id: int) -> Table:
+    engine_table = _get_engine_table(table_id)
+    while True:
+        result = engine_table.enforce_action_timeout()
+        if result is None:
+            break
+    return engine_table
+
+
+def _auto_progress_hand(engine_table: Table) -> bool:
+    """
+    Advance the hand automatically when possible.
+
+    Returns True if the hand reached showdown (finished), else False.
+    """
+    remaining = [p for p in engine_table.active_players() if not p.has_folded]
+    if len(remaining) == 1 and engine_table.street != "showdown":
+        winner = remaining[0]
+        winner.stack += engine_table.pot
+        engine_table.pot = 0
+        engine_table.street = "showdown"
+        engine_table.next_to_act_seat = None
+        engine_table.action_deadline = None
+        return True
+
+    if engine_table.street == "showdown":
+        return True
+
+    if engine_table.next_to_act_seat is None and engine_table.betting_round_complete():
+        try:
+            if remaining and all(p.all_in for p in remaining):
+                if engine_table.street == "preflop":
+                    engine_table.deal_flop()
+                    engine_table.deal_turn()
+                    engine_table.deal_river()
+                elif engine_table.street == "flop":
+                    engine_table.deal_turn()
+                    engine_table.deal_river()
+                elif engine_table.street == "turn":
+                    engine_table.deal_river()
+                engine_table.showdown()
+                return True
+
+            if engine_table.street == "preflop":
+                engine_table.deal_flop()
+            elif engine_table.street == "flop":
+                engine_table.deal_turn()
+            elif engine_table.street == "turn":
+                engine_table.deal_river()
+            elif engine_table.street == "river":
+                engine_table.showdown()
+                return True
+        except ValueError:
+            pass
+
+    return engine_table.street == "showdown"
+
+
+def _auto_start_hand_if_ready(engine_table: Table) -> bool:
+    """Start a fresh hand when at least two players are seated."""
+    if len(engine_table.players) < 2:
+        return False
+
+    if engine_table.street not in {"prehand", "showdown"}:
+        return False
+
+    engine_table.start_new_hand()
+    return True
+
+
+async def broadcast_table_state(table_id: int):
+    engine_table = _apply_timeouts(table_id)
+    _auto_progress_hand(engine_table)
+    _auto_start_hand_if_ready(engine_table)
+    connections = TABLE_CONNECTIONS.get(table_id, {})
+    for ws, viewer_user_id in list(connections.items()):
+        try:
+            state = _table_state_for_viewer(table_id, engine_table, viewer_user_id)
+            await ws.send_json(state.dict())
+        except Exception:
+            connections.pop(ws, None)
+
+
 @router.get("/", response_model=list[schemas.PokerTableMeta])
 def list_my_tables(
     db: Session = Depends(get_db),
@@ -46,6 +190,68 @@ def list_my_tables(
         .join(models.ClubMember, models.ClubMember.club_id == models.Club.id)
         .filter(models.ClubMember.user_id == current_user.id)
         .all()
+    )
+
+
+@router.post("/", response_model=schemas.CreateTableResponse)
+def create_table(
+    req: schemas.CreateTableRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == req.club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    is_owner = club.owner_id == current_user.id
+    if not is_owner:
+        raise HTTPException(
+            status_code=403,
+            detail="Only club owners can create tables",
+        )
+
+    table_meta = models.PokerTable(
+        club_id=req.club_id,
+        created_by_user_id=current_user.id,
+        max_seats=req.max_seats,
+        small_blind=req.small_blind,
+        big_blind=req.big_blind,
+        bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
+        bomb_pot_amount=req.bomb_pot_amount,
+        status="active",
+    )
+    db.add(table_meta)
+    db.commit()
+    db.refresh(table_meta)
+
+    engine_table = Table(
+        max_seats=req.max_seats,
+        small_blind=req.small_blind,
+        big_blind=req.big_blind,
+        bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
+        bomb_pot_amount=req.bomb_pot_amount,
+    )
+    TABLES[table_meta.id] = engine_table
+
+    return schemas.CreateTableResponse(table_id=table_meta.id)
+
+
+@router.post("/{table_id}/players", response_model=schemas.AddPlayerResponse)
+async def add_player(
+    table_id: int,
+    req: schemas.AddPlayerRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _get_engine_table(table_id)
+
+    player = engine_table.add_player(
+        player_id=len(engine_table.players) + 1,
+        name=req.name,
+        starting_stack=req.starting_stack,
+        user_id=None,
+        seat=req.seat,
     )
     await broadcast_table_state(table_id)
     return schemas.AddPlayerResponse(table_id=table_id, player_id=player.id, seat=player.seat)
@@ -100,7 +306,7 @@ async def start_hand(
     table_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-): 
+):
     _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _apply_timeouts(table_id)
     engine_table.start_new_hand()
@@ -134,7 +340,7 @@ async def deal_flop(
     table_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
-): 
+):
     _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _apply_timeouts(table_id)
     engine_table.deal_flop()
@@ -179,7 +385,7 @@ async def get_table_state(
     return _table_state(table_id, engine_table)
 
 
-@router.get("/{table_id}", response_model=schemas.PokerTableMeta)
+@router.get("/{table_id}/meta", response_model=schemas.PokerTableMeta)
 def get_table(
     table_id: int,
     db: Session = Depends(get_db),
@@ -188,3 +394,32 @@ def get_table(
     """Return metadata for a table within a club the user can access."""
 
     return _ensure_user_in_table_club(table_id, db, current_user)
+
+
+@router.post("/{table_id}/showdown")
+async def showdown(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _get_engine_table(table_id)
+    winners, best_rank, results = engine_table.showdown()
+    started = _auto_start_hand_if_ready(engine_table)
+    await broadcast_table_state(table_id)
+
+    return {
+        "winners": [
+            {
+                "player_id": p.id,
+                "name": p.name,
+                "seat": p.seat,
+                "stack": p.stack,
+                "hand_rank": results[p.id],
+            }
+            for p in winners
+        ],
+        "best_rank": best_rank,
+        "table": _table_state(table_id, engine_table),
+        "auto_started": started,
+    }
