@@ -873,41 +873,6 @@
         </div>
       </div>
 
-      <!-- TABLE SETUP -->
-      <h2>Table Setup</h2>
-      <div class="row">
-        <button id="createTableBtn" disabled>Create Table for Club</button>
-        <button id="sitMeBtn" disabled>Sit as Me</button>
-      </div>
-
-      <div class="row">
-        <div style="width:100%;max-width:320px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-          <div style="flex:1;min-width:140px;">
-            <span class="label">Blind Preset</span><br/>
-            <select id="blindPresetSelect" style="width:100%;"></select>
-          </div>
-          <div>
-            <span class="label">Small Blind</span><br/>
-            <input type="number" id="smallBlindInput" min="0.01" step="0.01" value="0.05" />
-          </div>
-          <div>
-            <span class="label">Big Blind</span><br/>
-            <input type="number" id="bigBlindInput" min="0.02" step="0.01" value="0.10" />
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <span class="label">Join Table ID:</span><br/>
-        <input type="number" id="joinTableIdInput" placeholder="1" />
-        <button id="joinTableBtn" disabled>Join Table</button>
-      </div>
-
-      <div class="row">
-        <button id="addAliceBtn" disabled>Add Alice</button>
-        <button id="addBobBtn" disabled>Add Bob</button>
-      </div>
-
       <!-- BETTING / STREETS -->
       <h2>Streets & Showdown</h2>
       <div class="row">
@@ -1199,7 +1164,6 @@
     let currentUsername = null;
     let currentClubId = null;
     let actingPlayer = null; // current acting player object from state
-    let bigBlind = 0.1; // default; update if you change createTable values
     let currentUserBalance = 0;
     let controlsHidden = false;
     let pendingSeatIndex = null;
@@ -1235,20 +1199,11 @@
     const joinClubBtn = document.getElementById("joinClubBtn");
     const currentClubIdSpan = document.getElementById("currentClubId");
 
-    const createTableBtn = document.getElementById("createTableBtn");
-    const sitMeBtn = document.getElementById("sitMeBtn");
-    const blindPresetSelect = document.getElementById("blindPresetSelect");
-    const smallBlindInput = document.getElementById("smallBlindInput");
-    const bigBlindInput = document.getElementById("bigBlindInput");
-    const joinTableIdInput = document.getElementById("joinTableIdInput");
-    const joinTableBtn = document.getElementById("joinTableBtn");
     const refreshTablesBtn = document.getElementById("refreshTablesBtn");
     const hideFullTablesCheckbox = document.getElementById("hideFullTables");
     const tableListEl = document.getElementById("tableList");
     const controlsToggleBtn = document.getElementById("controlsToggleBtn");
 
-    const addAliceBtn = document.getElementById("addAliceBtn");
-    const addBobBtn = document.getElementById("addBobBtn");
     const seatElements = document.querySelectorAll(".seat");
 
     const dealFlopBtn = document.getElementById("dealFlopBtn");
@@ -1274,75 +1229,6 @@
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
 
     if (logoutBtn) logoutBtn.disabled = true;
-
-    const BLIND_PRESETS = [
-      { small: 0.05, big: 0.1, label: "0.05 / 0.10" },
-      { small: 0.1, big: 0.2, label: "0.10 / 0.20" },
-      { small: 0.25, big: 0.5, label: "0.25 / 0.50" },
-      { small: 0.5, big: 1, label: "0.50 / 1" },
-      { small: 1, big: 2, label: "1 / 2" },
-    ];
-
-    function presetValue(preset) {
-      return `${preset.small}-${preset.big}`;
-    }
-
-    function applyBlindPreset(preset) {
-      if (!preset || !smallBlindInput || !bigBlindInput) return;
-      smallBlindInput.value = preset.small;
-      bigBlindInput.value = preset.big;
-    }
-
-    function syncPresetSelection() {
-      if (!blindPresetSelect || !smallBlindInput || !bigBlindInput) return;
-      const sbVal = Number(smallBlindInput.value);
-      const bbVal = Number(bigBlindInput.value);
-      const match = BLIND_PRESETS.find(p => p.small === sbVal && p.big === bbVal);
-      blindPresetSelect.value = match ? presetValue(match) : "custom";
-    }
-
-    function populateBlindPresets() {
-      if (!blindPresetSelect) return;
-      blindPresetSelect.innerHTML = "";
-
-      BLIND_PRESETS.forEach((preset, idx) => {
-        const opt = document.createElement("option");
-        opt.value = presetValue(preset);
-        opt.textContent = preset.label;
-        blindPresetSelect.appendChild(opt);
-      });
-
-      const customOption = document.createElement("option");
-      customOption.value = "custom";
-      customOption.textContent = "Custom";
-      blindPresetSelect.appendChild(customOption);
-
-      const firstPreset = BLIND_PRESETS[0];
-      if (firstPreset) {
-        blindPresetSelect.value = presetValue(firstPreset);
-        applyBlindPreset(firstPreset);
-      } else {
-        blindPresetSelect.value = "custom";
-      }
-    }
-
-    populateBlindPresets();
-
-    if (blindPresetSelect) {
-      blindPresetSelect.addEventListener("change", () => {
-        const preset = BLIND_PRESETS.find(p => presetValue(p) === blindPresetSelect.value);
-        if (preset) {
-          applyBlindPreset(preset);
-        }
-      });
-    }
-
-    if (smallBlindInput) {
-      smallBlindInput.addEventListener("input", syncPresetSelection);
-    }
-    if (bigBlindInput) {
-      bigBlindInput.addEventListener("input", syncPresetSelection);
-    }
 
     // Action dock elements
     const foldMainBtn = document.getElementById("foldMainBtn");
@@ -1494,10 +1380,8 @@
     }
 
     function setAuthEnabled(enabled) {
-      createClubBtn.disabled = !enabled;
-      joinClubBtn.disabled = !enabled;
-      createTableBtn.disabled = !enabled;
-      joinTableBtn.disabled = !enabled;
+      if (createClubBtn) createClubBtn.disabled = !enabled;
+      if (joinClubBtn) joinClubBtn.disabled = !enabled;
       if (topupOpenBtn) topupOpenBtn.disabled = !enabled;
       if (refreshTablesBtn) refreshTablesBtn.disabled = !enabled;
       if (logoutBtn) logoutBtn.disabled = !enabled;
@@ -2300,11 +2184,6 @@
         tableId = numericId;
         tableIdSpan.textContent = String(numericId);
         if (tableHeadingLabel) tableHeadingLabel.textContent = `#${numericId}`;
-
-        sitMeBtn.disabled = false;
-        addAliceBtn.disabled = true;
-        addBobBtn.disabled = true;
-
         connectWebSocket();
         renderState(state);
         setControlsHidden(true);
@@ -2312,90 +2191,6 @@
         alert(e.message);
       }
     }
-
-    createTableBtn.onclick = async () => {
-      if (!accessToken) {
-        alert("Login first");
-        return;
-      }
-      if (!currentClubId) {
-        alert("Create or join a club first");
-        return;
-      }
-
-      const sbVal = Number(smallBlindInput.value);
-      const bbVal = Number(bigBlindInput.value);
-      if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
-        alert("Enter positive blind amounts");
-        return;
-      }
-      if (bbVal <= sbVal) {
-        alert("Big blind must be greater than small blind");
-        return;
-      }
-      try {
-        const data = await api("/tables/", {
-          method: "POST",
-          body: JSON.stringify({
-            club_id: currentClubId,
-            max_seats: 6,
-            small_blind: sbVal,
-            big_blind: bbVal,
-          }),
-        });
-        tableId = data.table_id;
-        tableIdSpan.textContent = tableId;
-        if (tableHeadingLabel) tableHeadingLabel.textContent = `#${tableId}`;
-        bigBlind = bbVal;
-
-        sitMeBtn.disabled = false;
-        addAliceBtn.disabled = false;
-        addBobBtn.disabled = false;
-
-        connectWebSocket();
-        loadTableList();
-        alert(`Created table ID ${tableId} for club ${currentClubId}`);
-        setControlsHidden(true);
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-
-    joinTableBtn.onclick = async () => {
-      await joinTableById(joinTableIdInput.value);
-    };
-
-    sitMeBtn.onclick = async () => {
-      if (!accessToken) {
-        alert("Login first");
-        return;
-      }
-      if (!tableId) {
-        alert("Create or join a table first");
-        return;
-      }
-      try {
-        await api(`/tables/${tableId}/sit_me`, {
-          method: "POST",
-        });
-        const state = await api(`/tables/${tableId}`, { method: "GET" });
-        renderState(state);
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-
-    addAliceBtn.onclick = async () => {
-      if (!tableId) return;
-      try {
-        await api(`/tables/${tableId}/players`, {
-          method: "POST",
-          body: JSON.stringify({ name: "Alice", starting_stack: 100 }),
-        });
-      } catch (e) {
-        alert(e.message);
-      }
-    };
 
     if (refreshTablesBtn) {
       refreshTablesBtn.onclick = () => loadTableList();
@@ -2403,18 +2198,6 @@
     if (hideFullTablesCheckbox) {
       hideFullTablesCheckbox.addEventListener("change", () => loadTableList());
     }
-
-    addBobBtn.onclick = async () => {
-      if (!tableId) return;
-      try {
-        await api(`/tables/${tableId}/players`, {
-          method: "POST",
-          body: JSON.stringify({ name: "Bob", starting_stack: 100 }),
-        });
-      } catch (e) {
-        alert(e.message);
-      }
-    };
 
     dealFlopBtn.onclick = async () => {
       if (!tableId) return;
