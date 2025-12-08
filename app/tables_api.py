@@ -106,6 +106,7 @@ def _table_state_for_viewer(
             )
             for p in engine_table.players
         ],
+        recent_hands=engine_table.recent_hands,
     )
 
 
@@ -133,11 +134,15 @@ def _auto_progress_hand(engine_table: Table) -> bool:
     remaining = [p for p in engine_table.active_players() if not p.has_folded]
     if len(remaining) == 1 and engine_table.street != "showdown":
         winner = remaining[0]
+        pot_before = engine_table.pot
         winner.stack += engine_table.pot
         engine_table.pot = 0
         engine_table.street = "showdown"
         engine_table.next_to_act_seat = None
         engine_table.action_deadline = None
+        engine_table._finalize_hand(
+            [winner], {winner.id: pot_before}, pot_before, reason="all_folded"
+        )
         return True
 
     if engine_table.street == "showdown":

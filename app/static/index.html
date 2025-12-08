@@ -829,6 +829,171 @@
       min-width: 96px;
     }
 
+    /* Hand history */
+    .hand-history-panel {
+      margin-top: 16px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .hand-history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .hand-history-title {
+      font-size: 14px;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #cbd5e1;
+    }
+
+    .hand-history-sub {
+      margin: 4px 0 0;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .hand-history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .hand-history-card {
+      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(145deg, rgba(15,23,42,0.7), rgba(6,8,20,0.9));
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .hand-history-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .hand-label {
+      font-weight: 700;
+      color: #e5e7eb;
+      letter-spacing: 0.02em;
+    }
+
+    .board-small {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .board-small .card {
+      width: 32px;
+      height: 44px;
+      font-size: 14px;
+    }
+
+    .hand-result-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(34,197,94,0.12);
+      border: 1px solid rgba(34,197,94,0.3);
+      color: #bbf7d0;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .hand-history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px;
+    }
+
+    .history-column {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 8px;
+    }
+
+    .history-column h4 {
+      margin: 0 0 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 11px;
+      color: #cbd5e1;
+    }
+
+    .history-entry {
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .history-entry:last-child { margin-bottom: 0; }
+
+    .history-player {
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+
+    .history-action {
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+
+    .history-amount {
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .empty-history {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 16px 0;
+      font-size: 13px;
+    }
+
+    .winner-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+
+    .winner-chip strong { color: #bbf7d0; }
+
+    .street-board-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
     /* Raw JSON */
 
     pre {
@@ -1357,6 +1522,18 @@
             </div>
           </div>
         </div> <!-- end .action-dock -->
+
+        <div class="hand-history-panel">
+          <div class="hand-history-header">
+            <div>
+              <p class="hand-history-title">Table hand history</p>
+              <p class="hand-history-sub">Latest 50 hands with per-street actions.</p>
+            </div>
+          </div>
+          <div id="handHistoryList" class="hand-history-list">
+            <div class="empty-history">Play a hand to start building history.</div>
+          </div>
+        </div>
       </div>   <!-- end .table-wrapper -->
     </div>   <!-- end .panel -->
 
@@ -1518,6 +1695,7 @@
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
+    const handHistoryList = document.getElementById("handHistoryList");
 
     if (logoutBtn) logoutBtn.disabled = true;
 
@@ -2296,6 +2474,146 @@
       raise100Btn.onclick = makePctHandler(1.0);
     }
 
+    function createMiniCard(card) {
+      const span = document.createElement("span");
+      span.className = "card";
+      const imgSrc = getCardImageSrc(card);
+      if (imgSrc) {
+        span.innerHTML = `<img class="card-img" src="${imgSrc}" alt="${card}">`;
+      } else {
+        span.textContent = card;
+      }
+      return span;
+    }
+
+    function renderHistoryBoard(container, cards) {
+      if (!cards || !cards.length) return;
+      const boardRow = document.createElement("div");
+      boardRow.className = "board-small";
+      cards.forEach(card => boardRow.appendChild(createMiniCard(card)));
+      container.appendChild(boardRow);
+    }
+
+    function renderHandHistory(hands = []) {
+      if (!handHistoryList) return;
+
+      handHistoryList.innerHTML = "";
+      if (!hands.length) {
+        handHistoryList.innerHTML = '<div class="empty-history">No completed hands yet.</div>';
+        return;
+      }
+
+      const ordered = [...hands].slice(-50).reverse();
+      const streetOrder = ["preflop", "flop", "turn", "river"];
+
+      ordered.forEach(hand => {
+        const card = document.createElement("div");
+        card.className = "hand-history-card";
+
+        const header = document.createElement("div");
+        header.className = "hand-history-top";
+        const left = document.createElement("div");
+        left.innerHTML = `<div class="hand-label">Hand #${hand.hand_number}</div>`;
+        if (hand.board?.length) {
+          renderHistoryBoard(left, hand.board);
+        }
+
+        const right = document.createElement("div");
+        right.style.display = "flex";
+        right.style.gap = "8px";
+        right.style.alignItems = "center";
+        if (hand.result?.pot != null) {
+          const potPill = document.createElement("div");
+          potPill.className = "hand-result-pill";
+          potPill.textContent = `Pot ${hand.result.pot}`;
+          right.appendChild(potPill);
+        }
+        if (hand.result?.reason) {
+          const reason = document.createElement("div");
+          reason.className = "hand-history-sub";
+          reason.textContent = hand.result.reason.replace("_", " ");
+          right.appendChild(reason);
+        }
+
+        header.appendChild(left);
+        header.appendChild(right);
+        card.appendChild(header);
+
+        const grid = document.createElement("div");
+        grid.className = "hand-history-grid";
+
+        streetOrder.forEach(street => {
+          const column = document.createElement("div");
+          column.className = "history-column";
+          const title = document.createElement("h4");
+          title.textContent = street;
+          column.appendChild(title);
+
+          const boardEvent = (hand.actions || []).find(a => a.type === "street" && a.street === street);
+          if (boardEvent?.board?.length) {
+            const boardLabel = document.createElement("div");
+            boardLabel.className = "street-board-label";
+            boardLabel.textContent = "Board";
+            renderHistoryBoard(boardLabel, boardEvent.board);
+            column.appendChild(boardLabel);
+          }
+
+          const streetActions = (hand.actions || []).filter(
+            a => a.type === "action" && a.street === street
+          );
+
+          if (!streetActions.length) {
+            const empty = document.createElement("div");
+            empty.className = "history-action";
+            empty.textContent = "No actions";
+            column.appendChild(empty);
+          } else {
+            streetActions.forEach(a => {
+              const row = document.createElement("div");
+              row.className = "history-entry";
+
+              const info = document.createElement("div");
+              info.innerHTML = `<div class="history-player">${a.player_name || "Player"}</div><div class="history-action">${a.action}${a.auto ? " (auto)" : ""}</div>`;
+
+              const amt = document.createElement("div");
+              amt.className = "history-amount";
+              amt.textContent = a.amount != null ? a.amount : "";
+
+              row.appendChild(info);
+              row.appendChild(amt);
+              column.appendChild(row);
+            });
+          }
+
+          grid.appendChild(column);
+        });
+
+        const resultCol = document.createElement("div");
+        resultCol.className = "history-column";
+        const resultTitle = document.createElement("h4");
+        resultTitle.textContent = "Result";
+        resultCol.appendChild(resultTitle);
+
+        if (hand.result?.winners?.length) {
+          hand.result.winners.forEach(w => {
+            const chip = document.createElement("div");
+            chip.className = "winner-chip";
+            chip.innerHTML = `<strong>${w.player_name || "Winner"}</strong> +${w.amount}`;
+            resultCol.appendChild(chip);
+          });
+        } else {
+          const none = document.createElement("div");
+          none.className = "history-action";
+          none.textContent = "No result yet";
+          resultCol.appendChild(none);
+        }
+
+        grid.appendChild(resultCol);
+        card.appendChild(grid);
+        handHistoryList.appendChild(card);
+      });
+    }
+
     function renderState(state) {
       const prevState = lastState;
       lastState = state;
@@ -2468,6 +2786,10 @@
       detectNewBets(prevState, state);
 
       rawStatePre.textContent = JSON.stringify(state, null, 2);
+
+      if (Array.isArray(state.recent_hands)) {
+        renderHandHistory(state.recent_hands);
+      }
 
       dealFlopBtn.disabled = state.street !== "preflop";
       dealTurnBtn.disabled = state.street !== "flop";

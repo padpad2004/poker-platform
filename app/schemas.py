@@ -130,6 +130,35 @@ class PlayerState(BaseModel):
     user_id: Optional[int]
     profile_picture_url: Optional[str] = None
 
+
+class HandAction(BaseModel):
+    type: Literal["action", "street"]
+    street: str
+    player_name: Optional[str] = None
+    seat: Optional[int] = None
+    action: Optional[str] = None
+    amount: Optional[float] = None
+    committed: Optional[float] = None
+    stack: Optional[float] = None
+    auto: Optional[bool] = None
+    board: Optional[List[str]] = None
+
+
+class HandResult(BaseModel):
+    reason: str
+    pot: float
+    board: List[str]
+    winners: List[dict]
+
+
+class TableHandHistory(BaseModel):
+    hand_number: int
+    board: List[str]
+    pot: float
+    actions: List[HandAction]
+    result: Optional[HandResult] = None
+
+
 class TableState(BaseModel):
     id: int
     hand_number: int
@@ -145,6 +174,7 @@ class TableState(BaseModel):
     small_blind: float
     big_blind: float
     players: List[PlayerState]
+    recent_hands: List[TableHandHistory] = []
 
     model_config = ConfigDict(from_attributes=True)
 

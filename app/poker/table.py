@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from .deck import Deck
 from .cards import Card
@@ -71,6 +71,10 @@ class Table:
 
         # Internal id counter to ensure player ids remain unique even after seats are vacated
         self._next_player_id: int = 1
+
+        # Simple in-memory history of recent hands (action-only, non-persisted)
+        self.recent_hands: List[Dict[str, Any]] = []
+        self.current_hand_log: Optional[Dict[str, Any]] = None
 
     # ---------- Player & seating ----------
 
@@ -194,7 +198,18 @@ class Table:
             p.committed = 0
             p.all_in = False
 
+        # Start a fresh hand log
+        self.current_hand_log = {
+            "hand_number": self.hand_number,
+            "actions": [],
+            "board": [],
+            "result": None,
+            "pot": 0,
+        }
+
         self._apply_bomb_pot_if_needed()
+
+        # Note: blinds are logged inside post_blinds
 
         # Deal 2 cards to each player
         for _ in range(2):
@@ -213,8 +228,10 @@ class Table:
         sb_player = self._player_by_seat(self.dealer_seat)
         bb_player = self._player_by_seat(self._next_seat(self.dealer_seat))
 
-        self._post_blind(sb_player, self.small_blind)
-        self._post_blind(bb_player, self.big_blind)
+        sb_amount = self._post_blind(sb_player, self.small_blind)
+        self._log_action("preflop", sb_player, "small_blind", sb_amount)
+        bb_amount = self._post_blind(bb_player, self.big_blind)
+        self._log_action("preflop", bb_player, "big_blind", bb_amount)
 
         self.small_blind_seat = sb_player.seat
         self.big_blind_seat = bb_player.seat
@@ -239,17 +256,19 @@ class Table:
             self.pot += contribution
             if p.stack == 0:
                 p.all_in = True
+            self._log_action("preflop", p, "bomb_pot", contribution)
 
         # Bomb pot contributions set the initial current bet
         self.current_bet = max(self.current_bet, self.bomb_pot_amount)
 
-    def _post_blind(self, player: Player, amount: float) -> None:
+    def _post_blind(self, player: Player, amount: float) -> float:
         post = min(player.stack, amount)
         player.stack -= post
         player.committed += post
         self.pot += post
         if player.stack == 0:
             player.all_in = True
+        return post
 
     def _player_by_seat(self, seat: int) -> Player:
         for p in self.players:
@@ -263,6 +282,81 @@ class Table:
             raise ValueError("Seat not occupied")
         idx = occupied.index(seat)
         return occupied[(idx + 1) % len(occupied)]
+
+    def _log_action(
+        self,
+        street: str,
+        player: Optional[Player],
+        action: str,
+        amount: Optional[float] = None,
+        auto: bool = False,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        if self.current_hand_log is None:
+            return
+
+        event: Dict[str, Any] = {
+            "type": "action",
+            "street": street,
+            "player_name": player.name if player else None,
+            "seat": player.seat if player else None,
+            "action": action,
+            "amount": amount,
+            "committed": player.committed if player else None,
+            "stack": player.stack if player else None,
+            "auto": auto,
+        }
+
+        if extra:
+            event.update(extra)
+
+        self.current_hand_log["actions"].append(event)
+
+    def _log_street_transition(self, street: str) -> None:
+        if self.current_hand_log is None:
+            return
+        self.current_hand_log["actions"].append(
+            {
+                "type": "street",
+                "street": street,
+                "board": [str(c) for c in self.board],
+            }
+        )
+
+    def _finalize_hand(
+        self,
+        winners: List[Player],
+        payouts: Dict[int, float],
+        pot_amount: float,
+        reason: str,
+    ) -> None:
+        """Push the current hand log into the rolling history buffer."""
+
+        if self.current_hand_log is None:
+            return
+
+        result_payload = {
+            "reason": reason,
+            "pot": pot_amount,
+            "winners": [
+                {
+                    "player_name": w.name,
+                    "seat": w.seat,
+                    "amount": payouts.get(w.id, 0),
+                }
+                for w in winners
+            ],
+            "board": [str(c) for c in self.board],
+        }
+
+        self.current_hand_log["result"] = result_payload
+        self.current_hand_log["board"] = [str(c) for c in self.board]
+        self.current_hand_log["pot"] = pot_amount
+
+        self.recent_hands.append(self.current_hand_log)
+        # Keep only the last 50 hands similar to ClubGG history
+        self.recent_hands = self.recent_hands[-50:]
+        self.current_hand_log = None
 
     def _next_player_to_act(self, start_from_seat: int) -> Optional[int]:
         """Return the next eligible seat to act, starting after the given seat."""
@@ -361,6 +455,8 @@ class Table:
         if acting_player.has_folded or not acting_player.in_hand or acting_player.all_in:
             raise ValueError("Player cannot act (folded or all-in)")
 
+        event_amount: Optional[float] = None
+
         if action == "fold":
             acting_player.has_folded = True
             acting_player.in_hand = False
@@ -380,6 +476,7 @@ class Table:
                 self.pot += put_in
                 if acting_player.stack == 0:
                     acting_player.all_in = True
+                event_amount = put_in
 
         elif action == "raise_to":
             if amount is None:
@@ -399,10 +496,12 @@ class Table:
             self.current_bet = max(self.current_bet, acting_player.committed)
             if acting_player.stack == 0:
                 acting_player.all_in = True
+            event_amount = put_in
 
         else:
             raise ValueError(f"Unknown action: {action}")
 
+        self._log_action(self.street, acting_player, action, event_amount, auto=auto)
         self._advance_turn()
 
     def _advance_turn(self) -> None:
@@ -456,6 +555,7 @@ class Table:
             raise ValueError("Flop can only be dealt after preflop betting")
         self.board.extend([self.deck.deal_one() for _ in range(3)])
         self.street = "flop"
+        self._log_street_transition("flop")
         self.reset_committed_for_new_street()
 
     def deal_turn(self) -> None:
@@ -463,6 +563,7 @@ class Table:
             raise ValueError("Turn can only be dealt after flop")
         self.board.append(self.deck.deal_one())
         self.street = "turn"
+        self._log_street_transition("turn")
         self.reset_committed_for_new_street()
 
     def deal_river(self) -> None:
@@ -470,6 +571,7 @@ class Table:
             raise ValueError("River can only be dealt after turn")
         self.board.append(self.deck.deal_one())
         self.street = "river"
+        self._log_street_transition("river")
         self.reset_committed_for_new_street()
 
     # ---------- Showdown ----------
@@ -502,6 +604,7 @@ class Table:
         winners, best_rank, results = self.determine_winner()
 
         payouts: dict[int, float] = {}
+        pot_before = self.pot
 
         if winners and self.pot > 0:
             share = self.pot / len(winners)
@@ -513,6 +616,7 @@ class Table:
             self.pot = 0
 
         self.street = "showdown"
+        self._finalize_hand(winners, payouts, pot_before, reason="showdown")
         return winners, best_rank, results, payouts
 
     def __repr__(self) -> str:
