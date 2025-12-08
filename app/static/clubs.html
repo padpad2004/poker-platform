@@ -154,6 +154,12 @@
       align-items: center;
     }
 
+    .chip-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .chip strong { font-size: 14px; }
     .muted { color: var(--text-muted); font-size: 12px; }
 
@@ -356,10 +362,12 @@
     const API_BASE = "";
     const AUTH_STORAGE_KEY = "pokerAuth";
     let accessToken = "";
+    let currentUserId = null;
     let currentUserEmail = "";
     let currentClubId = null;
     let tableId = null;
     let tableSocket = null;
+    let isCurrentUserOwner = false;
 
     const emailInput = document.getElementById("email");
     const passwordInput = document.getElementById("password");
@@ -470,6 +478,7 @@
         const text = await res.text();
         throw new Error(`Error ${res.status}: ${text}`);
       }
+      if (res.status === 204) return null;
       return res.json();
     }
 
@@ -484,6 +493,7 @@
       if (!currentUserEmail) return;
       try {
         const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`);
+        currentUserId = me.id;
         if (typeof me.balance === "number") updateBalanceUI(me.balance);
         currentClubId = me.current_club_id || currentClubId;
       } catch (err) {
@@ -594,15 +604,46 @@
       tables.forEach((t) => {
         const div = document.createElement("div");
         div.className = "chip";
-        div.innerHTML = `
-          <div>
-            <strong>Table #${t.id}</strong>
-            <div class="muted">Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
-          </div>
-          <div class="badge">${t.status}</div>
+
+        const info = document.createElement("div");
+        info.innerHTML = `
+          <strong>Table #${t.id}</strong>
+          <div class="muted">Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
         `;
+
+        const actions = document.createElement("div");
+        actions.className = "chip-actions";
+
+        const statusBadge = document.createElement("div");
+        statusBadge.className = "badge";
+        statusBadge.textContent = t.status;
+        actions.appendChild(statusBadge);
+
+        if (isCurrentUserOwner) {
+          const closeBtn = document.createElement("button");
+          closeBtn.className = "btn-danger";
+          closeBtn.textContent = "Close";
+          closeBtn.onclick = () => closeTable(t.id);
+          actions.appendChild(closeBtn);
+        }
+
+        div.appendChild(info);
+        div.appendChild(actions);
         tablesList.appendChild(div);
       });
+    }
+
+    async function closeTable(tableId) {
+      if (!currentClubId) return alert("Select a club first");
+      const confirmed = window.confirm("Close this table? Players will be disconnected.");
+      if (!confirmed) return;
+
+      try {
+        await api(`/clubs/${currentClubId}/tables/${tableId}`, { method: "DELETE" });
+        await loadClubDetail(currentClubId);
+      } catch (e) {
+        alert(e.message);
+      }
     }
 
     async function loadClubDetail(clubId) {
@@ -610,6 +651,7 @@
       try {
         const detail = await api(`/clubs/${clubId}`);
         currentClubId = detail.id;
+        isCurrentUserOwner = currentUserId === detail.owner_id;
         clubDetailEmpty.style.display = "none";
         clubDetail.style.display = "block";
         clubTitle.textContent = detail.name;
