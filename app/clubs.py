@@ -32,6 +32,27 @@ def create_club(
     return club
 
 
+@router.patch("/{club_id}/crest", response_model=schemas.ClubRead)
+def update_club_crest(
+    club_id: int,
+    payload: schemas.ClubCrestUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can change the crest")
+
+    club.crest_url = payload.crest_url or "/static/crests/crest-crown.svg"
+    db.add(club)
+    db.commit()
+    db.refresh(club)
+    return club
+
+
 @router.get("/", response_model=list[schemas.ClubRead])
 def list_my_clubs(
     db: Session = Depends(get_db),

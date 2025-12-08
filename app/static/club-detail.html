@@ -78,6 +78,37 @@
       display: block;
     }
 
+    .crest-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .crest-option {
+      border: 1px solid var(--panel-border);
+      background: #0b1020;
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .crest-option:hover { border-color: #2563eb; transform: translateY(-2px); }
+    .crest-option.selected { border-color: #22c55e; box-shadow: 0 8px 24px rgba(34, 197, 94, 0.15); }
+
+    .crest-option img {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto 6px;
+      filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35));
+    }
+
+    .crest-option span { display: block; font-size: 12px; color: var(--text-muted); letter-spacing: 0.02em; }
+
     .header-row {
       display: flex;
       justify-content: space-between;
@@ -271,14 +302,17 @@
 
   <div class="panel">
     <div class="header-row">
-      <div style="display:flex; align-items:center; gap: 12px;">
+      <div style="display:flex; align-items:center; gap: 12px; flex-wrap: wrap;">
         <div class="crest-avatar" id="clubCrest"><span class="crest-letter">C</span></div>
         <div>
           <div class="title" id="clubTitle">Loading...</div>
           <div class="muted" id="clubMeta">Fetching club details</div>
         </div>
       </div>
-      <div class="badge" id="clubStatus">--</div>
+      <div style="display:flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+        <button id="changeCrestBtn" class="ghost-button" type="button">Change crest</button>
+        <div class="badge" id="clubStatus">--</div>
+      </div>
     </div>
 
     <div style="margin-top: 16px;">
@@ -360,6 +394,32 @@
     </div>
   </div>
 
+  <div id="crestModal" class="modal hidden" aria-hidden="true" role="dialog">
+    <div class="modal-content">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px;">
+        <div>
+          <h3 style="margin: 0;">Choose a club crest</h3>
+          <p class="muted" style="margin: 2px 0 0;">Pick one of our options or paste your own image link.</p>
+        </div>
+        <button type="button" class="ghost-button" id="closeCrestModalBtn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="crest-grid" id="crestGrid"></div>
+
+      <label for="crestUrlInput">Custom crest URL</label>
+      <input id="crestUrlInput" type="url" placeholder="https://example.com/crest.png" />
+      <div class="crest-preview" style="display:flex; align-items:center; gap: 10px;">
+        <div class="crest-avatar" id="crestPreviewAvatar"><span class="crest-letter">C</span></div>
+        <div class="muted" id="crestPreviewLabel">Royal crest selected.</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="ghost-button" id="cancelCrestBtn">Cancel</button>
+        <button type="button" id="saveCrestBtn">Save crest</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const AUTH_STORAGE_KEY = "pokerAuth";
     const TOURNAMENT_STORAGE_KEY = "clubTournaments";
@@ -393,6 +453,28 @@
     const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
     const cancelCreateTableBtnFooter = document.getElementById("cancelCreateTableBtnFooter");
     const submitCreateTableBtn = document.getElementById("submitCreateTableBtn");
+    const changeCrestBtn = document.getElementById("changeCrestBtn");
+    const crestModal = document.getElementById("crestModal");
+    const crestGrid = document.getElementById("crestGrid");
+    const crestUrlInput = document.getElementById("crestUrlInput");
+    const crestPreviewAvatar = document.getElementById("crestPreviewAvatar");
+    const crestPreviewLabel = document.getElementById("crestPreviewLabel");
+    const closeCrestModalBtn = document.getElementById("closeCrestModalBtn");
+    const cancelCrestBtn = document.getElementById("cancelCrestBtn");
+    const saveCrestBtn = document.getElementById("saveCrestBtn");
+
+    const crestOptions = [
+      { url: "/static/crests/crest-crown.svg", label: "Royal" },
+      { url: "/static/crests/crest-lion.svg", label: "Lion" },
+      { url: "/static/crests/crest-phoenix.svg", label: "Phoenix" },
+      { url: "/static/crests/crest-shield.svg", label: "Shield" },
+      { url: "/static/crests/crest-wave.svg", label: "Wave" },
+      { url: "/static/crests/crest-star.svg", label: "Star" },
+    ];
+
+    let selectedCrestUrl = crestOptions[0]?.url || "";
+
+    renderCrestOptions();
 
     function setCrestAvatar(el, url, name = "Club") {
       if (!el) return;
@@ -414,6 +496,96 @@
         el.appendChild(span);
       }
     }
+
+    function renderCrestOptions() {
+      if (!crestGrid) return;
+      crestGrid.innerHTML = "";
+      crestOptions.forEach((item) => {
+        const option = document.createElement("div");
+        option.className = "crest-option";
+        option.innerHTML = `
+          <img src="${item.url}" alt="${item.label} crest" loading="lazy" />
+          <span>${item.label}</span>
+        `;
+        option.onclick = () => selectCrestOption(item.url, item.label, option);
+        crestGrid.appendChild(option);
+      });
+    }
+
+    function selectCrestOption(url, label, optionEl) {
+      selectedCrestUrl = url;
+      if (crestUrlInput) crestUrlInput.value = url;
+      if (crestPreviewLabel) crestPreviewLabel.textContent = `${label} crest selected.`;
+      setCrestAvatar(crestPreviewAvatar, selectedCrestUrl, clubTitle?.textContent || label || "Club");
+
+      document.querySelectorAll(".crest-option").forEach((el) => el.classList.remove("selected"));
+      if (optionEl) optionEl.classList.add("selected");
+    }
+
+    function showCrestModal() {
+      if (!crestModal) return;
+      crestModal.classList.remove("hidden");
+      requestAnimationFrame(() => crestModal.classList.add("show"));
+    }
+
+    function hideCrestModal() {
+      if (!crestModal) return;
+      crestModal.classList.remove("show");
+      setTimeout(() => crestModal.classList.add("hidden"), 200);
+    }
+
+    function highlightCrestSelection(url) {
+      const optionMatch = Array.from(crestGrid?.querySelectorAll(".crest-option") || []).find((el) => {
+        const img = el.querySelector("img");
+        return img && img.getAttribute("src") === url;
+      });
+      const label = crestOptions.find((opt) => opt.url === url)?.label || "Custom";
+      selectCrestOption(url, label, optionMatch);
+    }
+
+    crestUrlInput?.addEventListener("input", (event) => {
+      const value = event.target.value.trim();
+      selectedCrestUrl = value;
+      crestPreviewLabel.textContent = value ? "Using custom crest URL." : "Royal crest selected.";
+      document.querySelectorAll(".crest-option").forEach((el) => el.classList.remove("selected"));
+      setCrestAvatar(crestPreviewAvatar, selectedCrestUrl, clubTitle?.textContent || "Club");
+    });
+
+    crestModal?.addEventListener("click", (event) => {
+      if (event.target === crestModal) hideCrestModal();
+    });
+
+    [closeCrestModalBtn, cancelCrestBtn].forEach((btn) => {
+      btn?.addEventListener("click", hideCrestModal);
+    });
+
+    changeCrestBtn?.addEventListener("click", () => {
+      requireAuth();
+      highlightCrestSelection(selectedCrestUrl);
+      showCrestModal();
+    });
+
+    saveCrestBtn?.addEventListener("click", async () => {
+      requireAuth();
+      if (!currentClubId) return alert("Select a club first.");
+
+      try {
+        saveCrestBtn.textContent = "Saving...";
+        saveCrestBtn.disabled = true;
+        await api(`/clubs/${currentClubId}/crest`, {
+          method: "PATCH",
+          body: JSON.stringify({ crest_url: selectedCrestUrl || null }),
+        });
+        setCrestAvatar(clubCrest, selectedCrestUrl, clubTitle?.textContent || "Club");
+        hideCrestModal();
+        alert("Crest updated.");
+      } catch (e) {
+        alert(e.message || "Unable to update crest.");
+      } finally {
+        saveCrestBtn.textContent = "Save crest";
+        saveCrestBtn.disabled = false;
+      }
+    });
 
     function parseClubId() {
       const params = new URLSearchParams(window.location.search);
@@ -658,6 +830,9 @@
           manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;
         }
         setCrestAvatar(clubCrest, detail.crest_url, detail.name || "Club");
+        selectedCrestUrl = detail.crest_url || crestOptions[0]?.url || "";
+        if (crestUrlInput) crestUrlInput.value = selectedCrestUrl;
+        highlightCrestSelection(selectedCrestUrl);
         if (quickCreateTableBtn) {
           quickCreateTableBtn.disabled = !isCurrentUserOwner;
           quickCreateTableBtn.textContent = isCurrentUserOwner ? "Create New Table" : "Owner access required";

@@ -482,16 +482,6 @@
         <label>Club Name</label>
         <input type="text" id="clubName" placeholder="My Poker Club" />
 
-        <label>Club Crest</label>
-        <div class="crest-preview">
-          <div class="crest-avatar" id="crestPreviewAvatar"><span class="crest-letter">?</span></div>
-          <div style="flex: 1; min-width: 0;">
-            <div class="muted" id="crestPreviewLabel">Pick a crest avatar or paste your own URL.</div>
-            <input type="url" id="crestUrlInput" placeholder="Optional: https://example.com/crest.png" />
-          </div>
-        </div>
-        <div class="crest-grid" id="crestGrid"></div>
-        <div class="crest-helper">Choose one of our crests or paste a custom image link.</div>
         <button id="createClubBtn" disabled>Create Club</button>
 
       <label>Join Existing Club by ID</label>
@@ -680,22 +670,7 @@
     const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
     const submitCreateTableBtn = document.getElementById("submitCreateTableBtn");
     const manageMembersLink = document.getElementById("manageMembersLink");
-    const crestGrid = document.getElementById("crestGrid");
-    const crestUrlInput = document.getElementById("crestUrlInput");
-    const crestPreviewAvatar = document.getElementById("crestPreviewAvatar");
-    const crestPreviewLabel = document.getElementById("crestPreviewLabel");
     const clubCrest = document.getElementById("clubCrest");
-
-    const crestOptions = [
-      { url: "/static/crests/crest-crown.svg", label: "Royal" },
-      { url: "/static/crests/crest-lion.svg", label: "Lion" },
-      { url: "/static/crests/crest-phoenix.svg", label: "Phoenix" },
-      { url: "/static/crests/crest-shield.svg", label: "Shield" },
-      { url: "/static/crests/crest-wave.svg", label: "Wave" },
-      { url: "/static/crests/crest-star.svg", label: "Star" },
-    ];
-
-    let selectedCrestUrl = crestOptions[0]?.url || "";
 
     function setCrestAvatar(el, url, name = "Club", sizeClass = "") {
       if (!el) return;
@@ -722,73 +697,6 @@
       }
     }
 
-    function renderCrestOptions() {
-      if (!crestGrid) return;
-      crestGrid.innerHTML = "";
-      crestOptions.forEach((item) => {
-        const option = document.createElement("div");
-        option.className = "crest-option";
-        option.innerHTML = `
-          <img src="${item.url}" alt="${item.label} crest" loading="lazy" />
-          <span>${item.label}</span>
-        `;
-        option.onclick = () => selectCrestOption(item.url, item.label, option);
-        crestGrid.appendChild(option);
-      });
-    }
-
-    function selectCrestOption(url, label, optionEl) {
-      selectedCrestUrl = url;
-      if (crestUrlInput) crestUrlInput.value = url;
-      if (crestPreviewLabel) crestPreviewLabel.textContent = `${label} crest selected.`;
-      setCrestAvatar(
-        crestPreviewAvatar,
-        selectedCrestUrl,
-        clubNameInput?.value || label || "Club",
-        ""
-      );
-
-      document.querySelectorAll(".crest-option").forEach((el) => el.classList.remove("selected"));
-      if (optionEl) optionEl.classList.add("selected");
-    }
-
-    if (crestUrlInput) {
-      crestUrlInput.addEventListener("input", (event) => {
-        const value = event.target.value.trim();
-        selectedCrestUrl = value;
-        if (crestPreviewLabel) {
-          crestPreviewLabel.textContent = value
-            ? "Using custom crest URL."
-            : "Pick a crest avatar or paste your own URL.";
-        }
-        document
-          .querySelectorAll(".crest-option")
-          .forEach((el) => el.classList.remove("selected"));
-        setCrestAvatar(
-          crestPreviewAvatar,
-          selectedCrestUrl,
-          clubNameInput?.value || "Club",
-          ""
-        );
-      });
-    }
-
-    if (clubNameInput) {
-      clubNameInput.addEventListener("input", () => {
-        setCrestAvatar(
-          crestPreviewAvatar,
-          selectedCrestUrl,
-          clubNameInput.value || "Club",
-          ""
-        );
-      });
-    }
-
-    renderCrestOptions();
-    if (crestOptions.length) {
-      const firstOption = crestGrid?.querySelector(".crest-option");
-      selectCrestOption(selectedCrestUrl, crestOptions[0].label, firstOption || undefined);
-    }
 
     function setAuthEnabled(enabled) {
       createClubBtn.disabled = !enabled;
@@ -1099,11 +1007,10 @@
     createClubBtn.onclick = async () => {
       requireAuth();
       const name = clubNameInput.value.trim() || "My Club";
-      const crestUrlToSave = (selectedCrestUrl || crestUrlInput?.value || "").trim();
       try {
         const club = await api("/clubs/", {
           method: "POST",
-          body: JSON.stringify({ name, crest_url: crestUrlToSave || null }),
+          body: JSON.stringify({ name }),
         });
         alert(`Created club #${club.id}`);
         loadClubs();
