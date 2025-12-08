@@ -158,19 +158,28 @@
       font-style: italic;
     }
 
-    button {
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .chip-btn {
       background: transparent;
-      color: var(--muted);
+      color: var(--text);
       border: 1px solid var(--panel-border);
       border-radius: 999px;
       padding: 6px 12px;
       cursor: pointer;
+      font-weight: 600;
+      transition: border-color 0.2s ease, color 0.2s ease;
     }
 
-    button:hover {
-      border-color: var(--accent);
-      color: var(--text);
-    }
+    .chip-btn:hover { border-color: var(--accent); }
+
+    .chip-btn.danger { color: var(--danger); border-color: rgba(239, 68, 68, 0.6); }
+    .chip-btn.danger:hover { color: #fecdd3; border-color: var(--danger); }
   </style>
 </head>
 <body>
@@ -205,6 +214,7 @@
   <script>
     const authState = JSON.parse(localStorage.getItem("pokerAuth") || "{}");
     const token = authState.token;
+    const ADMIN_EMAILS = ["paddywarren99@gmail.com", "padpadpoker@gmail.com"];
 
     if (!token) {
       window.location.href = "/";
@@ -217,9 +227,18 @@
     const clubCount = document.getElementById("club-count");
     const statsPill = document.getElementById("stats-pill");
 
+    function clearError() {
+      errorBox.textContent = "";
+      errorBox.style.display = "none";
+    }
+
     function showError(message) {
       errorBox.textContent = message;
       errorBox.style.display = "block";
+    }
+
+    function isProtectedAdminEmail(email) {
+      return ADMIN_EMAILS.some((value) => value.toLowerCase() === (email || "").toLowerCase());
     }
 
     function formatDate(value) {
@@ -237,15 +256,43 @@
       users.forEach((user) => {
         const card = document.createElement("div");
         card.className = "card";
-        card.innerHTML = `
-          <div class="card-title">
-            <span>${user.username}</span>
-            <span class="badge">ID ${user.id}</span>
-          </div>
-          <div class="meta">Email: ${user.email}</div>
-          <div class="meta">Balance: ${user.balance ?? 0}</div>
-          <div class="meta">Created: ${formatDate(user.created_at)}</div>
-        `;
+
+        const title = document.createElement("div");
+        title.className = "card-title";
+        title.innerHTML = `<span>${user.username}</span><span class="badge">ID ${user.id}</span>`;
+
+        const emailRow = document.createElement("div");
+        emailRow.className = "meta";
+        emailRow.textContent = `Email: ${user.email}`;
+
+        const balanceRow = document.createElement("div");
+        balanceRow.className = "meta";
+        balanceRow.textContent = `Balance: ${user.balance ?? 0}`;
+
+        const createdRow = document.createElement("div");
+        createdRow.className = "meta";
+        createdRow.textContent = `Created: ${formatDate(user.created_at)}`;
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "chip-btn danger";
+        removeBtn.textContent = "Remove user";
+        removeBtn.onclick = () => confirmDeleteUser(user);
+        if (isProtectedAdminEmail(user.email)) {
+          removeBtn.disabled = true;
+          removeBtn.title = "Protected admin account";
+          removeBtn.style.opacity = "0.6";
+        }
+
+        actions.appendChild(removeBtn);
+
+        card.appendChild(title);
+        card.appendChild(emailRow);
+        card.appendChild(balanceRow);
+        card.appendChild(createdRow);
+        card.appendChild(actions);
         usersList.appendChild(card);
       });
 
@@ -262,23 +309,98 @@
       clubs.forEach((club) => {
         const card = document.createElement("div");
         card.className = "card";
-        card.innerHTML = `
-          <div class="card-title">
-            <span>${club.name}</span>
-            <span class="badge">ID ${club.id}</span>
-          </div>
-          <div class="meta">Owner ID: ${club.owner_id}</div>
-          <div class="meta">Status: ${club.status}</div>
-          <div class="meta">Created: ${formatDate(club.created_at)}</div>
-        `;
+
+        const title = document.createElement("div");
+        title.className = "card-title";
+        title.innerHTML = `<span>${club.name}</span><span class="badge">ID ${club.id}</span>`;
+
+        const ownerRow = document.createElement("div");
+        ownerRow.className = "meta";
+        ownerRow.textContent = `Owner ID: ${club.owner_id}`;
+
+        const statusRow = document.createElement("div");
+        statusRow.className = "meta";
+        statusRow.textContent = `Status: ${club.status}`;
+
+        const createdRow = document.createElement("div");
+        createdRow.className = "meta";
+        createdRow.textContent = `Created: ${formatDate(club.created_at)}`;
+
+        const actions = document.createElement("div");
+        actions.className = "actions";
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "chip-btn danger";
+        removeBtn.textContent = "Remove club";
+        removeBtn.onclick = () => confirmDeleteClub(club);
+
+        actions.appendChild(removeBtn);
+
+        card.appendChild(title);
+        card.appendChild(ownerRow);
+        card.appendChild(statusRow);
+        card.appendChild(createdRow);
+        card.appendChild(actions);
         clubsList.appendChild(card);
       });
 
       clubCount.textContent = `${clubs.length} club${clubs.length === 1 ? "" : "s"}`;
     }
 
+    async function performDelete(path, successMessage) {
+      clearError();
+      const res = await fetch(path, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        window.location.href = "/";
+        return;
+      }
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Unable to complete request");
+      }
+
+      statsPill.textContent = successMessage;
+    }
+
+    async function confirmDeleteClub(club) {
+      if (!window.confirm(`Remove club "${club.name}"? This cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        await performDelete(`/admin/clubs/${club.id}`, `Deleted club ${club.name}`);
+        await loadOverview();
+      } catch (err) {
+        showError(err.message || "Unable to delete club");
+      }
+    }
+
+    async function confirmDeleteUser(user) {
+      if (isProtectedAdminEmail(user.email)) {
+        showError("Admin accounts cannot be removed.");
+        return;
+      }
+
+      if (!window.confirm(`Remove user "${user.username}" and all related data?`)) {
+        return;
+      }
+
+      try {
+        await performDelete(`/admin/users/${user.id}`, `Deleted user ${user.username}`);
+        await loadOverview();
+      } catch (err) {
+        showError(err.message || "Unable to delete user");
+      }
+    }
+
     async function loadOverview() {
       try {
+        clearError();
         const res = await fetch("/admin/overview", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -295,7 +417,7 @@
         const data = await res.json();
         renderUsers(data.users || []);
         renderClubs(data.clubs || []);
-        statsPill.textContent = `${data.users?.length || 0} users • ${data.clubs?.length || 0} clubs`;
+        statsPill.textContent = `Admin • ${data.users?.length || 0} users • ${data.clubs?.length || 0} clubs`;
       } catch (err) {
         showError(err.message || "Unexpected error fetching admin data");
       }
