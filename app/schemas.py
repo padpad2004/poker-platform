@@ -26,17 +26,25 @@ class UserMe(UserBase):
     id: int
     balance: int
     current_club_id: Optional[int] = None
+    profile_picture_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class UserMe(UserBase):
+class HandHistoryRead(BaseModel):
     id: int
-    balance: int
-    current_club_id: Optional[int] = None
+    table_name: str
+    result: str
+    net_change: int
+    summary: Optional[str] = None
+    created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProfileResponse(UserMe):
+    current_club_name: Optional[str] = None
+    hand_history: List[HandHistoryRead]
 
 
 # ---------- Club ----------

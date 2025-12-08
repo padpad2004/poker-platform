@@ -101,3 +101,9 @@ def read_clubs_page():
 @app.get("/available-tables.html")
 def read_available_tables_page():
     return _serve_html("tables.html")
+
+
+@app.get("/profile")
+@app.get("/profile.html")
+def read_profile_page():
+    return _serve_html("profile.html")

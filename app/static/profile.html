@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PadPad Poker | Profile</title>
+  <style>
+    :root {
+      --bg: #0b1224;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --danger: #dc2626;
+      --card: #11192e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(15, 23, 42, 0.9);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: #0b1224;
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .subtext { color: var(--text-muted); margin: 6px 0 0; font-size: 14px; }
+
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: linear-gradient(135deg, var(--btn), var(--btn-hover));
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:active { transform: translateY(1px); }
+
+    .btn.secondary { background: transparent; color: var(--text-main); border-color: #1f2a3c; }
+    .btn.danger { background: var(--danger); border-color: var(--danger); }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    .panel h2 { margin: 0 0 6px; }
+
+    .profile-header { display: flex; align-items: center; gap: 16px; }
+
+    .avatar {
+      width: 84px;
+      height: 84px;
+      border-radius: 16px;
+      background: radial-gradient(circle, #11192e, #0b1224);
+      border: 1px solid var(--panel-border);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      color: #a3bffa;
+    }
+
+    .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .muted { color: var(--text-muted); }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.14);
+      color: #befae3;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .divider { border-top: 1px solid var(--panel-border); margin: 12px 0; }
+
+    form label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
+    form input[type="url"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      background: #0b1224;
+      color: var(--text-main);
+      margin-bottom: 10px;
+    }
+
+    .history-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+    .history-card {
+      background: var(--card);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .result { font-weight: 700; }
+    .win { color: #34d399; }
+    .loss { color: #fca5a5; }
+
+    .empty-state { text-align: center; color: var(--text-muted); padding: 14px 0; }
+
+    @media (max-width: 640px) {
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      .profile-header { flex-direction: column; align-items: flex-start; }
+      .actions { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo-circle">P</div>
+      <div>
+        <p class="page-title">Player profile</p>
+        <p class="subtext">Review your bankroll, club, and recent hands.</p>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn secondary" href="/available-tables">⬅ Back to tables</a>
+      <button class="btn secondary" id="logoutBtn">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <div class="panel" id="profilePanel">
+        <h2>Profile</h2>
+        <div class="profile-header">
+          <div class="avatar" id="avatarBox">🂡</div>
+          <div>
+            <div id="username" style="font-size: 18px; font-weight: 800;">-</div>
+            <div id="email" class="muted" style="margin-top: 4px;">-</div>
+            <div id="club" class="pill" style="display:none">Club</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <p class="muted" style="margin:0">Wallet balance</p>
+        <div style="font-size: 26px; font-weight: 800; margin-top: 4px;" id="balance">-</div>
+      </div>
+
+      <div class="panel">
+        <h2>Profile picture</h2>
+        <p class="muted">Paste a link to a square image to update your avatar.</p>
+        <form id="avatarForm">
+          <label for="avatarUrl">Image URL</label>
+          <input type="url" id="avatarUrl" name="avatarUrl" placeholder="https://..." required />
+          <button type="submit" class="btn">Save picture</button>
+        </form>
+        <div id="avatarMessage" class="muted"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <h2 style="margin:0">Hand history</h2>
+          <p class="muted" style="margin:4px 0 0;">Most recent 20 hands you've played.</p>
+        </div>
+        <button class="btn secondary" id="refreshBtn">Refresh</button>
+      </div>
+      <div id="history" class="history-list"></div>
+    </div>
+  </main>
+
+  <script>
+    const AUTH_KEY = "poker_token";
+    const authInfo = JSON.parse(localStorage.getItem("pokerAuth") || "{}");
+    const accessToken = localStorage.getItem(AUTH_KEY);
+
+    if (!accessToken || !authInfo.email) {
+      window.location.href = "/";
+    }
+
+    const logoutBtn = document.getElementById("logoutBtn");
+    const avatarBox = document.getElementById("avatarBox");
+    const usernameEl = document.getElementById("username");
+    const emailEl = document.getElementById("email");
+    const clubEl = document.getElementById("club");
+    const balanceEl = document.getElementById("balance");
+    const avatarForm = document.getElementById("avatarForm");
+    const avatarUrlInput = document.getElementById("avatarUrl");
+    const avatarMessage = document.getElementById("avatarMessage");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const historyList = document.getElementById("history");
+
+    async function api(path, options = {}) {
+      const headers = {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      };
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+      const res = await fetch(path, { ...options, headers });
+      if (res.status === 401) {
+        localStorage.removeItem(AUTH_KEY);
+        localStorage.removeItem("pokerAuth");
+        window.location.href = "/";
+        return Promise.reject(new Error("Unauthorized"));
+      }
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Error ${res.status}`);
+      }
+      return res.json();
+    }
+
+    function renderAvatar(url, fallbackText) {
+      avatarBox.innerHTML = "";
+      if (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "Profile picture";
+        img.onerror = () => {
+          avatarBox.textContent = fallbackText;
+        };
+        avatarBox.appendChild(img);
+      } else {
+        avatarBox.textContent = fallbackText;
+      }
+    }
+
+    function renderHistory(items) {
+      historyList.innerHTML = "";
+      if (!items.length) {
+        historyList.innerHTML = '<div class="empty-state">No hands recorded yet.</div>';
+        return;
+      }
+
+      items.forEach((hand) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+
+        const left = document.createElement("div");
+        left.innerHTML = `<div style="font-weight:700">${hand.table_name}</div><div class="muted">${new Date(hand.created_at).toLocaleString()}</div>`;
+
+        const right = document.createElement("div");
+        right.style.textAlign = "right";
+        const net = hand.net_change;
+        const result = document.createElement("div");
+        result.className = `result ${net >= 0 ? "win" : "loss"}`;
+        const sign = net >= 0 ? "+" : "";
+        result.textContent = `${hand.result} (${sign}${net})`;
+        const summary = document.createElement("div");
+        summary.className = "muted";
+        summary.textContent = hand.summary || "No description";
+        right.appendChild(result);
+        right.appendChild(summary);
+
+        card.appendChild(left);
+        card.appendChild(right);
+        historyList.appendChild(card);
+      });
+    }
+
+    async function loadProfile() {
+      try {
+        const data = await api(`/me/profile?email=${encodeURIComponent(authInfo.email)}`);
+        usernameEl.textContent = data.username;
+        emailEl.textContent = data.email;
+        balanceEl.textContent = `${data.balance} chips`;
+        avatarUrlInput.value = data.profile_picture_url || "";
+        renderAvatar(data.profile_picture_url, data.username?.[0]?.toUpperCase() || "🂡");
+
+        if (data.current_club_name) {
+          clubEl.textContent = data.current_club_name;
+          clubEl.style.display = "inline-flex";
+        } else {
+          clubEl.style.display = "none";
+        }
+
+        renderHistory(data.hand_history || []);
+      } catch (error) {
+        avatarMessage.textContent = error.message || "Failed to load profile.";
+      }
+    }
+
+    avatarForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      avatarMessage.textContent = "";
+      try {
+        const payload = { profile_picture_url: avatarUrlInput.value.trim() };
+        await api(`/me/profile-picture?email=${encodeURIComponent(authInfo.email)}`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        avatarMessage.textContent = "Profile picture updated.";
+        loadProfile();
+      } catch (error) {
+        avatarMessage.textContent = error.message || "Unable to save picture.";
+      }
+    });
+
+    refreshBtn.addEventListener("click", loadProfile);
+
+    logoutBtn.addEventListener("click", () => {
+      localStorage.removeItem(AUTH_KEY);
+      localStorage.removeItem("pokerAuth");
+      window.location.href = "/";
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>
