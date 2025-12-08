@@ -277,6 +277,14 @@
       background: rgba(255,255,255,0.02);
     }
 
+    .create-table-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 10px;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -531,7 +539,10 @@
         <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Open Tables</h3>
         <div class="create-table-cta">
           <div class="muted">Open a fresh table for this club with custom blinds and seating.</div>
-          <button id="quickCreateTableBtn" disabled style="width: 100%; max-width: 240px; margin-top: 10px;">Create New Table</button>
+          <div class="create-table-actions">
+            <button id="quickCreateTableBtn" disabled>Create New Table</button>
+            <button id="quickCreateTournamentBtn" class="ghost-button" disabled>Create Tournament</button>
+          </div>
         </div>
         <div id="tablesEmpty" class="muted">No active tables for this club.</div>
         <div id="tablesList" class="list"></div>
@@ -654,6 +665,7 @@
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
     const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
+    const quickCreateTournamentBtn = document.getElementById("quickCreateTournamentBtn");
     const gameTypeModal = document.getElementById("gameTypeModal");
     const cashGameOption = document.getElementById("cashGameOption");
     const tournamentOption = document.getElementById("tournamentOption");
@@ -1001,6 +1013,10 @@
           quickCreateTableBtn.disabled = !isCurrentUserOwner;
           quickCreateTableBtn.textContent = isCurrentUserOwner ? "Create New Table" : "Owner access required";
         }
+        if (quickCreateTournamentBtn) {
+          quickCreateTournamentBtn.disabled = !isCurrentUserOwner;
+          quickCreateTournamentBtn.textContent = isCurrentUserOwner ? "Create Tournament" : "Owner access required";
+        }
         renderMembers(detail.members || []);
         renderTables(detail.tables || []);
       } catch (e) {
@@ -1261,6 +1277,10 @@
 
     if (quickCreateTableBtn) {
       quickCreateTableBtn.onclick = showGameTypeModal;
+    }
+
+    if (quickCreateTournamentBtn) {
+      quickCreateTournamentBtn.onclick = goToTournamentBuilder;
     }
 
   </script>
