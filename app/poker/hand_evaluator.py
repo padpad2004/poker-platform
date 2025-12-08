@@ -112,16 +112,24 @@ def evaluate_5(cards: List[Card]) -> Tuple:
     return (HAND_RANKS["high_card"], *values)
 
 
-def best_hand(seven_cards: List[Card]) -> Tuple:
+def best_hand(seven_cards: List[Card]) -> Tuple[Tuple, List[Card]]:
     """
-    Given 7 cards (2 hole + 5 board), return the best 5-card hand's ranking tuple.
+    Given 7 cards (2 hole + 5 board), return the best 5-card hand's ranking tuple
+    **and** the actual five cards that make up that hand.
+
     Higher tuple = better.
     """
-    best = None
+    best_rank: Tuple | None = None
+    best_combo: List[Card] | None = None
 
     for combo in combinations(seven_cards, 5):
-        rank = evaluate_5(list(combo))
-        if best is None or rank > best:
-            best = rank
+        five_cards = list(combo)
+        rank = evaluate_5(five_cards)
+        if best_rank is None or rank > best_rank:
+            best_rank = rank
+            best_combo = five_cards
 
-    return best
+    if best_rank is None or best_combo is None:
+        raise ValueError("Unable to determine best hand from the provided cards")
+
+    return best_rank, best_combo

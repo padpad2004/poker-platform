@@ -555,8 +555,23 @@ async def showdown(
 ):
     table_meta = _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _get_engine_table(table_id, db)
-    winners, best_rank, results = engine_table.showdown()
-    _record_hand_history(table_meta, engine_table, db)
+    winners, best_rank, results, payouts = engine_table.showdown()
+
+    # Credit wallet balances for winners tied to real users
+    for winner in winners:
+        if winner.user_id is None:
+            continue
+
+        winnings = payouts.get(winner.id, 0)
+        if winnings <= 0:
+            continue
+
+        user = db.query(models.User).filter(models.User.id == winner.user_id).first()
+        if user:
+            user.balance += int(winnings)
+            db.add(user)
+
+    db.commit()
     started = _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
 
@@ -567,7 +582,8 @@ async def showdown(
                 "name": p.name,
                 "seat": p.seat,
                 "stack": p.stack,
-                "hand_rank": results[p.id],
+                "hand_rank": results[p.id]["hand_rank"],
+                "best_five": [str(c) for c in results[p.id]["best_five"]],
             }
             for p in winners
         ],
