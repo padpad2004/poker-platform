@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket
 from sqlalchemy.orm import Session
@@ -14,6 +14,8 @@ TABLES: Dict[int, Table] = {}
 
 # WebSocket connections per table: table_id -> { websocket: viewer_user_id or None }
 TABLE_CONNECTIONS: Dict[int, Dict[WebSocket, Optional[int]]] = {}
+# WebSocket connections keyed by seated user_id so we can notify all players at a table
+USER_CONNECTIONS: Dict[int, Set[WebSocket]] = {}
 
 
 def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
@@ -191,12 +193,35 @@ async def broadcast_table_state(table_id: int):
     _auto_progress_hand(engine_table)
     _auto_start_hand_if_ready(engine_table)
     connections = TABLE_CONNECTIONS.get(table_id, {})
+    player_user_ids = {p.user_id for p in engine_table.players if p.user_id is not None}
+
+    sent: Set[WebSocket] = set()
+
+    # First notify anyone subscribed to the specific table
     for ws, viewer_user_id in list(connections.items()):
         try:
             state = _table_state_for_viewer(table_id, engine_table, viewer_user_id)
             await ws.send_json(state.dict())
+            sent.add(ws)
         except Exception:
             connections.pop(ws, None)
+
+    # Also notify any user-level websocket connections for seated players
+    for user_id in player_user_ids:
+        sockets = USER_CONNECTIONS.get(user_id, set())
+        for ws in list(sockets):
+            if ws in sent:
+                continue
+            try:
+                state = _table_state_for_viewer(
+                    table_id, engine_table, viewer_user_id=user_id
+                )
+                await ws.send_json(state.dict())
+                sent.add(ws)
+            except Exception:
+                sockets.discard(ws)
+        if not sockets:
+            USER_CONNECTIONS.pop(user_id, None)
 
 
 @router.get("/", response_model=list[schemas.PokerTableMeta])
