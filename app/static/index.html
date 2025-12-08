@@ -2097,12 +2097,14 @@
       actingPlayerLabel.textContent = `${actingPlayer.name} (seat ${actingPlayer.seat})`;
 
       const toCall = Math.max(0, currentBet - actingPlayer.committed);
+      const viewerSeat = getViewerSeat(state);
+      const isViewerTurn = viewerSeat != null && actingPlayer.user_id === currentUserId;
 
       callAmountLabel.textContent = toCall > 0 ? toCall.toString() : "0 (check)";
-      callMainBtn.disabled = false;
-      foldMainBtn.disabled = false;
+      callMainBtn.disabled = !isViewerTurn;
+      foldMainBtn.disabled = !isViewerTurn;
 
-      const canRaise = !actingPlayer.all_in && !actingPlayer.has_folded;
+      const canRaise = isViewerTurn && !actingPlayer.all_in && !actingPlayer.has_folded;
       raiseCustomBtn.disabled = !canRaise;
       raise30Btn.disabled = !canRaise || pot <= 0;
       raise50Btn.disabled = !canRaise || pot <= 0;
