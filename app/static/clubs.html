@@ -28,6 +28,25 @@
       min-height: 100vh;
     }
 
+    .legal-footer {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      font-size: 11px;
+      color: var(--text-muted, #9ca3af);
+      z-index: 10;
+    }
+
+    .legal-footer a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .legal-footer a:hover {
+      color: #fff;
+      text-decoration: underline;
+    }
+
     header {
       display: flex;
       align-items: center;
@@ -852,5 +871,9 @@
       }
     };
   </script>
+
+  <div class="legal-footer">
+    Play-money entertainment only. Read our <a href="/legal.html" target="_blank" rel="noopener">legal disclaimer</a>.
+  </div>
 </body>
 </html>
