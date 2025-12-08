@@ -165,8 +165,14 @@ class Table:
         self.big_blind_seat = None
         self.dealer_button_seat = None
 
-        # Rotate dealer button to the next occupied seat
-        if self.hand_number > 1:
+        # Choose a valid dealer button seat and rotate when possible.
+        # If the previous dealer seat is now empty (e.g., player moved seats),
+        # fall back to the lowest occupied seat to avoid errors when
+        # advancing the button.
+        occupied_seats = sorted(p.seat for p in self.players)
+        if self.hand_number == 1 or self.dealer_seat not in occupied_seats:
+            self.dealer_seat = occupied_seats[0]
+        else:
             self.dealer_seat = self._next_seat(self.dealer_seat)
 
         self.dealer_button_seat = self.dealer_seat
