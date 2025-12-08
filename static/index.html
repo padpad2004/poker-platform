@@ -175,9 +175,48 @@
       max-width: 480px;
       text-align: center;
       color: #ecfdf5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
     }
 
-    .board-cards { margin-bottom: 6px; }
+    .board-cards {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .center-stats {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .center-stat {
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 12px;
+      padding: 8px 12px;
+      min-width: 120px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
+
+    .center-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .center-value {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fef3c7;
+    }
 
     @keyframes deal-card {
       from {
@@ -637,6 +676,24 @@
       <h2>Table</h2>
       <div class="table-wrapper">
         <div class="felt">
+          <div class="center-area">
+            <div class="board-cards" id="boardCards"></div>
+            <div class="center-stats">
+              <div class="center-stat">
+                <div class="center-label">Pot</div>
+                <div class="center-value" id="potCenter">0</div>
+              </div>
+              <div class="center-stat">
+                <div class="center-label">Current Bet</div>
+                <div class="center-value" id="betCenter">0</div>
+              </div>
+              <div class="center-stat">
+                <div class="center-label">Street</div>
+                <div class="center-value" id="streetCenter">-</div>
+              </div>
+            </div>
+          </div>
+
           <!-- 6 seat slots -->
           <div class="seat" data-seat="0">
             <div class="seat-inner">
