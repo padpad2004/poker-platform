@@ -16,9 +16,11 @@ class User(Base):
 
     balance = Column(Integer, nullable=False, default=0)
     current_club_id = Column(Integer, ForeignKey("clubs.id"), nullable=True)
+    profile_picture_url = Column(String, nullable=True)
 
     # ONLY through club_members
     memberships = relationship("ClubMember", back_populates="user")
+    hand_histories = relationship("HandHistory", back_populates="user")
 
 
 class Club(Base):
@@ -45,6 +47,20 @@ class ClubMember(Base):
 
     user = relationship("User", back_populates="memberships")
     club = relationship("Club", back_populates="members")
+
+
+class HandHistory(Base):
+    __tablename__ = "hand_histories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    table_name = Column(String, nullable=False)
+    result = Column(String, nullable=False)
+    net_change = Column(Integer, default=0)
+    summary = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="hand_histories")
 
 
 class PokerTable(Base):
