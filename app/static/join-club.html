@@ -55,7 +55,7 @@
   }
 
     .card {
-      width: min(480px, 100%);
+      width: min(960px, 100%);
       background: var(--panel);
       border: 1px solid var(--panel-border);
       border-radius: 16px;
@@ -125,6 +125,7 @@
       gap: 10px;
       margin-top: 16px;
       flex-wrap: wrap;
+      align-items: center;
     }
 
     button, .button-link {
@@ -175,6 +176,76 @@
       color: var(--text-muted);
       font-size: 13px;
     }
+
+    .section-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: 1fr;
+    }
+
+    .section-card {
+      background: var(--card);
+      border: 1px solid #1f2a3c;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .section-card h2 {
+      margin: 4px 0 2px;
+      font-size: 16px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .section-hint {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid #1f2937;
+      color: var(--text-muted);
+    }
+
+    .pill.accent {
+      background: rgba(34, 197, 94, 0.16);
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.25);
+    }
+
+    .helper-text {
+      color: var(--text-muted);
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .create-card .actions {
+      align-items: center;
+    }
+
+    @media (min-width: 820px) {
+      .section-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
   </style>
 </head>
 <body>
@@ -190,19 +261,51 @@
       <a class="button-link secondary" id="logoutBtn" href="#">Log out</a>
     </header>
 
-    <form id="joinForm">
-      <label for="clubCode">Club code</label>
-      <input type="text" id="clubCode" name="clubCode" placeholder="e.g. 12345" required />
-      <p class="tip">Club owners can find the code in their management dashboard.</p>
+    <div class="section-grid">
+      <form id="joinForm" class="section-card">
+        <div class="section-header">
+          <div>
+            <div class="pill">Step 1</div>
+            <h2>Join with a code</h2>
+          </div>
+          <span class="section-hint">Provided by your host</span>
+        </div>
 
-      <div class="actions">
-        <button type="submit">Join club</button>
-        <a class="button-link secondary" id="backToTables" href="/available-tables">Skip for now</a>
-      </div>
+        <label for="clubCode">Club code</label>
+        <input type="text" id="clubCode" name="clubCode" placeholder="e.g. 12345" required />
+        <p class="tip">Club owners can find the code in their management dashboard.</p>
 
-      <div class="error" id="errorBox"></div>
-      <div class="success" id="successBox"></div>
-    </form>
+        <div class="actions">
+          <button type="submit">Join club</button>
+          <a class="button-link secondary" id="backToTables" href="/available-tables">Skip for now</a>
+        </div>
+
+        <div class="error" id="errorBox"></div>
+        <div class="success" id="successBox"></div>
+      </form>
+
+      <form id="createForm" class="section-card create-card">
+        <div class="section-header">
+          <div>
+            <div class="pill accent">New</div>
+            <h2>Create a club</h2>
+          </div>
+          <span class="section-hint">Host your own tables</span>
+        </div>
+
+        <label for="clubName">Club name</label>
+        <input type="text" id="clubName" name="clubName" placeholder="e.g. High Rollers" required />
+        <p class="tip">A default crest will be applied. You can update it later.</p>
+
+        <div class="actions">
+          <button type="submit">Create club</button>
+          <span class="helper-text">Instantly generate a shareable code</span>
+        </div>
+
+        <div class="error" id="createError"></div>
+        <div class="success" id="createSuccess"></div>
+      </form>
+    </div>
   </div>
 
   <script>
@@ -217,6 +320,9 @@
     const joinForm = document.getElementById("joinForm");
     const errorBox = document.getElementById("errorBox");
     const successBox = document.getElementById("successBox");
+    const createForm = document.getElementById("createForm");
+    const createError = document.getElementById("createError");
+    const createSuccess = document.getElementById("createSuccess");
     const logoutBtn = document.getElementById("logoutBtn");
 
     function showError(message) {
@@ -281,6 +387,35 @@
         setTimeout(() => (window.location.href = "/available-tables"), 800);
       } catch (err) {
         showError(err.message || "Unable to join club. Please try again.");
+      }
+    });
+
+    createForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      createError.style.display = "none";
+      createSuccess.style.display = "none";
+
+      const clubNameInput = document.getElementById("clubName");
+      const clubName = clubNameInput.value.trim();
+
+      if (!clubName) {
+        createError.textContent = "Please enter a club name.";
+        createError.style.display = "block";
+        return;
+      }
+
+      try {
+        const club = await api("/clubs/", {
+          method: "POST",
+          body: JSON.stringify({ name: clubName }),
+        });
+
+        clubNameInput.value = "";
+        createSuccess.innerHTML = `Created <strong>${club.name}</strong>. Share code <strong>${club.id}</strong> to invite members.`;
+        createSuccess.style.display = "block";
+      } catch (err) {
+        createError.textContent = err.message || "Unable to create club. Please try again.";
+        createError.style.display = "block";
       }
     });
 
