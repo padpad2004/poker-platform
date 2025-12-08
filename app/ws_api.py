@@ -3,7 +3,12 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from jose import jwt
 
-from .tables_api import TABLE_CONNECTIONS, broadcast_table_state, _get_engine_table
+from .tables_api import (
+    TABLE_CONNECTIONS,
+    USER_CONNECTIONS,
+    broadcast_table_state,
+    _get_engine_table,
+)
 from .deps import SECRET_KEY, ALGORITHM
 from .database import SessionLocal
 
@@ -45,6 +50,9 @@ async def table_ws(websocket: WebSocket, table_id: int):
         TABLE_CONNECTIONS[table_id] = {}
     TABLE_CONNECTIONS[table_id][websocket] = viewer_user_id
 
+    if viewer_user_id is not None:
+        USER_CONNECTIONS.setdefault(viewer_user_id, set()).add(websocket)
+
     # Send initial state
     await broadcast_table_state(table_id)
 
@@ -54,6 +62,15 @@ async def table_ws(websocket: WebSocket, table_id: int):
             await websocket.receive_text()
             await broadcast_table_state(table_id)
     except WebSocketDisconnect:
-        TABLE_CONNECTIONS[table_id].pop(websocket, None)
-        if not TABLE_CONNECTIONS[table_id]:
+        pass
+    finally:
+        TABLE_CONNECTIONS.get(table_id, {}).pop(websocket, None)
+        if table_id in TABLE_CONNECTIONS and not TABLE_CONNECTIONS[table_id]:
             del TABLE_CONNECTIONS[table_id]
+
+        if viewer_user_id is not None:
+            sockets = USER_CONNECTIONS.get(viewer_user_id)
+            if sockets is not None:
+                sockets.discard(websocket)
+                if not sockets:
+                    del USER_CONNECTIONS[viewer_user_id]
