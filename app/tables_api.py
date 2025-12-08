@@ -63,6 +63,11 @@ def _table_state_for_viewer(
         current_bet=engine_table.current_bet,
         next_to_act_seat=engine_table.next_to_act_seat,
         action_deadline=engine_table.action_deadline,
+        dealer_button_seat=engine_table.dealer_button_seat,
+        small_blind_seat=engine_table.small_blind_seat,
+        big_blind_seat=engine_table.big_blind_seat,
+        small_blind=engine_table.small_blind,
+        big_blind=engine_table.big_blind,
         players=[
             schemas.PlayerState(
                 id=p.id,
@@ -192,6 +197,11 @@ def create_table(
             status_code=403,
             detail="Only club owners can create tables",
         )
+
+    if req.small_blind <= 0 or req.big_blind <= 0:
+        raise HTTPException(status_code=400, detail="Blinds must be positive")
+    if req.big_blind <= req.small_blind:
+        raise HTTPException(status_code=400, detail="Big blind must exceed small blind")
 
     table_meta = models.PokerTable(
         club_id=req.club_id,
