@@ -453,7 +453,7 @@ class Table:
     # ---------- Showdown ----------
 
     def determine_winner(self):
-        """Return winner(s) and their best-hand rank tuple."""
+        """Return winner(s), their best-hand rank, and the best five cards for each player."""
         from .hand_evaluator import best_hand
 
         best_rank = None
@@ -464,8 +464,8 @@ class Table:
 
         for p in active_players:
             seven = p.hole_cards + self.board
-            rank = best_hand(seven)
-            results[p.id] = rank
+            rank, best_five_cards = best_hand(seven)
+            results[p.id] = {"hand_rank": rank, "best_five": best_five_cards}
 
             if best_rank is None or rank > best_rank:
                 best_rank = rank
@@ -479,16 +479,19 @@ class Table:
         """Evaluate the board, pay out the pot to winner(s), and return result details."""
         winners, best_rank, results = self.determine_winner()
 
+        payouts: dict[int, float] = {}
+
         if winners and self.pot > 0:
             share = self.pot / len(winners)
 
             for w in winners:
                 w.stack += share
+                payouts[w.id] = share
 
             self.pot = 0
 
         self.street = "showdown"
-        return winners, best_rank, results
+        return winners, best_rank, results, payouts
 
     def __repr__(self) -> str:
         players = ", ".join(repr(p) for p in self.players)
