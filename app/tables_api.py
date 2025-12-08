@@ -173,6 +173,50 @@ def _auto_progress_hand(engine_table: Table) -> bool:
     return engine_table.street == "showdown"
 
 
+def _record_hand_history(
+    table_meta: models.PokerTable, engine_table: Table, db: Session
+) -> None:
+    """Persist per-user hand history entries for the finished hand."""
+
+    if not engine_table.hand_start_stacks:
+        return
+
+    table_name = f"Table #{table_meta.id}"
+
+    for p in engine_table.players:
+        if p.user_id is None:
+            continue
+
+        starting_stack = engine_table.hand_start_stacks.get(p.id)
+        if starting_stack is None:
+            continue
+
+        net_change = p.stack - starting_stack
+        if net_change > 0:
+            result = "Win"
+        elif net_change < 0:
+            result = "Loss"
+        else:
+            result = "Even"
+
+        summary_parts = [f"Hand #{engine_table.hand_number}"]
+        if engine_table.board:
+            board_str = " ".join(str(c) for c in engine_table.board)
+            summary_parts.append(f"Board: {board_str}")
+        summary = " | ".join(summary_parts)
+
+        hand_row = models.HandHistory(
+            user_id=p.user_id,
+            table_name=table_name,
+            result=result,
+            net_change=int(round(net_change)),
+            summary=summary,
+        )
+        db.add(hand_row)
+
+    db.commit()
+
+
 def _auto_start_hand_if_ready(engine_table: Table) -> bool:
     """Start a fresh hand when at least two players are seated."""
     if len(engine_table.players) < 2:
@@ -427,7 +471,7 @@ async def player_action(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    _ensure_user_in_table_club(table_id, db, current_user)
+    table_meta = _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _apply_timeouts(table_id, db)
     try:
         engine_table.player_action(req.player_id, req.action, req.amount)
@@ -436,6 +480,7 @@ async def player_action(
 
     hand_finished = _auto_progress_hand(engine_table)
     if hand_finished:
+        _record_hand_history(table_meta, engine_table, db)
         _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
     return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
@@ -508,9 +553,10 @@ async def showdown(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    _ensure_user_in_table_club(table_id, db, current_user)
+    table_meta = _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _get_engine_table(table_id, db)
     winners, best_rank, results = engine_table.showdown()
+    _record_hand_history(table_meta, engine_table, db)
     started = _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
 

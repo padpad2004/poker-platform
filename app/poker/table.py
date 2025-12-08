@@ -62,6 +62,8 @@ class Table:
         self.big_blind: float = big_blind
         self.next_to_act_seat: Optional[int] = None
         self.action_deadline: Optional[float] = None  # epoch seconds for timer
+        # Snapshot of each player's stack at the start of the current hand
+        self.hand_start_stacks: dict[int, float] = {}
 
         # Bomb pot configuration
         self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
@@ -167,6 +169,10 @@ class Table:
         self.small_blind_seat = None
         self.big_blind_seat = None
         self.dealer_button_seat = None
+
+        # Remember each player's stack before blinds or bomb pots are taken so
+        # net changes can be calculated when the hand finishes.
+        self.hand_start_stacks = {p.id: p.stack for p in self.players}
 
         # Choose a valid dealer button seat and rotate when possible.
         # If the previous dealer seat is now empty (e.g., player moved seats),
