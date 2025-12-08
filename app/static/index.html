@@ -277,6 +277,35 @@
       gap: 6px;
     }
 
+    .seat-buttons {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+
+    .button-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 6px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #0b1224;
+      background: #e5e7eb;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      min-width: 32px;
+    }
+
+    .dealer-chip { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+    .sb-chip { background: linear-gradient(135deg, #38bdf8, #0ea5e9); }
+    .bb-chip { background: linear-gradient(135deg, #c084fc, #a855f7); }
+
+    .button-chip.hidden { display: none; }
+
     .seat-status {
       font-size: 11px;
       color: #9ca3af;
@@ -610,6 +639,17 @@
       </div>
 
       <div class="row">
+        <div>
+          <span class="label">Small Blind</span><br/>
+          <input type="number" id="smallBlindInput" min="1" value="1" />
+        </div>
+        <div>
+          <span class="label">Big Blind</span><br/>
+          <input type="number" id="bigBlindInput" min="2" value="2" />
+        </div>
+      </div>
+
+      <div class="row">
         <span class="label">Join Table ID:</span><br/>
         <input type="number" id="joinTableIdInput" placeholder="1" />
         <button id="joinTableBtn" disabled>Join Table</button>
@@ -637,6 +677,13 @@
         <div><span class="label">Pot:</span><span id="pot">0</span></div>
         <div><span class="label">Current Bet:</span><span id="currentBet">0</span></div>
         <div><span class="label">Next Seat:</span><span id="nextToAct">-</span></div>
+      </div>
+
+      <div class="row">
+        <div><span class="label">Blinds:</span><span id="blindsInfo">-</span></div>
+        <div><span class="label">Dealer:</span><span id="dealerSeatLabel">-</span></div>
+        <div><span class="label">SB Seat:</span><span id="sbSeatLabel">-</span></div>
+        <div><span class="label">BB Seat:</span><span id="bbSeatLabel">-</span></div>
       </div>
 
       <div class="row">
@@ -672,6 +719,11 @@
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
+                  </div>
                 </div>
               </div>
               <div class="seat-cards"></div>
@@ -692,6 +744,11 @@
                   <div class="seat-meta-row">
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -714,6 +771,11 @@
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
+                  </div>
                 </div>
               </div>
               <div class="seat-cards"></div>
@@ -734,6 +796,11 @@
                   <div class="seat-meta-row">
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -756,6 +823,11 @@
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
                   </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
+                  </div>
                 </div>
               </div>
               <div class="seat-cards"></div>
@@ -776,6 +848,11 @@
                   <div class="seat-meta-row">
                     <span class="seat-status">Click to sit</span>
                     <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -872,6 +949,8 @@
 
     const createTableBtn = document.getElementById("createTableBtn");
     const sitMeBtn = document.getElementById("sitMeBtn");
+    const smallBlindInput = document.getElementById("smallBlindInput");
+    const bigBlindInput = document.getElementById("bigBlindInput");
     const joinTableIdInput = document.getElementById("joinTableIdInput");
     const joinTableBtn = document.getElementById("joinTableBtn");
 
@@ -889,6 +968,10 @@
     const potSpan = document.getElementById("pot");
     const currentBetSpan = document.getElementById("currentBet");
     const nextToActSpan = document.getElementById("nextToAct");
+    const blindsInfoSpan = document.getElementById("blindsInfo");
+    const dealerSeatLabel = document.getElementById("dealerSeatLabel");
+    const sbSeatLabel = document.getElementById("sbSeatLabel");
+    const bbSeatLabel = document.getElementById("bbSeatLabel");
     const rawStatePre = document.getElementById("rawState");
 
     const boardCardsSpan = document.getElementById("boardCards");
@@ -1261,6 +1344,10 @@
       potSpan.textContent = state.pot;
       currentBetSpan.textContent = state.current_bet;
       nextToActSpan.textContent = state.next_to_act_seat ?? "-";
+      blindsInfoSpan.textContent = `${state.small_blind}/${state.big_blind}`;
+      dealerSeatLabel.textContent = state.dealer_button_seat ?? "-";
+      sbSeatLabel.textContent = state.small_blind_seat ?? "-";
+      bbSeatLabel.textContent = state.big_blind_seat ?? "-";
       console.log("STATE PLAYERS:", state.players);
 
       potCenterSpan.textContent = state.pot;
@@ -1308,6 +1395,9 @@
         const betEl = seatDiv.querySelector(".seat-bet");
         const avatarInitialEl = seatDiv.querySelector(".seat-avatar-initial");
         const cardsEl = seatDiv.querySelector(".seat-cards");
+        const dealerChip = seatDiv.querySelector(".dealer-chip");
+        const sbChip = seatDiv.querySelector(".sb-chip");
+        const bbChip = seatDiv.querySelector(".bb-chip");
 
         // Name + stack
         if (nameEl) nameEl.textContent = p.name || `Seat ${p.seat}`;
@@ -1336,6 +1426,14 @@
         if (betEl) {
           betEl.textContent = p.committed > 0 ? `Bet: ${p.committed}` : "";
         }
+
+        const isDealer = state.dealer_button_seat === p.seat;
+        const isSB = state.small_blind_seat === p.seat;
+        const isBB = state.big_blind_seat === p.seat;
+
+        if (dealerChip) dealerChip.classList.toggle("hidden", !isDealer);
+        if (sbChip) sbChip.classList.toggle("hidden", !isSB);
+        if (bbChip) bbChip.classList.toggle("hidden", !isBB);
 
         // Cards
         if (cardsEl) {
@@ -1581,20 +1679,30 @@
         alert("Create or join a club first");
         return;
       }
+
+      const sbVal = Number(smallBlindInput.value);
+      const bbVal = Number(bigBlindInput.value);
+      if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
+        alert("Enter positive blind amounts");
+        return;
+      }
+      if (bbVal <= sbVal) {
+        alert("Big blind must be greater than small blind");
+        return;
+      }
       try {
         const data = await api("/tables/", {
           method: "POST",
           body: JSON.stringify({
             club_id: currentClubId,
             max_seats: 6,
-            small_blind: 1,
-            big_blind: 2,
+            small_blind: sbVal,
+            big_blind: bbVal,
           }),
         });
         tableId = data.table_id;
         tableIdSpan.textContent = tableId;
-
-        bigBlind = 2;
+        bigBlind = bbVal;
 
         sitMeBtn.disabled = false;
         addAliceBtn.disabled = false;

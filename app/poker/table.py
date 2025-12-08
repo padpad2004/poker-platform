@@ -54,6 +54,9 @@ class Table:
         self.current_bet: int = 0      # current highest committed amount this street
         self.street: str = "prehand"   # prehand, preflop, flop, turn, river, showdown
         self.dealer_seat: int = 0
+        self.dealer_button_seat: Optional[int] = None
+        self.small_blind_seat: Optional[int] = None
+        self.big_blind_seat: Optional[int] = None
         self.small_blind: int = small_blind
         self.big_blind: int = big_blind
         self.next_to_act_seat: Optional[int] = None
@@ -135,10 +138,15 @@ class Table:
         self.pot = 0
         self.current_bet = 0
         self.street = "preflop"
+        self.small_blind_seat = None
+        self.big_blind_seat = None
+        self.dealer_button_seat = None
 
-        # Rotate dealer
+        # Rotate dealer button to the next occupied seat
         if self.hand_number > 1:
-            self.dealer_seat = (self.dealer_seat + 1) % len(self.players)
+            self.dealer_seat = self._next_seat(self.dealer_seat)
+
+        self.dealer_button_seat = self.dealer_seat
 
         # Reset players
         for p in self.players:
@@ -169,6 +177,9 @@ class Table:
 
         self._post_blind(sb_player, self.small_blind)
         self._post_blind(bb_player, self.big_blind)
+
+        self.small_blind_seat = sb_player.seat
+        self.big_blind_seat = bb_player.seat
 
         self.current_bet = max(self.current_bet, self.big_blind)
 

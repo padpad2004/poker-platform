@@ -98,6 +98,11 @@ class TableState(BaseModel):
     current_bet: int
     next_to_act_seat: Optional[int]
     action_deadline: Optional[float]
+    dealer_button_seat: Optional[int]
+    small_blind_seat: Optional[int]
+    big_blind_seat: Optional[int]
+    small_blind: int
+    big_blind: int
     players: List[PlayerState]
 
     class Config:
