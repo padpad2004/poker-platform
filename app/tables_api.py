@@ -116,6 +116,13 @@ def _table_state(
     return _table_state_for_viewer(table_id, engine_table, viewer_user_id=viewer_user_id)
 
 
+def _player_for_user(engine_table: Table, user_id: int):
+    for player in engine_table.players:
+        if player.user_id == user_id:
+            return player
+    return None
+
+
 def _apply_timeouts(table_id: int, db: Session | None = None) -> Table:
     engine_table = _get_engine_table(table_id, db)
     while True:
@@ -220,6 +227,34 @@ def _record_hand_history(
         db.add(hand_row)
 
     db.commit()
+
+
+def _process_pending_leavers(table_id: int, engine_table: Table, db: Session) -> None:
+    """Stand up any players who clicked leave during a hand."""
+
+    if not getattr(engine_table, "pending_leave_user_ids", None):
+        return
+
+    pending_ids = list(engine_table.pending_leave_user_ids)
+    any_updates = False
+
+    for user_id in pending_ids:
+        try:
+            removed = engine_table.remove_player_by_user(user_id)
+        except ValueError:
+            engine_table.pending_leave_user_ids.discard(user_id)
+            continue
+
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user:
+            user.balance += removed.stack
+            db.add(user)
+            any_updates = True
+
+        engine_table.pending_leave_user_ids.discard(user_id)
+
+    if any_updates:
+        db.commit()
 
 
 def _auto_start_hand_if_ready(engine_table: Table) -> bool:
@@ -427,11 +462,24 @@ async def leave_table(
     if not engine_table.players:
         raise HTTPException(status_code=400, detail="Table is already empty")
 
-    if not any(p.user_id == current_user.id for p in engine_table.players):
+    player = _player_for_user(engine_table, current_user.id)
+
+    if not player:
         raise HTTPException(status_code=404, detail="You are not seated at this table")
 
-    if engine_table.street not in ("prehand", "showdown") and engine_table.next_to_act_seat is not None:
-        raise HTTPException(status_code=400, detail="You can only leave between hands")
+    in_active_hand = (
+        engine_table.street not in ("prehand", "showdown")
+        and engine_table.next_to_act_seat is not None
+    )
+
+    if in_active_hand:
+        engine_table.pending_leave_user_ids.add(current_user.id)
+        return schemas.LeaveTableResponse(
+            table_id=table_id,
+            seat=player.seat,
+            returned_amount=None,
+            pending=True,
+        )
 
     try:
         removed = engine_table.remove_player_by_user(current_user.id)
@@ -486,6 +534,7 @@ async def player_action(
     hand_finished = _auto_progress_hand(engine_table)
     if hand_finished:
         _record_hand_history(table_meta, engine_table, db)
+        _process_pending_leavers(table_id, engine_table, db)
         _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
     return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
@@ -577,6 +626,7 @@ async def showdown(
             db.add(user)
 
     db.commit()
+    _process_pending_leavers(table_id, engine_table, db)
     started = _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
 

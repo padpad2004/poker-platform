@@ -210,7 +210,8 @@ class ChangeSeatRequest(BaseModel):
 class LeaveTableResponse(BaseModel):
     table_id: int
     seat: int
-    returned_amount: float
+    returned_amount: Optional[float]
+    pending: bool = False
 
 
 class AddPlayerResponse(BaseModel):
