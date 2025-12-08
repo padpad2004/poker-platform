@@ -289,7 +289,7 @@ class Table:
         self.action_deadline = time.time() + 30
 
     def enforce_action_timeout(self) -> Optional[str]:
-        """Auto-act if the current player has exceeded the 30 second window."""
+        """Auto-fold if the current player has exceeded the 30 second window."""
         if self.next_to_act_seat is None or self.action_deadline is None:
             return None
 
@@ -303,7 +303,7 @@ class Table:
             self.next_to_act_seat = None
             self.action_deadline = None
             return None
-        action = "check" if player.committed == self.current_bet else "fold"
+        action = "fold"
         try:
             self._apply_action(player.id, action, auto=True)
         except Exception:
