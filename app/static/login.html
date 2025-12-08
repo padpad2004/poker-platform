@@ -15,6 +15,8 @@
       --btn: #2563eb;
       --btn-hover: #1d4ed8;
       --danger: #dc2626;
+      --gold: #c8a36b;
+      --deep-gold: #b18647;
     }
 
     * { box-sizing: border-box; }
@@ -22,15 +24,102 @@
     body {
       margin: 0;
       min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: radial-gradient(circle at 20% 20%, #111827, #0b1224 55%),
-        radial-gradient(circle at 80% 10%, #1e293b, #0b1224 45%),
-        #0b1224;
       color: var(--text-main);
       font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #070d17;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 24px;
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .backdrop {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 30%, rgba(70, 82, 112, 0.35), transparent 55%),
+        radial-gradient(circle at 85% 20%, rgba(86, 104, 138, 0.2), transparent 50%),
+        radial-gradient(circle at 70% 75%, rgba(34, 197, 94, 0.06), transparent 45%),
+        #070d17;
+      filter: saturate(1.1);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .backdrop::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0)),
+        radial-gradient(circle at 10% 80%, rgba(200, 163, 107, 0.12), transparent 45%);
+      mix-blend-mode: screen;
+      opacity: 0.9;
+    }
+
+    .logo-banner {
+      position: absolute;
+      left: clamp(32px, 8vw, 120px);
+      top: 50%;
+      transform: translateY(-50%);
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: clamp(16px, 3vw, 32px);
+      color: #f8f8f5;
+      letter-spacing: 0.03em;
+      text-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+      z-index: 1;
+      max-width: min(60vw, 620px);
+      pointer-events: none;
+    }
+
+    .logo-tile {
+      width: clamp(90px, 14vw, 140px);
+      aspect-ratio: 3 / 4;
+      border-radius: 18px;
+      background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15)),
+        linear-gradient(160deg, #f7f3e9, #e1d8c3 55%, #c6af86);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      align-items: center;
+      justify-items: center;
+      padding: 12px 8px;
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.55), inset 0 0 0 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .tile-rank {
+      font-weight: 900;
+      font-size: clamp(18px, 2.4vw, 26px);
+      align-self: start;
+      color: #0b1224;
+      letter-spacing: 0.08em;
+    }
+
+    .tile-suit {
+      font-size: clamp(44px, 6vw, 72px);
+      color: #0f172a;
+      transform: translateY(-4px);
+    }
+
+    .banner-text {
+      display: flex;
+      flex-direction: column;
+      gap: clamp(6px, 1.5vw, 12px);
+      font-weight: 900;
+      font-size: clamp(28px, 4vw, 48px);
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+
+    .banner-text .highlight {
+      color: var(--gold);
+      text-shadow: 0 10px 30px rgba(200, 163, 107, 0.35);
     }
 
     .card {
@@ -40,6 +129,8 @@
       border-radius: 16px;
       padding: 32px 28px;
       box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+      position: relative;
+      z-index: 2;
     }
 
     .brand {
@@ -157,6 +248,30 @@
       font-weight: 700;
       margin: 0 0 8px;
     }
+
+    @media (max-width: 900px) {
+      .page {
+        align-items: flex-start;
+      }
+
+      .logo-banner {
+        position: relative;
+        left: auto;
+        top: auto;
+        transform: none;
+        margin: 0 0 18px;
+        justify-items: center;
+        text-align: center;
+      }
+
+      .banner-text {
+        align-items: center;
+      }
+
+      .card {
+        margin-top: 8px;
+      }
+    }
   </style>
   <script>
     // Redirect straight to the table if a token already exists
@@ -167,45 +282,60 @@
   </script>
 </head>
 <body>
-  <div class="card">
-    <div class="brand">
-      <div class="logo-circle">P</div>
-      <div>
-        <h1>PadPad Poker</h1>
-        <p class="subhead">Welcome back! Log in to play your next hand.</p>
+  <div class="page">
+    <div class="backdrop">
+      <div class="logo-banner">
+        <div class="logo-tile" aria-hidden="true">
+          <div class="tile-rank">A</div>
+          <div class="tile-suit">♣</div>
+        </div>
+        <div class="banner-text" aria-hidden="true">
+          <span>PadPad</span>
+          <span class="highlight">Poker</span>
+        </div>
       </div>
     </div>
 
-    <form id="login-form">
-      <label for="email">Email</label>
-      <input type="email" id="email" name="email" placeholder="you@example.com" required />
+    <div class="card">
+      <div class="brand">
+        <div class="logo-circle">P</div>
+        <div>
+          <h1>PadPad Poker</h1>
+          <p class="subhead">Welcome back! Log in to play your next hand.</p>
+        </div>
+      </div>
 
-      <label for="password">Password</label>
-      <input type="password" id="password" name="password" placeholder="••••••••" required />
+      <form id="login-form">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required />
 
-      <button type="submit">Log in</button>
-      <div class="error" id="error-box"></div>
-    </form>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="••••••••" required />
 
-    <p class="helper">Use your PadPad Poker credentials or create a new account below.</p>
+        <button type="submit">Log in</button>
+        <div class="error" id="error-box"></div>
+      </form>
 
-    <div class="divider"></div>
+      <p class="helper">Use your PadPad Poker credentials or create a new account below.</p>
 
-    <p class="section-title">Create an account</p>
-    <form id="register-form">
-      <label for="register-username">Username</label>
-      <input type="text" id="register-username" name="username" placeholder="pokerfan" required />
+      <div class="divider"></div>
 
-      <label for="register-email">Email</label>
-      <input type="email" id="register-email" name="email" placeholder="you@example.com" required />
+      <p class="section-title">Create an account</p>
+      <form id="register-form">
+        <label for="register-username">Username</label>
+        <input type="text" id="register-username" name="username" placeholder="pokerfan" required />
 
-      <label for="register-password">Password</label>
-      <input type="password" id="register-password" name="password" placeholder="•••••••" required />
+        <label for="register-email">Email</label>
+        <input type="email" id="register-email" name="email" placeholder="you@example.com" required />
 
-      <button type="submit">Register</button>
-      <div class="error" id="register-error"></div>
-      <div class="success" id="register-success"></div>
-    </form>
+        <label for="register-password">Password</label>
+        <input type="password" id="register-password" name="password" placeholder="•••••••" required />
+
+        <button type="submit">Register</button>
+        <div class="error" id="register-error"></div>
+        <div class="success" id="register-success"></div>
+      </form>
+    </div>
   </div>
 
   <script>
