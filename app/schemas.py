@@ -80,6 +80,7 @@ class ClubMemberRead(BaseModel):
     role: str
     created_at: datetime
     user_email: EmailStr
+    balance: int
 
     model_config = ConfigDict(from_attributes=True)
 

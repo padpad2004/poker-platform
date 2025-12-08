@@ -165,6 +165,7 @@
           <tr>
             <th>Email</th>
             <th>Role</th>
+            <th>Balance</th>
             <th>Joined</th>
             <th>Actions</th>
           </tr>
@@ -269,6 +270,7 @@
         tr.innerHTML = `
           <td>${m.user_email}</td>
           <td><span class="badge">${m.role}</span></td>
+          <td>$${Number(m.balance ?? 0).toLocaleString()}</td>
           <td>${new Date(m.created_at).toLocaleString()}</td>
           <td>
             <div class="actions">
