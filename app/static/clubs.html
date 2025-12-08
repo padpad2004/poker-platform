@@ -326,20 +326,6 @@
       <input type="number" id="joinTableIdInput" placeholder="Join table ID" style="max-width: 160px;" />
       <button id="joinTableBtn" disabled>Join Table</button>
     </div>
-    <div class="stacked">
-      <button id="addAliceBtn" disabled>Add Alice</button>
-      <button id="addBobBtn" disabled>Add Bob</button>
-      <button id="startHandBtn" disabled title="Hands auto-start when two players are seated">Hands Auto-Start</button>
-    </div>
-
-    <h3 style="margin: 12px 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Streets & Showdown</h3>
-    <div class="stacked">
-      <button id="dealFlopBtn" disabled>Deal Flop (manual)</button>
-      <button id="dealTurnBtn" disabled>Deal Turn (manual)</button>
-      <button id="dealRiverBtn" disabled>Deal River (manual)</button>
-      <button id="showdownBtn" disabled>Showdown</button>
-    </div>
-
     <h3 style="margin: 12px 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">State</h3>
     <div class="muted" style="margin-bottom: 6px;">
       <div><strong>Table:</strong> <span id="tableId">None</span></div>
@@ -413,13 +399,6 @@
     const sitMeBtn = document.getElementById("sitMeBtn");
     const joinTableIdInput = document.getElementById("joinTableIdInput");
     const joinTableBtn = document.getElementById("joinTableBtn");
-    const addAliceBtn = document.getElementById("addAliceBtn");
-    const addBobBtn = document.getElementById("addBobBtn");
-    const startHandBtn = document.getElementById("startHandBtn");
-    const dealFlopBtn = document.getElementById("dealFlopBtn");
-    const dealTurnBtn = document.getElementById("dealTurnBtn");
-    const dealRiverBtn = document.getElementById("dealRiverBtn");
-    const showdownBtn = document.getElementById("showdownBtn");
     const tableIdSpan = document.getElementById("tableId");
     const streetSpan = document.getElementById("street");
     const potSpan = document.getElementById("pot");
@@ -530,11 +509,6 @@
       currentBetSpan.textContent = state.current_bet ?? 0;
       nextToActSpan.textContent = state.next_to_act ?? "-";
       rawStatePre.textContent = JSON.stringify(state, null, 2);
-
-      dealFlopBtn.disabled = state.street !== "preflop";
-      dealTurnBtn.disabled = state.street !== "flop";
-      dealRiverBtn.disabled = state.street !== "turn";
-      showdownBtn.disabled = state.street !== "river";
     }
 
     function connectTableSocket() {
@@ -777,9 +751,6 @@
         tableId = data.table_id;
         tableIdSpan.textContent = tableId;
         sitMeBtn.disabled = false;
-        addAliceBtn.disabled = false;
-        addBobBtn.disabled = false;
-        startHandBtn.disabled = true;
         updateTableLink();
         connectTableSocket();
         alert(`Created table ID ${tableId}`);
@@ -797,9 +768,6 @@
         tableId = tid;
         tableIdSpan.textContent = tid;
         sitMeBtn.disabled = false;
-        addAliceBtn.disabled = true;
-        addBobBtn.disabled = true;
-        startHandBtn.disabled = true;
         updateTableLink();
         connectTableSocket();
         renderTableState(state);
@@ -814,48 +782,6 @@
       if (!tableId) return alert("Create or join a table first");
       try {
         await api(`/tables/${tableId}/sit_me`, { method: "POST" });
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-
-    addAliceBtn.onclick = async () => {
-      if (!tableId) return;
-      try {
-        await api(`/tables/${tableId}/players`, { method: "POST", body: JSON.stringify({ name: "Alice", starting_stack: 100 }) });
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-
-    addBobBtn.onclick = async () => {
-      if (!tableId) return;
-      try {
-        await api(`/tables/${tableId}/players`, { method: "POST", body: JSON.stringify({ name: "Bob", starting_stack: 100 }) });
-      } catch (err) {
-        alert(err.message);
-      }
-    };
-
-    startHandBtn.onclick = () => alert("Hands now start automatically when two players are seated.");
-
-    dealFlopBtn.onclick = async () => {
-      if (!tableId) return;
-      try { await api(`/tables/${tableId}/deal_flop`, { method: "POST" }); } catch (err) { alert(err.message); }
-    };
-    dealTurnBtn.onclick = async () => {
-      if (!tableId) return;
-      try { await api(`/tables/${tableId}/deal_turn`, { method: "POST" }); } catch (err) { alert(err.message); }
-    };
-    dealRiverBtn.onclick = async () => {
-      if (!tableId) return;
-      try { await api(`/tables/${tableId}/deal_river`, { method: "POST" }); } catch (err) { alert(err.message); }
-    };
-    showdownBtn.onclick = async () => {
-      if (!tableId) return;
-      try {
-        const result = await api(`/tables/${tableId}/showdown`, { method: "POST" });
-        alert("Winners: " + result.winners.map((w) => `${w.name} (stack ${w.stack})`).join(", "));
       } catch (err) {
         alert(err.message);
       }
