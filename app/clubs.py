@@ -77,6 +77,39 @@ def join_club(
     return club
 
 
+@router.post("/{club_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
+def leave_club(
+    club_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    membership = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not membership:
+        raise HTTPException(status_code=404, detail="User is not a member of this club")
+
+    if membership.role == "owner":
+        raise HTTPException(status_code=400, detail="Club owners cannot leave their own club")
+
+    db.delete(membership)
+
+    if current_user.current_club_id == club_id:
+        current_user.current_club_id = None
+        db.add(current_user)
+
+    db.commit()
+
 @router.get("/{club_id}", response_model=schemas.ClubDetail)
 def get_club_detail(
     club_id: int,

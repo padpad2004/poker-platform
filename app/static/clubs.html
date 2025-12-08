@@ -388,6 +388,48 @@
       letter-spacing: 0.03em;
     }
 
+    .game-type-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      margin: 18px 0 12px;
+    }
+
+    .game-type-card {
+      border: 1px solid #1f2937;
+      background: #0b1224;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.2s ease, transform 0.15s ease;
+      cursor: pointer;
+    }
+
+    .game-type-card:hover {
+      border-color: #22c55e;
+      transform: translateY(-2px);
+    }
+
+    .game-type-card h4 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .game-type-card p {
+      margin: 0;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+
+    .game-type-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      align-items: center;
+    }
+
     .error-text {
       color: #fca5a5;
       margin: 6px 0 2px;
@@ -483,17 +525,6 @@
           </table>
         </div>
 
-        <div id="balanceSection" style="margin-top: 12px; display:none;">
-          <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Adjust Member Balance</h3>
-          <label for="memberSelect">Member</label>
-          <select id="memberSelect"></select>
-          <label for="balanceDelta">Amount Change</label>
-          <input type="number" id="balanceDelta" placeholder="e.g. 100 or -50" />
-          <div class="stacked">
-            <button id="adjustBalanceBtn">Apply Balance Change</button>
-          </div>
-          <div class="muted" id="balanceFeedback">Only club owners can update balances.</div>
-        </div>
       </div>
 
       <div style="margin-top: 16px;">
@@ -504,6 +535,42 @@
         </div>
         <div id="tablesEmpty" class="muted">No active tables for this club.</div>
         <div id="tablesList" class="list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameTypeModal" class="modal hidden" aria-hidden="true" role="dialog">
+    <div class="modal-content">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px;">
+        <div>
+          <h3 style="margin: 0;">Choose what to open</h3>
+          <p class="muted" style="margin: 2px 0 0;">Pick between a quick cash game or a structured tournament (ClubGG style).</p>
+        </div>
+        <span class="pill-tag" aria-hidden="true">Table type</span>
+      </div>
+
+      <div class="game-type-grid">
+        <div id="cashGameOption" class="game-type-card" tabindex="0" role="button">
+          <div style="display:flex; align-items: center; gap: 10px;">
+            <div class="pill">Cash</div>
+            <h4 style="margin: 0;">Cash game</h4>
+          </div>
+          <p>Set blinds and seats, then open instantly for club members.</p>
+          <p class="muted">Ideal for drop-in games. You can adjust blinds and max seats before launching.</p>
+        </div>
+
+        <div id="tournamentOption" class="game-type-card" tabindex="0" role="button">
+          <div style="display:flex; align-items: center; gap: 10px;">
+            <div class="pill">MTT</div>
+            <h4 style="margin: 0;">Tournament</h4>
+          </div>
+          <p>Configure ClubGG-inspired options: buy-in, blinds, level timing, and re-entry rules.</p>
+          <p class="muted">Tables will keep opening as seats fill. Players join from the lobby once created.</p>
+        </div>
+      </div>
+
+      <div class="game-type-actions">
+        <button type="button" id="closeGameTypeBtn" class="ghost-button">Cancel</button>
       </div>
     </div>
   </div>
@@ -558,6 +625,7 @@
   <script>
     const API_BASE = "";
     const AUTH_STORAGE_KEY = "pokerAuth";
+    const CLUB_CONTEXT_KEY = "pokerActiveClubId";
     let accessToken = "";
     let currentUserId = null;
     let currentUserEmail = "";
@@ -586,6 +654,10 @@
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
     const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
+    const gameTypeModal = document.getElementById("gameTypeModal");
+    const cashGameOption = document.getElementById("cashGameOption");
+    const tournamentOption = document.getElementById("tournamentOption");
+    const closeGameTypeBtn = document.getElementById("closeGameTypeBtn");
     const createTableModal = document.getElementById("createTableModal");
     const createTableForm = document.getElementById("createTableForm");
     const smallBlindInput = document.getElementById("smallBlindInput");
@@ -595,11 +667,6 @@
     const createTableError = document.getElementById("createTableError");
     const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
     const submitCreateTableBtn = document.getElementById("submitCreateTableBtn");
-    const balanceSection = document.getElementById("balanceSection");
-    const memberSelect = document.getElementById("memberSelect");
-    const balanceDelta = document.getElementById("balanceDelta");
-    const balanceFeedback = document.getElementById("balanceFeedback");
-    const adjustBalanceBtn = document.getElementById("adjustBalanceBtn");
     const manageMembersLink = document.getElementById("manageMembersLink");
     const crestGrid = document.getElementById("crestGrid");
     const crestUrlInput = document.getElementById("crestUrlInput");
@@ -818,12 +885,11 @@
 
         const actions = document.createElement("div");
         actions.className = "chip-actions";
-        const viewBtn = document.createElement("button");
-        viewBtn.dataset.club = club.id;
-        viewBtn.className = "viewClub";
-        viewBtn.textContent = "View";
-        viewBtn.onclick = () => loadClubDetail(Number(viewBtn.dataset.club));
-        actions.appendChild(viewBtn);
+        const viewLink = document.createElement("a");
+        viewLink.className = "button-link";
+        viewLink.href = `/club-detail.html?club_id=${club.id}`;
+        viewLink.textContent = "View Club";
+        actions.appendChild(viewLink);
 
         row.appendChild(info);
         row.appendChild(actions);
@@ -835,14 +901,11 @@
       if (!members.length) {
         membersEmpty.style.display = "block";
         membersTableWrap.style.display = "none";
-        balanceSection.style.display = "none";
         return;
       }
       membersEmpty.style.display = "none";
       membersTableWrap.style.display = "block";
       membersBody.innerHTML = "";
-      balanceSection.style.display = "block";
-      memberSelect.innerHTML = "";
       members.forEach((m) => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
@@ -851,11 +914,6 @@
           <td>${new Date(m.created_at).toLocaleString()}</td>
         `;
         membersBody.appendChild(tr);
-
-        const option = document.createElement("option");
-        option.value = m.user_id;
-        option.textContent = `${m.user_email} (${m.role})`;
-        memberSelect.appendChild(option);
       });
     }
 
@@ -921,6 +979,7 @@
       try {
         const detail = await api(`/clubs/${clubId}`);
         currentClubId = detail.id;
+        localStorage.setItem(CLUB_CONTEXT_KEY, String(detail.id));
         isCurrentUserOwner = currentUserId === detail.owner_id;
 
         if (!isCurrentUserOwner) {
@@ -1051,6 +1110,30 @@
         }
     };
 
+    function showGameTypeModal() {
+      requireAuth();
+      if (!currentClubId) return alert("Create or join a club first.");
+      createTableError.textContent = "";
+      if (gameTypeModal) {
+        gameTypeModal.classList.remove("hidden");
+        requestAnimationFrame(() => gameTypeModal.classList.add("show"));
+      }
+    }
+
+    function hideGameTypeModal() {
+      if (!gameTypeModal) return;
+      gameTypeModal.classList.remove("show");
+      setTimeout(() => gameTypeModal.classList.add("hidden"), 200);
+    }
+
+    function goToTournamentBuilder() {
+      requireAuth();
+      if (!currentClubId) return alert("Create or join a club first.");
+      localStorage.setItem(CLUB_CONTEXT_KEY, String(currentClubId));
+      const target = `/tournament.html?club_id=${encodeURIComponent(currentClubId)}`;
+      window.location.href = target;
+    }
+
     function showCreateTableModal() {
       requireAuth();
       if (!currentClubId) return alert("Create or join a club first.");
@@ -1133,39 +1216,53 @@
       if (event.target === createTableModal) hideCreateTableModal();
     });
 
+    gameTypeModal?.addEventListener("click", (event) => {
+      if (event.target === gameTypeModal) hideGameTypeModal();
+    });
+
+    cashGameOption?.addEventListener("click", () => {
+      hideGameTypeModal();
+      showCreateTableModal();
+    });
+
+    cashGameOption?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        hideGameTypeModal();
+        showCreateTableModal();
+      }
+    });
+
+    tournamentOption?.addEventListener("click", () => {
+      hideGameTypeModal();
+      goToTournamentBuilder();
+    });
+
+    tournamentOption?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        hideGameTypeModal();
+        goToTournamentBuilder();
+      }
+    });
+
+    closeGameTypeBtn?.addEventListener("click", hideGameTypeModal);
+
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && createTableModal?.classList.contains("show")) {
         hideCreateTableModal();
+      }
+      if (event.key === "Escape" && gameTypeModal?.classList.contains("show")) {
+        hideGameTypeModal();
       }
     });
 
     cancelCreateTableBtn?.addEventListener("click", hideCreateTableModal);
 
     if (quickCreateTableBtn) {
-      quickCreateTableBtn.onclick = showCreateTableModal;
+      quickCreateTableBtn.onclick = showGameTypeModal;
     }
 
-    adjustBalanceBtn.onclick = async () => {
-      requireAuth();
-      if (!currentClubId) return alert("Select a club first.");
-      const userId = Number(memberSelect.value);
-      const amountDelta = Number(balanceDelta.value);
-      if (!userId || Number.isNaN(amountDelta)) {
-        return alert("Select a member and enter an amount change.");
-      }
-
-      balanceFeedback.textContent = "Updating balance...";
-      try {
-        const res = await api(`/clubs/${currentClubId}/members/${userId}/balance`, {
-          method: "POST",
-          body: JSON.stringify({ amount_delta: amountDelta }),
-        });
-        balanceFeedback.textContent = `Balance updated. New balance: ${res.new_balance}`;
-        balanceDelta.value = "";
-      } catch (e) {
-        balanceFeedback.textContent = e.message;
-      }
-    };
   </script>
 
 <div class="legal-footer">

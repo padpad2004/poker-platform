@@ -217,6 +217,14 @@
       margin-top: 6px;
     }
 
+    .club-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
     .divider { border-top: 1px solid var(--panel-border); margin: 12px 0; }
 
     form label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--text-main); }
@@ -283,6 +291,10 @@
             <div id="username" style="font-size: 18px; font-weight: 800;">-</div>
             <div id="email" class="muted" style="margin-top: 4px;">-</div>
             <div id="club" class="pill" style="display:none">Club</div>
+            <div id="clubActions" class="club-actions" style="display:none">
+              <button class="btn danger" id="leaveClubBtn" type="button">Leave club</button>
+              <div id="clubMessage" class="muted"></div>
+            </div>
           </div>
         </div>
         <div class="divider"></div>
@@ -332,6 +344,9 @@
     const usernameEl = document.getElementById("username");
     const emailEl = document.getElementById("email");
     const clubEl = document.getElementById("club");
+    const clubActions = document.getElementById("clubActions");
+    const leaveClubBtn = document.getElementById("leaveClubBtn");
+    const clubMessage = document.getElementById("clubMessage");
     const balanceEl = document.getElementById("balance");
     const avatarForm = document.getElementById("avatarForm");
     const avatarUrlInput = document.getElementById("avatarUrl");
@@ -367,7 +382,10 @@
         const text = await res.text();
         throw new Error(text || `Error ${res.status}`);
       }
-      return res.json();
+      const contentType = res.headers.get("content-type") || "";
+      if (res.status === 204 || contentType === "") return null;
+      if (contentType.includes("application/json")) return res.json();
+      return res.text();
     }
 
     function renderAvatar(targetEl, url, fallbackText) {
@@ -453,6 +471,24 @@
       }
     }
 
+    async function leaveClub(clubId) {
+      if (!clubId || !leaveClubBtn) return;
+      clubMessage.textContent = "";
+      leaveClubBtn.disabled = true;
+      const originalText = leaveClubBtn.textContent;
+      leaveClubBtn.textContent = "Leaving...";
+      try {
+        await api(`/clubs/${clubId}/leave`, { method: "POST" });
+        clubMessage.textContent = "You left the club.";
+        await loadProfile();
+      } catch (error) {
+        clubMessage.textContent = error.message || "Unable to leave club.";
+      } finally {
+        leaveClubBtn.textContent = originalText;
+        leaveClubBtn.disabled = false;
+      }
+    }
+
     async function loadProfile() {
       try {
         const data = await api(`/me/profile?email=${encodeURIComponent(authInfo.email)}`);
@@ -468,8 +504,19 @@
         if (data.current_club_name) {
           clubEl.textContent = data.current_club_name;
           clubEl.style.display = "inline-flex";
+          if (clubActions && leaveClubBtn) {
+            clubActions.style.display = "flex";
+            leaveClubBtn.dataset.clubId = data.current_club_id;
+            leaveClubBtn.disabled = false;
+            clubMessage.textContent = "";
+          }
         } else {
           clubEl.style.display = "none";
+          if (clubActions && leaveClubBtn) {
+            clubActions.style.display = "none";
+            delete leaveClubBtn.dataset.clubId;
+            clubMessage.textContent = "";
+          }
         }
 
         renderHistory(data.hand_history || []);
@@ -519,6 +566,13 @@
     }
 
     downloadDataBtn.addEventListener("click", downloadUserData);
+
+    if (leaveClubBtn) {
+      leaveClubBtn.addEventListener("click", () => {
+        const clubId = leaveClubBtn.dataset.clubId;
+        leaveClub(clubId);
+      });
+    }
 
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem(AUTH_KEY);
