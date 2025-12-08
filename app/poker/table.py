@@ -120,6 +120,26 @@ class Table:
                 return p
         raise ValueError(f"No player with id {player_id}")
 
+    def move_player_to_seat(self, user_id: int, seat: int) -> Player:
+        if seat < 0 or seat >= self.max_seats:
+            raise ValueError("Invalid seat number")
+
+        player = None
+        for p in self.players:
+            if p.user_id == user_id:
+                player = p
+                break
+
+        if player is None:
+            raise ValueError("Player not seated")
+
+        for other in self.players:
+            if other.user_id != user_id and other.seat == seat:
+                raise ValueError("Seat already occupied")
+
+        player.seat = seat
+        return player
+
     def active_players(self) -> List[Player]:
         """Players still in the hand (haven't folded) and with chips."""
         return [

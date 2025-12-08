@@ -169,6 +169,10 @@ class SitMeRequest(BaseModel):
     buy_in: int
 
 
+class ChangeSeatRequest(BaseModel):
+    seat: int
+
+
 class AddPlayerResponse(BaseModel):
     table_id: int
     player_id: int
