@@ -17,6 +17,7 @@ class User(Base):
     balance = Column(Integer, nullable=False, default=0)
     current_club_id = Column(Integer, ForeignKey("clubs.id"), nullable=True)
     profile_picture_url = Column(String, nullable=True)
+    university = Column(String, nullable=True)
 
     # ONLY through club_members
     memberships = relationship("ClubMember", back_populates="user")

@@ -10,6 +10,24 @@ from app.deps import get_db, get_current_user
 
 router = APIRouter(tags=["users"])
 
+UK_UNIVERSITIES = [
+    "University of Oxford",
+    "University of Cambridge",
+    "Imperial College London",
+    "London School of Economics and Political Science",
+    "University College London",
+    "University of Edinburgh",
+    "King's College London",
+    "University of Manchester",
+    "University of Bristol",
+    "University of Warwick",
+    "University of Glasgow",
+    "University of Leeds",
+    "University of Birmingham",
+    "University of Nottingham",
+    "University of Southampton",
+]
+
 # ---------- /me ----------
 # We identify the user by their email query param.
 
@@ -129,9 +147,34 @@ def get_profile(
         balance=user.balance,
         current_club_id=user.current_club_id,
         profile_picture_url=user.profile_picture_url,
+        university=user.university,
         current_club_name=club_name,
         hand_history=hand_rows,
     )
+
+
+class UniversityUpdateRequest(BaseModel):
+    university: str | None = None
+
+
+@router.post("/me/university", response_model=schemas.UserMe)
+def update_university(
+    body: UniversityUpdateRequest,
+    email: str = Query(..., description="User email"),
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if body.university and body.university not in UK_UNIVERSITIES:
+        raise HTTPException(status_code=400, detail="Invalid university selection")
+
+    user.university = body.university or None
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 @router.get("/me/export")
@@ -165,6 +208,7 @@ def export_user_data(
             "balance": user.balance,
             "current_club_id": user.current_club_id,
             "profile_picture_url": user.profile_picture_url,
+            "university": user.university,
         },
         "memberships": [
             {

@@ -27,6 +27,7 @@ class UserMe(UserBase):
     balance: int
     current_club_id: Optional[int] = None
     profile_picture_url: Optional[str] = None
+    university: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,6 +52,7 @@ class AdminUser(UserRead):
     balance: int
     current_club_id: Optional[int] = None
     profile_picture_url: Optional[str] = None
+    university: Optional[str] = None
 
 
 # ---------- Club ----------
