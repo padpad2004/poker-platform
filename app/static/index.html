@@ -1436,6 +1436,7 @@
           </div>
         </div>
         <div class="table-panel-actions">
+          <button id="toggleControlsBtn" class="btn secondary">Hide control panel</button>
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
           <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
         </div>
@@ -1857,6 +1858,7 @@
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
+    const toggleControlsBtn = document.getElementById("toggleControlsBtn");
     const handHistoryList = document.getElementById("handHistoryList");
     const handHistoryPanel = document.querySelector(".hand-history-panel");
     const handHistoryToggleBtn = document.getElementById("handHistoryToggleBtn");
@@ -1964,6 +1966,11 @@
     function setControlsHidden(hidden) {
       controlsHidden = hidden;
       document.body.classList.toggle("controls-hidden", hidden);
+
+      if (toggleControlsBtn) {
+        toggleControlsBtn.textContent = hidden ? "Show control panel" : "Hide control panel";
+        toggleControlsBtn.setAttribute("aria-pressed", hidden ? "true" : "false");
+      }
     }
 
     function updateEngineControlsVisibility() {
@@ -1972,11 +1979,24 @@
         currentUserId != null &&
         tableOwnerUserId === currentUserId;
 
-      setControlsHidden(!isOwner ? true : false);
+      if (!isOwner) {
+        setControlsHidden(true);
+        if (toggleControlsBtn) toggleControlsBtn.disabled = true;
+        return;
+      }
+
+      if (toggleControlsBtn) toggleControlsBtn.disabled = false;
+      setControlsHidden(controlsHidden);
     }
 
     if (changeSeatBtn) {
       changeSeatBtn.onclick = () => openSeatChangeModal();
+    }
+
+    if (toggleControlsBtn) {
+      toggleControlsBtn.addEventListener("click", () => {
+        setControlsHidden(!controlsHidden);
+      });
     }
 
     if (closePlayerStatsBtn) {
