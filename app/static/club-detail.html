@@ -113,6 +113,21 @@
       gap: 8px;
     }
 
+    .tournament-card {
+      border: 1px solid var(--panel-border);
+      background: #0b1020;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .tournament-meta { color: var(--text-muted); font-size: 13px; }
+    .tournament-actions { display: flex; align-items: center; gap: 10px; }
+
     .button-link, button {
       padding: 8px 12px;
       border-radius: 10px;
@@ -292,6 +307,12 @@
       <div id="tablesEmpty" class="muted">No active tables for this club.</div>
       <div id="tablesList" class="list"></div>
     </div>
+
+    <div style="margin-top: 16px;">
+      <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Club Tournaments</h3>
+      <div id="tournamentsEmpty" class="muted">No tournaments saved for this club.</div>
+      <div id="tournamentsList"></div>
+    </div>
   </div>
 
   <div id="createTableModal" class="modal hidden" aria-hidden="true" role="dialog">
@@ -341,6 +362,7 @@
 
   <script>
     const AUTH_STORAGE_KEY = "pokerAuth";
+    const TOURNAMENT_STORAGE_KEY = "clubTournaments";
     let accessToken = "";
     let currentUserId = null;
     let currentUserEmail = "";
@@ -356,6 +378,8 @@
     const membersBody = document.getElementById("membersBody");
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
+    const tournamentsList = document.getElementById("tournamentsList");
+    const tournamentsEmpty = document.getElementById("tournamentsEmpty");
     const manageMembersLink = document.getElementById("manageMembersLink");
     const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
     const createTournamentBtn = document.getElementById("createTournamentBtn");
@@ -500,6 +524,103 @@
       });
     }
 
+    function loadStoredTournaments() {
+      try {
+        const raw = localStorage.getItem(TOURNAMENT_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (err) {
+        console.warn("Failed to read tournaments", err);
+        return [];
+      }
+    }
+
+    function saveStoredTournaments(list) {
+      try {
+        localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(list));
+      } catch (err) {
+        console.warn("Failed to save tournaments", err);
+      }
+    }
+
+    function formatCurrency(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? `$${num.toFixed(2)}` : "Custom";
+    }
+
+    function renderTournamentsForClub() {
+      if (!currentClubId) return;
+      const tournaments = loadStoredTournaments().filter(
+        (t) => Number(t.clubId) === Number(currentClubId)
+      );
+      renderTournaments(tournaments);
+    }
+
+    function renderTournaments(tournaments) {
+      if (!tournamentsList || !tournamentsEmpty) return;
+      tournamentsList.innerHTML = "";
+      if (!Array.isArray(tournaments) || !tournaments.length) {
+        tournamentsEmpty.style.display = "block";
+        return;
+      }
+      tournamentsEmpty.style.display = "none";
+
+      tournaments.forEach((tournament) => {
+        const card = document.createElement("div");
+        card.className = "tournament-card";
+
+        const body = document.createElement("div");
+        const title = document.createElement("div");
+        title.innerHTML = `<strong>${tournament.name || "Tournament"}</strong>`;
+        body.appendChild(title);
+
+        const meta = document.createElement("div");
+        meta.className = "tournament-meta";
+        const buyInLabel = formatCurrency(tournament.buyIn);
+        meta.textContent = `${buyInLabel} • ${(tournament.tableSize || 8)}-max • ${tournament.levelDuration || 10} min levels`;
+        body.appendChild(meta);
+
+        const status = document.createElement("div");
+        status.className = "tournament-meta";
+        const players = Array.isArray(tournament.players) ? tournament.players.length : 0;
+        status.textContent = `${(tournament.status || "registering").toUpperCase()} • ${players} players`;
+        body.appendChild(status);
+
+        const actions = document.createElement("div");
+        actions.className = "tournament-actions";
+
+        const statusBadge = document.createElement("div");
+        statusBadge.className = "badge";
+        statusBadge.textContent = tournament.status ? tournament.status : "registering";
+        actions.appendChild(statusBadge);
+
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "btn-danger";
+        removeBtn.textContent = "Remove";
+        removeBtn.onclick = () => deleteTournament(tournament.id);
+        actions.appendChild(removeBtn);
+
+        card.appendChild(body);
+        card.appendChild(actions);
+        tournamentsList.appendChild(card);
+      });
+    }
+
+    async function deleteTournament(tournamentId) {
+      if (!tournamentId) return;
+      const confirmed = await showCustomConfirm({
+        title: "Remove this tournament?",
+        message: "Members will no longer see this tournament in the club lobby.",
+        confirmText: "Remove",
+        cancelText: "Keep",
+      });
+      if (!confirmed) return;
+
+      const tournaments = loadStoredTournaments();
+      const filtered = tournaments.filter((t) => t.id !== tournamentId);
+      saveStoredTournaments(filtered);
+      renderTournamentsForClub();
+    }
+
     async function closeTable(tableId) {
       if (!currentClubId) return alert("Select a club first");
       const confirmed = await showCustomConfirm({
@@ -547,6 +668,7 @@
         }
         renderMembers(detail.members || []);
         renderTables(detail.tables || []);
+        renderTournamentsForClub();
       } catch (e) {
         alert(e.message);
       }
