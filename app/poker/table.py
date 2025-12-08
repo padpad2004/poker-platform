@@ -14,8 +14,8 @@ class Player:
     hole_cards: List[Card] = field(default_factory=list)
     in_hand: bool = True        # still in the current hand
     has_folded: bool = False
-    stack: int = 100            # starting chips
-    committed: int = 0          # chips committed this betting round
+    stack: float = 100          # starting chips
+    committed: float = 0        # chips committed this betting round
     all_in: bool = False
     user_id: Optional[int] = None  # real user id if seated, else None (bot / generic)
     profile_picture_url: Optional[str] = None  # chosen avatar for the seated player
@@ -39,10 +39,10 @@ class Table:
     def __init__(
         self,
         max_seats: int = 6,
-        small_blind: int = 1,
-        big_blind: int = 2,
+        small_blind: float = 1,
+        big_blind: float = 2,
         bomb_pot_every_n_hands: Optional[int] = None,
-        bomb_pot_amount: Optional[int] = None,
+        bomb_pot_amount: Optional[float] = None,
     ):
         self.max_seats = max_seats
         self.players: List[Player] = []
@@ -51,21 +51,21 @@ class Table:
         self.hand_number: int = 0
 
         # Betting-related
-        self.pot: int = 0
-        self.current_bet: int = 0      # current highest committed amount this street
+        self.pot: float = 0
+        self.current_bet: float = 0      # current highest committed amount this street
         self.street: str = "prehand"   # prehand, preflop, flop, turn, river, showdown
         self.dealer_seat: int = 0
         self.dealer_button_seat: Optional[int] = None
         self.small_blind_seat: Optional[int] = None
         self.big_blind_seat: Optional[int] = None
-        self.small_blind: int = small_blind
-        self.big_blind: int = big_blind
+        self.small_blind: float = small_blind
+        self.big_blind: float = big_blind
         self.next_to_act_seat: Optional[int] = None
         self.action_deadline: Optional[float] = None  # epoch seconds for timer
 
         # Bomb pot configuration
         self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
-        self.bomb_pot_amount: Optional[int] = bomb_pot_amount
+        self.bomb_pot_amount: Optional[float] = bomb_pot_amount
 
     # ---------- Player & seating ----------
 
@@ -73,7 +73,7 @@ class Table:
         self,
         player_id: int,
         name: str,
-        starting_stack: int = 100,
+        starting_stack: float = 100,
         user_id: Optional[int] = None,
         profile_picture_url: Optional[str] = None,
         seat: Optional[int] = None,
@@ -228,7 +228,7 @@ class Table:
         # Bomb pot contributions set the initial current bet
         self.current_bet = max(self.current_bet, self.bomb_pot_amount)
 
-    def _post_blind(self, player: Player, amount: int) -> None:
+    def _post_blind(self, player: Player, amount: float) -> None:
         post = min(player.stack, amount)
         player.stack -= post
         player.committed += post
@@ -277,7 +277,7 @@ class Table:
 
     # ---------- Betting logic ----------
 
-    def player_action(self, player_id: int, action: str, amount: int | None = None) -> None:
+    def player_action(self, player_id: int, action: str, amount: float | None = None) -> None:
         """
         Very simple betting for the current street:
         - 'fold'
@@ -287,7 +287,7 @@ class Table:
         self._apply_action(player_id, action, amount)
 
     def _apply_action(
-        self, player_id: int, action: str, amount: int | None = None, auto: bool = False
+        self, player_id: int, action: str, amount: float | None = None, auto: bool = False
     ) -> None:
         """Shared action handler for user and auto-timeout actions."""
         if self.next_to_act_seat is None:
@@ -437,13 +437,10 @@ class Table:
         winners, best_rank, results = self.determine_winner()
 
         if winners and self.pot > 0:
-            share = self.pot // len(winners)
-            remainder = self.pot % len(winners)
+            share = self.pot / len(winners)
 
-            for idx, w in enumerate(winners):
+            for w in winners:
                 w.stack += share
-                if idx < remainder:
-                    w.stack += 1
 
             self.pot = 0
 

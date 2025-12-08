@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Float
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -72,10 +72,10 @@ class PokerTable(Base):
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     max_seats = Column(Integer, default=6)
-    small_blind = Column(Integer, default=1)
-    big_blind = Column(Integer, default=2)
+    small_blind = Column(Float, default=1.0)
+    big_blind = Column(Float, default=2.0)
     bomb_pot_every_n_hands = Column(Integer, nullable=True)
-    bomb_pot_amount = Column(Integer, nullable=True)
+    bomb_pot_amount = Column(Float, nullable=True)
     status = Column(String, default="active")  # active | closed
     created_at = Column(DateTime, default=datetime.utcnow)
 
