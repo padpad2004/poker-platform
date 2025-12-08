@@ -190,10 +190,11 @@
     }
 
     .card-img {
-      width: 70px;
-      height: 100px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      object-fit: contain;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.65);
     }
 
     .seat-card img {
@@ -387,7 +388,13 @@
       box-shadow: 0 6px 16px rgba(0,0,0,0.35);
     }
 
-    .board-cards { margin-bottom: 6px; }
+    .board-cards {
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+    }
 
     @keyframes deal-card {
       from {
@@ -406,15 +413,20 @@
     }
 
     .card {
-      display: inline-block;
-      padding: 6px 10px;
-      margin: 0 3px;
-      border-radius: 8px;
-      background: rgba(15,23,42,0.9);
-      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      margin: 0;
+      min-width: 110px;
+      min-height: 154px;
+      border-radius: 14px;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(15,23,42,0.9));
+      border: 1px solid rgba(148,163,184,0.45);
       font-family: "Menlo", monospace;
-      font-size: 14px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.5);
     }
 
     .pot-info { font-size: 13px; margin-bottom: 4px; }
@@ -1565,8 +1577,9 @@
     function getCardImageFilename(card) {
       if (!card || card.length < 2) return null;
 
-      const rankChar = card[0].toUpperCase();
-      const suitChar = card[1].toLowerCase();
+      const trimmed = card.trim();
+      const suitChar = trimmed.slice(-1).toLowerCase();
+      const rankPart = trimmed.slice(0, -1).toUpperCase();
 
       const rankMap = {
         "A": "ace",
@@ -1574,6 +1587,7 @@
         "Q": "queen",
         "J": "jack",
         "T": "ten",
+        "10": "ten",
         "9": "nine",
         "8": "eight",
         "7": "seven",
@@ -1586,12 +1600,16 @@
 
       const suitMap = {
         "c": "clubs",
+        "♣": "clubs",
         "d": "diamonds",
+        "♦": "diamonds",
         "h": "hearts",
+        "♥": "hearts",
         "s": "spades",
+        "♠": "spades",
       };
 
-      const rankName = rankMap[rankChar];
+      const rankName = rankMap[rankPart];
       const suitName = suitMap[suitChar];
 
       if (!rankName || !suitName) return null;
