@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.staticfiles import StaticFiles
 
@@ -61,4 +62,10 @@ app.include_router(clubs_router)
 app.include_router(routes_user.router)
 
 # Serve static/index.html at the root URL
-app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+
+
+@app.get("/")
+@app.get("/index.html")
+async def serve_root_page():
+    """Serve the primary poker UI at the root path."""
+    return FileResponse(static_dir / "index.html")
