@@ -406,6 +406,9 @@ async def change_seat(
     _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _get_engine_table(table_id, db)
 
+    if engine_table.street not in {"prehand", "showdown"}:
+        raise HTTPException(status_code=400, detail="You can only change seats between hands")
+
     try:
         player = engine_table.move_player_to_seat(current_user.id, req.seat)
     except ValueError as e:
