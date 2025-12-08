@@ -64,6 +64,9 @@ class Table:
         self.next_to_act_seat: Optional[int] = None
         self.action_deadline: Optional[float] = None  # epoch seconds for timer
         self.action_time_limit = action_time_limit
+        # Tracks which seat will close the betting round once action returns
+        # and all players have matched the current bet.
+        self.action_closing_seat: Optional[int] = None
 
         # Bomb pot configuration
         self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
@@ -177,6 +180,7 @@ class Table:
         self.small_blind_seat = None
         self.big_blind_seat = None
         self.dealer_button_seat = None
+        self.action_closing_seat = None
 
         # Remember each player's stack before blinds or bomb pots are taken so
         # net changes can be calculated when the hand finishes.
@@ -243,6 +247,9 @@ class Table:
         self.current_bet = max(self.current_bet, self.big_blind)
 
         self.next_to_act_seat = self._next_player_to_act(bb_player.seat)
+        # The big blind should have the option to check/raise if action comes
+        # back around without a raise.
+        self.action_closing_seat = bb_player.seat
         self._set_action_deadline()
 
     def _apply_bomb_pot_if_needed(self) -> None:
@@ -286,6 +293,13 @@ class Table:
             raise ValueError("Seat not occupied")
         idx = occupied.index(seat)
         return occupied[(idx + 1) % len(occupied)]
+
+    def _previous_seat(self, seat: int) -> int:
+        occupied = sorted(p.seat for p in self.players)
+        if seat not in occupied:
+            raise ValueError("Seat not occupied")
+        idx = occupied.index(seat)
+        return occupied[(idx - 1) % len(occupied)]
 
     def _log_action(
         self,
@@ -370,6 +384,22 @@ class Table:
         seat = start_from_seat
         while True:
             seat = self._next_seat(seat)
+            player = self._player_by_seat(seat)
+
+            if player.in_hand and not player.has_folded and not player.all_in:
+                return seat
+
+            if seat == start_from_seat:
+                return None
+
+    def _previous_active_seat(self, start_from_seat: Optional[int]) -> Optional[int]:
+        """Return the previous eligible seat before the given one."""
+        if start_from_seat is None or not self.players:
+            return None
+
+        seat = start_from_seat
+        while True:
+            seat = self._previous_seat(seat)
             player = self._player_by_seat(seat)
 
             if player.in_hand and not player.has_folded and not player.all_in:
@@ -501,9 +531,19 @@ class Table:
             if acting_player.stack == 0:
                 acting_player.all_in = True
             event_amount = put_in
+            # A raise sets the closing action back to the raiser.
+            self.action_closing_seat = acting_player.seat
 
         else:
             raise ValueError(f"Unknown action: {action}")
+
+        # If the player who would close action can no longer act, advance the
+        # closing seat to the previous eligible player.
+        if (
+            self.action_closing_seat == acting_player.seat
+            and (acting_player.has_folded or acting_player.all_in)
+        ):
+            self.action_closing_seat = self._previous_active_seat(acting_player.seat)
 
         self._log_action(self.street, acting_player, action, event_amount, auto=auto)
         self._advance_turn()
@@ -514,36 +554,36 @@ class Table:
             self.action_deadline = None
             return
 
-        start_seat = self.next_to_act_seat
-        seat = start_seat
-        while True:
-            seat = self._next_seat(seat)
-            p = self._player_by_seat(seat)
-            if p.in_hand and not p.has_folded and not p.all_in:
-                if self._betting_round_complete():
-                    self.next_to_act_seat = None
-                else:
-                    self.next_to_act_seat = seat
-                self._set_action_deadline()
-                return
+        if self.action_closing_seat == self.next_to_act_seat and self._betting_round_settled():
+            self.next_to_act_seat = None
+            self.action_deadline = None
+            return
 
-            if seat == start_seat:
-                self.next_to_act_seat = None
-                self.action_deadline = None
-                return
+        next_seat = self._next_player_to_act(self.next_to_act_seat)
+
+        if next_seat is None:
+            self.next_to_act_seat = None
+            self.action_deadline = None
+            return
+
+        self.next_to_act_seat = next_seat
+        self._set_action_deadline()
 
     def _betting_round_complete(self) -> bool:
         """Internal check: all active players have matched current_bet or are all-in/folded."""
+        return self._betting_round_settled() and self.next_to_act_seat is None
+
+    def betting_round_complete(self) -> bool:
+        """Public helper used by API to decide if we can auto-advance the street."""
+        return self._betting_round_complete()
+
+    def _betting_round_settled(self) -> bool:
         for p in self.players:
             if not p.in_hand or p.has_folded or p.all_in:
                 continue
             if p.committed != self.current_bet:
                 return False
         return True
-
-    def betting_round_complete(self) -> bool:
-        """Public helper used by API to decide if we can auto-advance the street."""
-        return self._betting_round_complete()
 
     # ---------- Streets ----------
 
@@ -552,6 +592,8 @@ class Table:
         for p in self.players:
             p.committed = 0
         self.next_to_act_seat = self._next_player_to_act(self.dealer_seat)
+        # With no existing bet, action closes after everyone has acted once.
+        self.action_closing_seat = self._previous_active_seat(self.next_to_act_seat)
         self._set_action_deadline()
 
     def deal_flop(self) -> None:
