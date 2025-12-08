@@ -53,6 +53,10 @@
       text-decoration: none;
     }
 
+    .legal-footer a + a {
+      margin-left: 8px;
+    }
+
     .legal-footer a:hover {
       color: var(--text-main);
       text-decoration: underline;
@@ -621,7 +625,7 @@
 
     .action-dock {
       position: absolute;
-      top: calc(var(--action-top, 82%) + 5%);
+      top: calc(var(--action-top, 82%) + 2%);
       left: var(--action-left, 50%);
       transform: translate(-50%, -10%);
       padding: 14px 18px;
@@ -1260,6 +1264,7 @@
     let currentClubId = null;
     let actingPlayer = null; // current acting player object from state
     let currentUserBalance = 0;
+    let tableOwnerUserId = null;
     let controlsHidden = false;
     let pendingSeatIndex = null;
 
@@ -1367,6 +1372,20 @@
       document.body.classList.toggle("controls-hidden", hidden);
       if (controlsToggleBtn) {
         controlsToggleBtn.textContent = hidden ? "Show Poker Engine UI" : "Hide Poker Engine UI";
+      }
+    }
+
+    function updateEngineControlsVisibility() {
+      if (!controlsToggleBtn) return;
+      const isOwner =
+        tableOwnerUserId != null &&
+        currentUserId != null &&
+        tableOwnerUserId === currentUserId;
+
+      controlsToggleBtn.style.display = isOwner ? "" : "none";
+
+      if (!isOwner) {
+        setControlsHidden(true);
       }
     }
 
@@ -1834,6 +1853,7 @@
         currentClubId = me.current_club_id || null;
         currentClubIdSpan.textContent = currentClubId ? String(currentClubId) : "None";
         loadTableList();
+        updateEngineControlsVisibility();
         if (topupOpenBtn) topupOpenBtn.disabled = false;
         persistAuth();
       } catch (e) {
@@ -2317,6 +2337,8 @@
           currentUserEmailSpan.textContent = "";
           currentUserEmailSpan.style.display = "none";
         }
+        tableOwnerUserId = null;
+        updateEngineControlsVisibility();
         setAuthEnabled(false);
         window.location.href = "/";
       };
@@ -2451,14 +2473,21 @@
         return;
       }
       try {
-        const state = await api(`/tables/${numericId}`, { method: "GET" });
+        const [meta, state] = await Promise.all([
+          api(`/tables/${numericId}/meta`, { method: "GET" }),
+          api(`/tables/${numericId}`, { method: "GET" }),
+        ]);
+        tableOwnerUserId = meta?.created_by_user_id ?? null;
         tableId = numericId;
         tableIdSpan.textContent = String(numericId);
         if (tableHeadingLabel) tableHeadingLabel.textContent = `#${numericId}`;
+        updateEngineControlsVisibility();
         connectWebSocket();
         renderState(state);
         setControlsHidden(true);
       } catch (e) {
+        tableOwnerUserId = null;
+        updateEngineControlsVisibility();
         alert(e.message);
       }
     }
@@ -2525,7 +2554,10 @@
   </script>
 
   <div class="legal-footer">
-    Play-money entertainment only. Read our <a href="/legal.html" target="_blank" rel="noopener">legal disclaimer</a>.
+    Play-money entertainment only. Read our
+    <a href="/legal.html" target="_blank" rel="noopener">legal disclaimer</a>
+    and
+    <a href="/terms.html" target="_blank" rel="noopener">terms of service</a>.
   </div>
 </body>
 </html>

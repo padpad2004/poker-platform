@@ -28,6 +28,7 @@ class Club(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    crest_url = Column(String, nullable=True)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     status = Column(String, default="inactive")
     created_at = Column(DateTime, default=datetime.utcnow)

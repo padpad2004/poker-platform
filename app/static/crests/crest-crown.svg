@@ -1,0 +1,18 @@
+<svg width="160" height="160" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Crown crest">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#22c55e" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fcd34d" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="144" height="144" rx="28" fill="url(#bg)" stroke="#0f172a" stroke-width="6" />
+  <path d="M42 106L52 62l18 20 20-28 20 28 18-20 10 44z" fill="url(#gold)" stroke="#fef9c3" stroke-width="5" stroke-linejoin="round" />
+  <circle cx="52" cy="60" r="6" fill="#fbbf24" />
+  <circle cx="100" cy="54" r="6" fill="#fbbf24" />
+  <circle cx="124" cy="62" r="6" fill="#fbbf24" />
+  <rect x="46" y="106" width="68" height="14" rx="6" fill="#0f172a" opacity="0.45" />
+</svg>
