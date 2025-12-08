@@ -171,6 +171,17 @@
       font-size: 13px;
     }
 
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      background: #0b1020;
+      color: var(--text-main);
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+
     button {
       padding: 8px 12px;
       border-radius: 10px;
@@ -293,30 +304,93 @@
     .modal {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.6);
+      width: 100%; height: 100%;
+      background: rgba(7, 11, 23, 0.7);
+      backdrop-filter: blur(4px);
       display: flex;
       justify-content: center;
       align-items: center;
       z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
     }
     .modal-content {
-      background: var(--panel);
-      padding: 16px;
-      border-radius: 12px;
-      border: 1px solid var(--panel-border);
-      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
-      min-width: 280px;
+      background: linear-gradient(160deg, #0f172a 0%, #0b1222 100%);
+      padding: 18px 18px 16px;
+      border-radius: 16px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+      min-width: 320px;
+      max-width: min(520px, calc(100% - 32px));
+      transform: translateY(12px);
+      opacity: 0;
+      transition: transform 0.2s ease, opacity 0.2s ease;
     }
     .modal-content h3 { margin-top: 0; }
 
-    select {
+    .modal.show { opacity: 1; pointer-events: auto; }
+    .modal.show .modal-content { transform: translateY(0); opacity: 1; }
+
+    .modal-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .modal .muted { margin-top: -4px; margin-bottom: 10px; }
+
+    .modal label { font-weight: 700; font-size: 13px; color: #e5e7eb; }
+
+    .modal input, .modal select {
       width: 100%;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid #374151;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #25304b;
       background: #0b1020;
       color: var(--text-main);
-      margin-bottom: 10px;
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    .modal input:focus, .modal select:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.5);
+      border-color: #2563eb;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .ghost-button {
+      background: transparent;
+      border: 1px solid #374151;
+      color: var(--text-main);
+    }
+
+    .ghost-button:hover { background: rgba(255,255,255,0.04); }
+
+    .pill-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.28);
+      color: #bbf7d0;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.03em;
+    }
+
+    .error-text {
+      color: #fca5a5;
+      margin: 6px 0 2px;
       font-size: 13px;
     }
   </style>
@@ -424,12 +498,59 @@
       <div style="margin-top: 16px;">
         <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Open Tables</h3>
         <div class="create-table-cta">
-          <div class="muted">Open a fresh table for this club. You'll be prompted for blinds when you click.</div>
+          <div class="muted">Open a fresh table for this club with custom blinds and seating.</div>
           <button id="quickCreateTableBtn" disabled style="width: 100%; max-width: 240px; margin-top: 10px;">Create New Table</button>
         </div>
         <div id="tablesEmpty" class="muted">No active tables for this club.</div>
         <div id="tablesList" class="list"></div>
       </div>
+    </div>
+  </div>
+
+  <div id="createTableModal" class="modal hidden" aria-hidden="true" role="dialog">
+    <div class="modal-content">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px;">
+        <div>
+          <h3 style="margin: 0;">Create a new table</h3>
+          <p class="muted" style="margin: 2px 0 0;">Set up blinds and seats before opening the table to members.</p>
+        </div>
+        <span class="pill-tag" aria-hidden="true">Club table</span>
+      </div>
+
+      <form id="createTableForm">
+        <div class="modal-row">
+          <div>
+            <label for="smallBlindInput">Small blind</label>
+            <input id="smallBlindInput" name="small_blind" type="number" step="0.01" min="0.01" value="0.05" />
+          </div>
+          <div>
+            <label for="bigBlindInput">Big blind</label>
+            <input id="bigBlindInput" name="big_blind" type="number" step="0.01" min="0.02" value="0.10" />
+          </div>
+        </div>
+
+        <div class="modal-row">
+          <div>
+            <label for="maxSeatsInput">Max seats</label>
+            <select id="maxSeatsInput" name="max_seats">
+              <option value="6">6-max</option>
+              <option value="8">8 players</option>
+              <option value="9">Full ring (9)</option>
+            </select>
+          </div>
+          <div>
+            <label for="tableNote">Notes (optional)</label>
+            <input id="tableNote" name="table_note" type="text" placeholder="Friendly home game" />
+          </div>
+        </div>
+
+        <div class="muted" style="margin: 0 0 10px;">You can adjust table settings later by closing and reopening a new one.</div>
+        <div id="createTableError" class="error-text" role="alert"></div>
+        <div class="modal-footer">
+          <button type="button" id="cancelCreateTableBtn" class="ghost-button">Cancel</button>
+          <button type="submit" id="submitCreateTableBtn">Create table</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -464,6 +585,15 @@
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
     const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
+    const createTableModal = document.getElementById("createTableModal");
+    const createTableForm = document.getElementById("createTableForm");
+    const smallBlindInput = document.getElementById("smallBlindInput");
+    const bigBlindInput = document.getElementById("bigBlindInput");
+    const maxSeatsInput = document.getElementById("maxSeatsInput");
+    const tableNoteInput = document.getElementById("tableNote");
+    const createTableError = document.getElementById("createTableError");
+    const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
+    const submitCreateTableBtn = document.getElementById("submitCreateTableBtn");
     const balanceSection = document.getElementById("balanceSection");
     const memberSelect = document.getElementById("memberSelect");
     const balanceDelta = document.getElementById("balanceDelta");
@@ -911,38 +1041,98 @@
         }
     };
 
-    async function promptCreateTable() {
+    function showCreateTableModal() {
       requireAuth();
       if (!currentClubId) return alert("Create or join a club first.");
-
-      const smallBlindInput = window.prompt("Small blind?", "0.05");
-      if (smallBlindInput === null) return;
-      const bigBlindInput = window.prompt("Big blind?", "0.10");
-      if (bigBlindInput === null) return;
-
-      const sbVal = Number(smallBlindInput);
-      const bbVal = Number(bigBlindInput);
-      if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
-        return alert("Enter positive blind amounts");
+      createTableError.textContent = "";
+      if (createTableModal) {
+        createTableModal.classList.remove("hidden");
+        requestAnimationFrame(() => createTableModal.classList.add("show"));
       }
-      if (bbVal <= sbVal) {
-        return alert("Big blind must be greater than small blind");
-      }
+      if (smallBlindInput) smallBlindInput.focus();
+    }
 
-      try {
-        const data = await api("/tables/", {
-          method: "POST",
-          body: JSON.stringify({ club_id: currentClubId, max_seats: 6, small_blind: sbVal, big_blind: bbVal }),
-        });
-        await loadClubDetail(currentClubId);
-        alert(`Created table ID ${data.table_id}`);
-      } catch (err) {
-        alert(err.message);
+    function hideCreateTableModal() {
+      if (!createTableModal) return;
+      createTableModal.classList.remove("show");
+      setTimeout(() => createTableModal.classList.add("hidden"), 200);
+    }
+
+    function syncBigBlindFloor() {
+      if (!bigBlindInput) return;
+      const sbVal = Number(smallBlindInput?.value || 0);
+      if (!Number.isFinite(sbVal) || sbVal <= 0) return;
+      const suggested = (sbVal * 2).toFixed(2);
+      bigBlindInput.min = (sbVal * 1.01).toFixed(2);
+      if (!bigBlindInput.value || Number(bigBlindInput.value) <= sbVal) {
+        bigBlindInput.value = suggested;
       }
     }
 
+    smallBlindInput?.addEventListener("change", syncBigBlindFloor);
+    smallBlindInput?.addEventListener("blur", syncBigBlindFloor);
+    syncBigBlindFloor();
+
+    createTableForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      requireAuth();
+      if (!currentClubId) return alert("Create or join a club first.");
+
+      const sbVal = Number(smallBlindInput?.value || 0);
+      const bbVal = Number(bigBlindInput?.value || 0);
+      const seatsVal = Number(maxSeatsInput?.value || 6);
+
+      createTableError.textContent = "";
+      if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
+        createTableError.textContent = "Enter positive blind amounts.";
+        return;
+      }
+      if (bbVal <= sbVal) {
+        createTableError.textContent = "Big blind must be greater than small blind.";
+        return;
+      }
+      if (!seatsVal || seatsVal < 2) {
+        createTableError.textContent = "Choose at least two seats.";
+        return;
+      }
+
+      try {
+        if (submitCreateTableBtn) {
+          submitCreateTableBtn.textContent = "Creating...";
+          submitCreateTableBtn.disabled = true;
+        }
+        const data = await api("/tables/", {
+          method: "POST",
+          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal }),
+        });
+        await loadClubDetail(currentClubId);
+        hideCreateTableModal();
+        if (tableNoteInput) tableNoteInput.value = "";
+        alert(`Created table ID ${data.table_id}`);
+      } catch (err) {
+        createTableError.textContent = err.message || "Unable to create table.";
+      } finally {
+        if (submitCreateTableBtn) {
+          submitCreateTableBtn.textContent = "Create table";
+          submitCreateTableBtn.disabled = false;
+        }
+      }
+    });
+
+    createTableModal?.addEventListener("click", (event) => {
+      if (event.target === createTableModal) hideCreateTableModal();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && createTableModal?.classList.contains("show")) {
+        hideCreateTableModal();
+      }
+    });
+
+    cancelCreateTableBtn?.addEventListener("click", hideCreateTableModal);
+
     if (quickCreateTableBtn) {
-      quickCreateTableBtn.onclick = promptCreateTable;
+      quickCreateTableBtn.onclick = showCreateTableModal;
     }
 
     adjustBalanceBtn.onclick = async () => {
