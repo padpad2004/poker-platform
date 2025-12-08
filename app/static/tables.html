@@ -245,6 +245,31 @@
       background: rgba(34, 197, 94, 0.1);
     }
 
+    .tournament-card {
+      background: var(--card);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .tournament-card h3 {
+      margin: 0 0 4px;
+    }
+
+    .tournament-meta { color: var(--text-muted); margin: 4px 0; font-size: 14px; }
+
+    .tournament-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+    .tournament-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+
+    .tournament-pill { padding: 8px 12px; border-radius: 999px; background: rgba(59, 130, 246, 0.12); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.35); font-weight: 700; letter-spacing: 0.04em; }
+
+    .status-text { color: #86efac; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; font-size: 12px; }
+
     .empty-state {
       text-align: center;
       padding: 28px 16px;
@@ -300,12 +325,29 @@
       <div id="tableList" class="table-list"></div>
       <div id="errorBox" class="error" style="display:none"></div>
     </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <div class="panel-header">
+        <div>
+          <h2>Club tournaments</h2>
+          <p class="subtext">Register for structured events. New tables open automatically as each fills.</p>
+        </div>
+        <div class="controls">
+          <a id="openTournamentBuilder" class="btn secondary" href="/tournament.html">Host tournament</a>
+        </div>
+      </div>
+
+      <div id="tournamentList" class="table-list"></div>
+      <div id="tournamentEmpty" class="empty-state" style="display:none;">No tournaments posted yet.</div>
+    </div>
   </main>
 
   <script>
     const authInfo = JSON.parse(localStorage.getItem("pokerAuth") || "{}");
     const AUTH_KEY = "poker_token";
     const AUTH_STORAGE_KEY = "pokerAuth";
+    const TOURNAMENT_STORAGE_KEY = "clubTournaments";
+    const CLUB_CONTEXT_KEY = "pokerActiveClubId";
     let accessToken = localStorage.getItem(AUTH_KEY);
     let currentUserEmail = authInfo.email || "";
     let currentUserId = null;
@@ -324,6 +366,9 @@
     const refreshBtn = document.getElementById("refreshBtn");
     const errorBox = document.getElementById("errorBox");
     const logoutBtn = document.getElementById("logoutBtn");
+    const tournamentListEl = document.getElementById("tournamentList");
+    const tournamentEmptyEl = document.getElementById("tournamentEmpty");
+    const openTournamentBuilder = document.getElementById("openTournamentBuilder");
 
     function restoreAuthMetadata() {
       try {
@@ -437,6 +482,156 @@
       }
     }
 
+    function loadStoredTournaments() {
+      try {
+        const raw = localStorage.getItem(TOURNAMENT_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (err) {
+        console.warn("Failed to read tournaments", err);
+        return [];
+      }
+    }
+
+    function saveStoredTournaments(list) {
+      try {
+        localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(list));
+      } catch (err) {
+        console.warn("Failed to save tournaments", err);
+      }
+    }
+
+    function calculateActiveTables(playersCount, tableSize) {
+      const seats = Math.max(Number(tableSize) || 1, 1);
+      const players = Math.max(playersCount || 0, 0);
+      return Math.max(1, Math.ceil(players / seats) || 1);
+    }
+
+    function formatCurrency(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "Custom";
+      return `$${num.toFixed(2)}`;
+    }
+
+    function renderTournaments(tournaments) {
+      if (!tournamentListEl || !tournamentEmptyEl) return;
+      tournamentListEl.innerHTML = "";
+      tournamentEmptyEl.style.display = "none";
+      if (!Array.isArray(tournaments) || tournaments.length === 0) {
+        tournamentEmptyEl.style.display = "block";
+        return;
+      }
+
+      tournaments.forEach((tournament) => {
+        const players = Array.isArray(tournament.players) ? tournament.players : [];
+        const playersCount = players.length;
+        const tableSize = tournament.tableSize || 8;
+        const activeTables = tournament.activeTables || calculateActiveTables(playersCount, tableSize);
+        const playerId = currentUserEmail || "guest-player";
+        const alreadyJoined = players.some((p) => p.email === playerId);
+
+        const card = document.createElement("div");
+        card.className = "tournament-card";
+
+        const body = document.createElement("div");
+        const title = document.createElement("h3");
+        title.textContent = tournament.name || "Club tournament";
+        body.appendChild(title);
+
+        const meta = document.createElement("div");
+        meta.className = "tournament-meta";
+        const buyInLabel = formatCurrency(tournament.buyIn);
+        const feeLabel = tournament.fee ? ` + ${formatCurrency(tournament.fee)} fee` : "";
+        const stackLabel = tournament.startingStack ? `${tournament.startingStack} chips` : "Custom stack";
+        meta.textContent = `${buyInLabel}${feeLabel} • ${stackLabel} • ${tournament.levelDuration || 10} min levels`;
+        body.appendChild(meta);
+
+        const regMeta = document.createElement("div");
+        regMeta.className = "tournament-meta";
+        regMeta.textContent = `Late reg: ${tournament.lateRegMinutes || 0} mins • Table size: ${tableSize} • Auto tables: ${activeTables}`;
+        body.appendChild(regMeta);
+
+        const tags = document.createElement("div");
+        tags.className = "tournament-tags";
+
+        const statusTag = document.createElement("span");
+        statusTag.className = "tag-chip success";
+        statusTag.textContent = tournament.status ? tournament.status.toUpperCase() : "REGISTERING";
+        tags.appendChild(statusTag);
+
+        const structureTag = document.createElement("span");
+        structureTag.className = "tag-chip";
+        structureTag.textContent = `${tableSize}-max tables`;
+        tags.appendChild(structureTag);
+
+        const reentryTag = document.createElement("span");
+        reentryTag.className = "tag-chip";
+        reentryTag.textContent = tournament.allowReEntry ? "Re-entry allowed" : "Freezeout";
+        tags.appendChild(reentryTag);
+
+        const blindTag = document.createElement("span");
+        blindTag.className = "tag-chip";
+        blindTag.textContent = tournament.blindPacing ? `${tournament.blindPacing} structure` : "ClubGG-inspired";
+        tags.appendChild(blindTag);
+
+        body.appendChild(tags);
+
+        const actions = document.createElement("div");
+        actions.className = "tournament-actions";
+
+        const statusText = document.createElement("div");
+        statusText.className = "status-text";
+        statusText.textContent = tournament.status ? tournament.status.toUpperCase() : "REGISTERING";
+        actions.appendChild(statusText);
+
+        const tablesPill = document.createElement("div");
+        tablesPill.className = "tournament-pill";
+        const tableWord = activeTables === 1 ? "table" : "tables";
+        tablesPill.textContent = `${playersCount} joined • ${activeTables} ${tableWord}`;
+        actions.appendChild(tablesPill);
+
+        const joinBtn = document.createElement("button");
+        joinBtn.className = alreadyJoined ? "btn secondary" : "btn";
+        joinBtn.textContent = alreadyJoined ? "Joined" : "Join tournament";
+        joinBtn.disabled = alreadyJoined;
+        joinBtn.onclick = () => joinTournament(tournament.id);
+        actions.appendChild(joinBtn);
+
+        card.appendChild(body);
+        card.appendChild(actions);
+        tournamentListEl.appendChild(card);
+      });
+    }
+
+    function joinTournament(tournamentId) {
+      if (!tournamentId) return;
+      if (!currentUserEmail) restoreAuthMetadata();
+      const playerEmail = currentUserEmail || "guest-player";
+
+      const tournaments = loadStoredTournaments();
+      const index = tournaments.findIndex((t) => t.id === tournamentId);
+      if (index === -1) return;
+
+      const tournament = tournaments[index];
+      tournament.players = Array.isArray(tournament.players) ? tournament.players : [];
+      const alreadyJoined = tournament.players.some((p) => p.email === playerEmail);
+      if (!alreadyJoined) {
+        tournament.players.push({ email: playerEmail, joinedAt: new Date().toISOString() });
+      }
+      tournament.activeTables = calculateActiveTables(tournament.players.length, tournament.tableSize || 8);
+      tournaments[index] = tournament;
+      saveStoredTournaments(tournaments);
+      renderTournaments(tournaments);
+      alert(`You're registered for ${tournament.name || "the tournament"}. Tables will auto-open as seats fill.`);
+    }
+
+    function syncTournamentBuilderLink() {
+      if (!openTournamentBuilder) return;
+      const storedClubId = localStorage.getItem(CLUB_CONTEXT_KEY);
+      openTournamentBuilder.href = storedClubId
+        ? `/tournament.html?club_id=${encodeURIComponent(storedClubId)}`
+        : "/tournament.html";
+    }
+
     function renderTables(tables) {
       tableList.innerHTML = "";
       if (!tables.length) {
@@ -533,7 +728,10 @@
       }
     }
 
-    refreshBtn.addEventListener("click", loadTables);
+    refreshBtn.addEventListener("click", () => {
+      loadTables();
+      renderTournaments(loadStoredTournaments());
+    });
     hideFullCheckbox.addEventListener("change", loadTables);
 
     logoutBtn.addEventListener("click", () => {
@@ -545,8 +743,12 @@
     restoreAuthMetadata();
     loadProfileAvatar();
     determineClubOwnership();
+    syncTournamentBuilderLink();
     ensureClubMembership().then((ok) => {
-      if (ok) loadTables();
+      if (ok) {
+        loadTables();
+        renderTournaments(loadStoredTournaments());
+      }
     });
   </script>
 

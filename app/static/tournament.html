@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tournament Builder | PadPad Poker</title>
+  <style>
+    :root {
+      --bg: #0b1224;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #0f172a 0, #0b1224 70%);
+      color: var(--text-main);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      padding-bottom: 80px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(15, 23, 42, 0.9);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo-circle { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #22c55e, #16a34a); display: grid; place-items: center; font-weight: 700; color: #0b1224; box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1); overflow: hidden; }
+    .page-title { margin: 0; font-size: 20px; letter-spacing: 0.03em; text-transform: uppercase; }
+    .subtext { color: var(--text-muted); margin: 6px 0 0; font-size: 14px; }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .btn { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--panel-border); background: linear-gradient(135deg, var(--btn), var(--btn-hover)); color: #fff; cursor: pointer; font-weight: 600; transition: transform 0.15s ease, box-shadow 0.15s ease; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn:active { transform: translateY(1px); }
+    .btn.secondary { background: transparent; color: var(--text-main); border-color: #1f2a3c; }
+
+    main { max-width: 1080px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+
+    .panel { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px; padding: 18px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45); }
+    .panel-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-top: 12px; }
+    label { display: block; font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
+    input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid #25304b; background: #0b1020; color: var(--text-main); font-size: 14px; }
+    textarea { min-height: 72px; resize: vertical; }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(34, 197, 94, 0.12); color: #86efac; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px; }
+
+    .inline { display: flex; align-items: center; gap: 10px; }
+    .muted { color: var(--text-muted); font-size: 13px; }
+    .section-title { margin: 14px 0 6px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+
+    .preview { background: #0b1224; border: 1px solid #1f2937; border-radius: 12px; padding: 12px; }
+    .preview h3 { margin: 0 0 6px; }
+    .preview-list { list-style: none; padding-left: 16px; color: var(--text-muted); margin: 6px 0; }
+    .preview-callout { padding: 10px 12px; background: rgba(37, 99, 235, 0.1); border: 1px solid rgba(37, 99, 235, 0.25); border-radius: 10px; color: #bfdbfe; margin-top: 8px; }
+
+    .tournament-card { border: 1px solid #1f2937; border-radius: 12px; padding: 12px; margin-top: 8px; background: #0b1224; }
+    .tournament-card h4 { margin: 0 0 4px; }
+
+    .success { color: #86efac; font-weight: 700; margin-top: 6px; }
+    .error { color: #fca5a5; margin-top: 6px; }
+
+    @media (max-width: 640px) {
+      header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo-circle">P</div>
+      <div>
+        <p class="page-title">Tournament Builder</p>
+        <p class="subtext">Set buy-ins, blinds, and ClubGG-inspired rules.</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a class="btn secondary" href="/tables">Back to lobby</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="pill">ClubGG style</div>
+          <p class="subtext">Configure a multi-table tournament. Tables will keep opening as seats fill.</p>
+        </div>
+        <div class="muted">Save settings to share in the lobby.</div>
+      </div>
+
+      <form id="tournamentForm" class="form-grid">
+        <div>
+          <div class="section-title">Identity</div>
+          <label for="tournamentName">Tournament name</label>
+          <input id="tournamentName" type="text" placeholder="Sunday Club Championship" required />
+
+          <div class="form-row" style="margin-top: 10px;">
+            <div>
+              <label for="clubIdInput">Club ID</label>
+              <input id="clubIdInput" type="number" min="1" placeholder="123" />
+            </div>
+            <div>
+              <label for="startTimeInput">Start time</label>
+              <input id="startTimeInput" type="datetime-local" />
+            </div>
+          </div>
+
+          <div class="section-title">Buy-in & stack</div>
+          <div class="form-row">
+            <div>
+              <label for="buyInInput">Buy-in</label>
+              <input id="buyInInput" type="number" min="0" step="0.01" value="50" />
+            </div>
+            <div>
+              <label for="feeInput">Fee/Rake</label>
+              <input id="feeInput" type="number" min="0" step="0.01" value="5" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label for="startingStackInput">Starting stack</label>
+              <input id="startingStackInput" type="number" min="1000" step="500" value="20000" />
+            </div>
+            <div>
+              <label for="tableSizeInput">Max players per table</label>
+              <select id="tableSizeInput">
+                <option value="6">6-max</option>
+                <option value="8" selected>8 players</option>
+                <option value="9">Full ring (9)</option>
+              </select>
+            </div>
+          </div>
+
+          <label for="noteInput" class="section-title" style="margin-top: 12px;">Notes (optional)</label>
+          <textarea id="noteInput" placeholder="Progressive bounty? Satellite? Add a quick description for members."></textarea>
+        </div>
+
+        <div>
+          <div class="section-title">Blinds & pacing</div>
+          <div class="form-row">
+            <div>
+              <label for="blindPacingSelect">Blind pacing</label>
+              <select id="blindPacingSelect">
+                <option value="standard">Standard (ClubGG)</option>
+                <option value="slow">Deep & slow</option>
+                <option value="hyper">Hyper turbo</option>
+              </select>
+            </div>
+            <div>
+              <label for="levelDurationInput">Level duration (mins)</label>
+              <input id="levelDurationInput" type="number" min="4" max="30" value="12" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label for="startingBlindsInput">Starting blinds</label>
+              <input id="startingBlindsInput" type="text" value="50 / 100" />
+            </div>
+            <div>
+              <label for="lateRegInput">Late registration (mins)</label>
+              <input id="lateRegInput" type="number" min="0" max="180" value="60" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <label for="breakEveryInput">Break every</label>
+              <input id="breakEveryInput" type="number" min="2" max="12" value="4" />
+              <div class="muted">Levels between 5-minute breaks.</div>
+            </div>
+            <div>
+              <label for="expectedPlayersInput">Expected players</label>
+              <input id="expectedPlayersInput" type="number" min="4" max="500" value="64" />
+              <div class="muted">Helps predict auto-open tables.</div>
+            </div>
+          </div>
+
+          <div class="section-title">Entries</div>
+          <div class="form-row">
+            <div class="inline">
+              <input id="reentryCheckbox" type="checkbox" checked />
+              <label for="reentryCheckbox">Allow re-entry</label>
+            </div>
+            <div>
+              <label for="maxReentryInput">Max re-entries</label>
+              <input id="maxReentryInput" type="number" min="0" max="10" value="2" />
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 8px;">
+            <div>
+              <label for="addonInput">Add-on amount (chips)</label>
+              <input id="addonInput" type="number" min="0" step="1000" value="0" />
+            </div>
+            <div>
+              <label for="payoutPercentInput">Payout top %</label>
+              <input id="payoutPercentInput" type="number" min="5" max="25" value="15" />
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <div class="preview">
+        <h3>Preview & auto table plan</h3>
+        <div id="previewSummary" class="muted">Adjust settings to see the structure.</div>
+        <ul id="previewList" class="preview-list"></ul>
+        <div class="preview-callout" id="tablePlanCallout">Tables open dynamically as players register.</div>
+        <div id="feedback" class="success" style="display:none;"></div>
+      </div>
+
+      <div style="display:flex; justify-content: flex-end; gap: 10px; margin-top: 12px;">
+        <button id="createTournamentBtn" class="btn" type="button">Create tournament</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h3 style="margin: 0;">Saved tournaments</h3>
+          <p class="subtext">New entries appear in the lobby instantly for members.</p>
+        </div>
+      </div>
+      <div id="savedTournaments"></div>
+    </div>
+  </main>
+
+  <script>
+    const TOURNAMENT_STORAGE_KEY = "clubTournaments";
+    const CLUB_CONTEXT_KEY = "pokerActiveClubId";
+
+    const tournamentNameInput = document.getElementById("tournamentName");
+    const clubIdInput = document.getElementById("clubIdInput");
+    const buyInInput = document.getElementById("buyInInput");
+    const feeInput = document.getElementById("feeInput");
+    const startingStackInput = document.getElementById("startingStackInput");
+    const tableSizeInput = document.getElementById("tableSizeInput");
+    const noteInput = document.getElementById("noteInput");
+    const blindPacingSelect = document.getElementById("blindPacingSelect");
+    const levelDurationInput = document.getElementById("levelDurationInput");
+    const startingBlindsInput = document.getElementById("startingBlindsInput");
+    const lateRegInput = document.getElementById("lateRegInput");
+    const breakEveryInput = document.getElementById("breakEveryInput");
+    const expectedPlayersInput = document.getElementById("expectedPlayersInput");
+    const reentryCheckbox = document.getElementById("reentryCheckbox");
+    const maxReentryInput = document.getElementById("maxReentryInput");
+    const addonInput = document.getElementById("addonInput");
+    const payoutPercentInput = document.getElementById("payoutPercentInput");
+    const previewSummary = document.getElementById("previewSummary");
+    const previewList = document.getElementById("previewList");
+    const tablePlanCallout = document.getElementById("tablePlanCallout");
+    const feedback = document.getElementById("feedback");
+    const createTournamentBtn = document.getElementById("createTournamentBtn");
+    const savedTournaments = document.getElementById("savedTournaments");
+    const startTimeInput = document.getElementById("startTimeInput");
+
+    function loadStoredTournaments() {
+      try {
+        const raw = localStorage.getItem(TOURNAMENT_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (err) {
+        console.warn("Unable to read tournaments", err);
+        return [];
+      }
+    }
+
+    function saveStoredTournaments(list) {
+      try {
+        localStorage.setItem(TOURNAMENT_STORAGE_KEY, JSON.stringify(list));
+      } catch (err) {
+        console.warn("Unable to save tournaments", err);
+      }
+    }
+
+    function calculateActiveTables(playersCount, tableSize) {
+      const seats = Math.max(Number(tableSize) || 1, 1);
+      const players = Math.max(playersCount || 0, 0);
+      return Math.max(1, Math.ceil(players / seats) || 1);
+    }
+
+    function setDefaultStartTime() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 15);
+      const iso = now.toISOString().slice(0, 16);
+      if (startTimeInput) startTimeInput.value = iso;
+    }
+
+    function syncClubContext() {
+      const params = new URLSearchParams(window.location.search);
+      const queryClub = params.get("club_id");
+      const storedClub = localStorage.getItem(CLUB_CONTEXT_KEY);
+      const clubToUse = queryClub || storedClub || "";
+      if (clubToUse) clubIdInput.value = clubToUse;
+      if (clubToUse) localStorage.setItem(CLUB_CONTEXT_KEY, clubToUse);
+    }
+
+    function renderSavedTournaments() {
+      const tournaments = loadStoredTournaments();
+      savedTournaments.innerHTML = "";
+      if (!tournaments.length) {
+        savedTournaments.innerHTML = '<div class="muted">No saved tournaments yet.</div>';
+        return;
+      }
+
+      tournaments.forEach((t) => {
+        const card = document.createElement("div");
+        card.className = "tournament-card";
+        const title = document.createElement("h4");
+        title.textContent = t.name || "Tournament";
+        card.appendChild(title);
+
+        const meta = document.createElement("div");
+        const buyInLabel = Number.isFinite(Number(t.buyIn)) ? `$${Number(t.buyIn).toFixed(2)}` : "Custom";
+        meta.textContent = `${buyInLabel} + ${Number(t.fee || 0).toFixed(2)} fee • ${t.startingStack || "Stack"} chips • ${t.tableSize || 8}-max`;
+        meta.className = "muted";
+        card.appendChild(meta);
+
+        const status = document.createElement("div");
+        status.className = "muted";
+        status.textContent = `${t.status || "Registering"} • ${t.players?.length || 0} players registered`;
+        card.appendChild(status);
+
+        savedTournaments.appendChild(card);
+      });
+    }
+
+    function updatePreview() {
+      const name = tournamentNameInput.value || "Tournament";
+      const buyIn = Number(buyInInput.value || 0);
+      const fee = Number(feeInput.value || 0);
+      const stack = Number(startingStackInput.value || 0);
+      const tableSize = Number(tableSizeInput.value || 8);
+      const blindPacing = blindPacingSelect.value;
+      const levelDuration = Number(levelDurationInput.value || 10);
+      const lateReg = Number(lateRegInput.value || 0);
+      const breaksEvery = Number(breakEveryInput.value || 4);
+      const expectedPlayers = Number(expectedPlayersInput.value || 0);
+      const allowReentry = reentryCheckbox.checked;
+      const maxReentry = Number(maxReentryInput.value || 0);
+
+      previewSummary.textContent = `${name}: ${tableSize}-max tables, ${levelDuration}-minute levels, ${lateReg}-minute late reg.`;
+
+      const notes = [
+        `${blindPacing} blind structure starting at ${startingBlindsInput.value || "50 / 100"}.`,
+        `${allowReentry ? "Re-entry allowed" : "Freezeout"}${allowReentry ? ` (max ${maxReentry || 0})` : ""}.`,
+        `Break every ${breaksEvery} level${breaksEvery === 1 ? "" : "s"}.`,
+        `Buy-in ${buyIn ? `$${buyIn.toFixed(2)}` : "Custom"} + fee $${fee.toFixed(2)} for ${stack} chips.`,
+      ];
+
+      previewList.innerHTML = "";
+      notes.forEach((text) => {
+        const li = document.createElement("li");
+        li.textContent = text;
+        previewList.appendChild(li);
+      });
+
+      const activeTables = calculateActiveTables(expectedPlayers, tableSize);
+      tablePlanCallout.textContent = `${activeTables} table${activeTables === 1 ? "" : "s"} will open for ~${expectedPlayers} projected players. More tables appear automatically when seats fill.`;
+    }
+
+    function createTournament() {
+      feedback.style.display = "none";
+      const buyIn = Number(buyInInput.value || 0);
+      const fee = Number(feeInput.value || 0);
+      const tableSize = Number(tableSizeInput.value || 8);
+      const expectedPlayers = Number(expectedPlayersInput.value || 0);
+
+      const tournament = {
+        id: `t-${Date.now()}`,
+        name: tournamentNameInput.value || "Tournament",
+        clubId: clubIdInput.value ? Number(clubIdInput.value) : null,
+        buyIn,
+        fee,
+        startingStack: Number(startingStackInput.value || 0),
+        tableSize,
+        blindPacing: blindPacingSelect.value,
+        levelDuration: Number(levelDurationInput.value || 10),
+        startingBlinds: startingBlindsInput.value || "50 / 100",
+        lateRegMinutes: Number(lateRegInput.value || 0),
+        breakEveryLevels: Number(breakEveryInput.value || 4),
+        allowReEntry: reentryCheckbox.checked,
+        maxReEntries: Number(maxReentryInput.value || 0),
+        addOnAmount: Number(addonInput.value || 0),
+        payoutPercent: Number(payoutPercentInput.value || 15),
+        note: noteInput.value || "",
+        expectedPlayers,
+        startAt: startTimeInput.value || null,
+        status: "registering",
+        players: [],
+        activeTables: calculateActiveTables(0, tableSize),
+      };
+
+      const tournaments = loadStoredTournaments();
+      tournaments.push(tournament);
+      saveStoredTournaments(tournaments);
+      renderSavedTournaments();
+      feedback.textContent = `${tournament.name} saved. Members can join from the lobby now.`;
+      feedback.style.display = "block";
+      localStorage.setItem(CLUB_CONTEXT_KEY, clubIdInput.value || "");
+    }
+
+    [
+      tournamentNameInput,
+      buyInInput,
+      feeInput,
+      startingStackInput,
+      tableSizeInput,
+      blindPacingSelect,
+      levelDurationInput,
+      startingBlindsInput,
+      lateRegInput,
+      breakEveryInput,
+      expectedPlayersInput,
+      reentryCheckbox,
+      maxReentryInput,
+    ].forEach((el) => el?.addEventListener("input", updatePreview));
+
+    createTournamentBtn?.addEventListener("click", createTournament);
+
+    setDefaultStartTime();
+    syncClubContext();
+    renderSavedTournaments();
+    updatePreview();
+  </script>
+
+  <div class="legal-footer" style="position: fixed; right: 16px; bottom: 16px; font-size: 11px; color: var(--text-muted, #9ca3af);">
+    Play-money entertainment only. Read our
+    <a href="/legal.html" target="_blank" rel="noopener">legal disclaimer</a>
+    and
+    <a href="/terms.html" target="_blank" rel="noopener">terms of service</a>.
+  </div>
+</body>
+</html>
