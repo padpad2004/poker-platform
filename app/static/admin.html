@@ -39,15 +39,19 @@
       z-index: 10;
     }
 
-    .legal-footer a {
-      color: inherit;
-      text-decoration: none;
-    }
+  .legal-footer a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-    .legal-footer a:hover {
-      color: var(--text);
-      text-decoration: underline;
-    }
+  .legal-footer a + a {
+    margin-left: 8px;
+  }
+
+  .legal-footer a:hover {
+    color: var(--text);
+    text-decoration: underline;
+  }
 
     header {
       display: flex;
@@ -300,8 +304,11 @@
     loadOverview();
   </script>
 
-  <div class="legal-footer">
-    Play-money entertainment only. Read our <a href="/legal.html" target="_blank" rel="noopener">legal disclaimer</a>.
-  </div>
+<div class="legal-footer">
+  Play-money entertainment only. Read our
+  <a href="/legal.html" target="_blank" rel="noopener">legal disclaimer</a>
+  and
+  <a href="/terms.html" target="_blank" rel="noopener">terms of service</a>.
+</div>
 </body>
 </html>
