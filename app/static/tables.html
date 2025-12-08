@@ -243,6 +243,7 @@
       </div>
     </div>
     <div class="header-actions">
+      <a class="btn secondary" id="dataOverviewBtn" href="/admin" style="display:none">Data overview</a>
       <a class="btn secondary" id="clubManagerBtn" href="/clubs" style="display:none">Club manager</a>
       <a class="btn secondary" href="/profile">Profile</a>
       <button class="btn secondary" id="logoutBtn">Logout</button>
@@ -280,7 +281,10 @@
       window.location.href = "/";
     }
 
+    const WEBSITE_OWNER_EMAIL = "padpadpoker@gmail.com";
+
     const clubManagerBtn = document.getElementById("clubManagerBtn");
+    const dataOverviewBtn = document.getElementById("dataOverviewBtn");
     const tableList = document.getElementById("tableList");
     const hideFullCheckbox = document.getElementById("hideFullTables");
     const refreshBtn = document.getElementById("refreshBtn");
@@ -321,11 +325,19 @@
     }
 
     async function determineClubOwnership() {
-      if (!clubManagerBtn) return;
-      clubManagerBtn.style.display = "none";
+      if (clubManagerBtn) clubManagerBtn.style.display = "none";
+      if (dataOverviewBtn) dataOverviewBtn.style.display = "none";
 
       if (!currentUserEmail) restoreAuthMetadata();
       if (!currentUserEmail) return;
+
+      const normalizedEmail = currentUserEmail.toLowerCase();
+      if (
+        dataOverviewBtn &&
+        normalizedEmail === WEBSITE_OWNER_EMAIL.toLowerCase()
+      ) {
+        dataOverviewBtn.style.display = "inline-flex";
+      }
 
       try {
         const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`, {
