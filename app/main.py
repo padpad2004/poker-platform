@@ -145,3 +145,9 @@ def read_legal_page():
 @app.get("/terms.html")
 def read_terms_page():
     return _serve_html("terms.html")
+
+
+@app.get("/tournament")
+@app.get("/tournament.html")
+def read_tournament_page():
+    return _serve_html("tournament.html")
