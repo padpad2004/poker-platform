@@ -115,3 +115,15 @@ def read_profile_page():
 @app.get("/admin.html")
 def read_admin_page():
     return _serve_html("admin.html")
+
+
+@app.get("/legal")
+@app.get("/legal.html")
+def read_legal_page():
+    return _serve_html("legal.html")
+
+
+@app.get("/terms")
+@app.get("/terms.html")
+def read_terms_page():
+    return _serve_html("terms.html")
