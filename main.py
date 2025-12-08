@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -63,21 +63,28 @@ app.include_router(ws_router)            # /ws/tables/{id}
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
+def _serve_html(filename: str) -> FileResponse:
+    """Serve an HTML file from the static directory with the right headers."""
+
+    file_path = static_dir / filename
+    if not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Page not found")
+
+    return FileResponse(file_path, media_type="text/html")
+
+
 @app.get("/")
 def read_root():
-    index_path = static_dir / "index.html"
-    return FileResponse(index_path)
+    return _serve_html("index.html")
 
 
 @app.get("/club-management")
 @app.get("/club-management.html")
 def read_club_management_page():
-    clubs_path = static_dir / "clubs.html"
-    return FileResponse(clubs_path)
+    return _serve_html("clubs.html")
 
 
 @app.get("/clubs")
 @app.get("/clubs.html")
 def read_clubs_page():
-    clubs_path = static_dir / "clubs.html"
-    return FileResponse(clubs_path)
+    return _serve_html("clubs.html")
