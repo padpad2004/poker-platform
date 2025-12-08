@@ -190,10 +190,11 @@
     }
 
     .card-img {
-      width: 70px;
-      height: 100px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      object-fit: contain;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.65);
     }
 
     .seat-card img {
@@ -387,7 +388,13 @@
       box-shadow: 0 6px 16px rgba(0,0,0,0.35);
     }
 
-    .board-cards { margin-bottom: 6px; }
+    .board-cards {
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: center;
+    }
 
     @keyframes deal-card {
       from {
@@ -406,15 +413,20 @@
     }
 
     .card {
-      display: inline-block;
-      padding: 6px 10px;
-      margin: 0 3px;
-      border-radius: 8px;
-      background: rgba(15,23,42,0.9);
-      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      margin: 0;
+      min-width: 110px;
+      min-height: 154px;
+      border-radius: 14px;
+      background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(15,23,42,0.9));
+      border: 1px solid rgba(148,163,184,0.45);
       font-family: "Menlo", monospace;
-      font-size: 14px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+      font-size: 20px;
+      font-weight: 700;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.5);
     }
 
     .pot-info { font-size: 13px; margin-bottom: 4px; }
@@ -1340,7 +1352,6 @@
     let wsReconnectTimer = null;
     let wsHeartbeatTimer = null;
     let wsShouldReconnect = false;
-    let pollTimer = null;
     let accessToken = null;
     let currentUserEmail = null;
     let currentUserId = null;
@@ -1359,7 +1370,6 @@
     const TIMER_WARNING_MS = 5000;
     const WS_HEARTBEAT_MS = 15000;
     const WS_RECONNECT_MS = 3000;
-    const POLL_INTERVAL_MS = 3000;
 
     const TOTAL_SEATS = 6;
     const VIEWER_DISPLAY_SEAT = 3; // bottom center anchor
@@ -1567,8 +1577,9 @@
     function getCardImageFilename(card) {
       if (!card || card.length < 2) return null;
 
-      const rankChar = card[0].toUpperCase();
-      const suitChar = card[1].toLowerCase();
+      const trimmed = card.trim();
+      const suitChar = trimmed.slice(-1).toLowerCase();
+      const rankPart = trimmed.slice(0, -1).toUpperCase();
 
       const rankMap = {
         "A": "ace",
@@ -1576,6 +1587,7 @@
         "Q": "queen",
         "J": "jack",
         "T": "ten",
+        "10": "ten",
         "9": "nine",
         "8": "eight",
         "7": "seven",
@@ -1588,12 +1600,16 @@
 
       const suitMap = {
         "c": "clubs",
+        "♣": "clubs",
         "d": "diamonds",
+        "♦": "diamonds",
         "h": "hearts",
+        "♥": "hearts",
         "s": "spades",
+        "♠": "spades",
       };
 
-      const rankName = rankMap[rankChar];
+      const rankName = rankMap[rankPart];
       const suitName = suitMap[suitChar];
 
       if (!rankName || !suitName) return null;
@@ -2466,28 +2482,6 @@
       }
     }
 
-    function stopPollingState() {
-      if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-    }
-
-    function startPollingState() {
-      stopPollingState();
-      if (!tableId) return;
-
-      pollTimer = setInterval(async () => {
-        if (!tableId) return;
-        try {
-          const state = await api(`/tables/${tableId}`, { method: "GET" });
-          renderState(state);
-        } catch (err) {
-          console.error("Polling failed", err);
-        }
-      }, POLL_INTERVAL_MS);
-    }
-
     function connectWebSocket() {
       if (!tableId) return;
 
@@ -2499,7 +2493,6 @@
 
       wsShouldReconnect = true;
       clearWebSocketTimers();
-      stopPollingState();
 
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
       const tokenParam = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
@@ -2508,7 +2501,6 @@
 
       tableSocket.onopen = () => {
         // keep the connection alive and give the backend a nudge to push the latest state
-        stopPollingState();
         wsHeartbeatTimer = setInterval(() => {
           if (tableSocket?.readyState === WebSocket.OPEN) {
             tableSocket.send("ping");
@@ -2529,7 +2521,6 @@
         console.log("WebSocket closed");
         clearWebSocketTimers();
         if (!wsShouldReconnect || !tableId) return;
-        startPollingState();
         wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
       };
 
@@ -2537,7 +2528,6 @@
         console.error("WebSocket error", err);
         if (!wsShouldReconnect || !tableId) return;
         clearWebSocketTimers();
-        startPollingState();
         wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
       };
     }
@@ -2627,7 +2617,6 @@
           tableSocket = null;
         }
         clearWebSocketTimers();
-        stopPollingState();
         localStorage.removeItem(AUTH_STORAGE_KEY);
         localStorage.removeItem("poker_token");
         if (currentUsernameSpan) currentUsernameSpan.textContent = "Not logged in";
