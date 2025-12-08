@@ -67,11 +67,13 @@ class Table:
         self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
         self.bomb_pot_amount: Optional[float] = bomb_pot_amount
 
+        # Internal id counter to ensure player ids remain unique even after seats are vacated
+        self._next_player_id: int = 1
+
     # ---------- Player & seating ----------
 
     def add_player(
         self,
-        player_id: int,
         name: str,
         starting_stack: float = 100,
         user_id: Optional[int] = None,
@@ -104,13 +106,14 @@ class Table:
                 raise ValueError("No available seats")
 
         new_player = Player(
-            id=player_id,
+            id=self._next_player_id,
             name=name,
             seat=chosen_seat,
             stack=starting_stack,
             user_id=user_id,
             profile_picture_url=profile_picture_url,
         )
+        self._next_player_id += 1
         self.players.append(new_player)
         return new_player
 

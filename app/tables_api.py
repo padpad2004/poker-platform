@@ -294,7 +294,6 @@ async def add_player(
     engine_table = _get_engine_table(table_id, db)
 
     player = engine_table.add_player(
-        player_id=len(engine_table.players) + 1,
         name=req.name,
         starting_stack=req.starting_stack,
         user_id=None,
@@ -330,7 +329,6 @@ async def sit_me(
 
     try:
         player = engine_table.add_player(
-            player_id=len(engine_table.players) + 1,
             name=current_user.username,
             starting_stack=req.buy_in,
             user_id=current_user.id,
