@@ -16,7 +16,7 @@ def create_club(
 ):
     club = models.Club(
         name=club_in.name,
-        crest_url=club_in.crest_url,
+        crest_url=club_in.crest_url or "/static/crests/crest-crown.svg",
         owner_id=current_user.id,
         status="inactive",
     )

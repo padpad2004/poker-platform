@@ -76,3 +76,14 @@ def ensure_schema():
 
             if "crest_url" not in club_columns:
                 conn.execute(text("ALTER TABLE clubs ADD COLUMN crest_url TEXT"))
+
+            # Ensure existing clubs have a default crest so the UI can render it
+            conn.execute(
+                text(
+                    """
+                    UPDATE clubs
+                    SET crest_url = '/static/crests/crest-crown.svg'
+                    WHERE crest_url IS NULL OR crest_url = ''
+                    """
+                )
+            )
