@@ -90,8 +90,10 @@ def _table_state_for_viewer(
     )
 
 
-def _table_state(table_id: int, engine_table: Table) -> schemas.TableState:
-    return _table_state_for_viewer(table_id, engine_table, viewer_user_id=None)
+def _table_state(
+    table_id: int, engine_table: Table, viewer_user_id: Optional[int] = None
+) -> schemas.TableState:
+    return _table_state_for_viewer(table_id, engine_table, viewer_user_id=viewer_user_id)
 
 
 def _apply_timeouts(table_id: int) -> Table:
@@ -311,7 +313,7 @@ async def start_hand(
     engine_table = _apply_timeouts(table_id)
     engine_table.start_new_hand()
     await broadcast_table_state(table_id)
-    return _table_state(table_id, engine_table)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
 @router.post("/{table_id}/action", response_model=schemas.TableState)
@@ -332,7 +334,7 @@ async def player_action(
     if hand_finished:
         _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
-    return _table_state(table_id, engine_table)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
 @router.post("/{table_id}/deal_flop", response_model=schemas.TableState)
@@ -345,7 +347,7 @@ async def deal_flop(
     engine_table = _apply_timeouts(table_id)
     engine_table.deal_flop()
     await broadcast_table_state(table_id)
-    return _table_state(table_id, engine_table)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
 @router.post("/{table_id}/deal_turn", response_model=schemas.TableState)
@@ -358,7 +360,7 @@ async def deal_turn(
     engine_table = _apply_timeouts(table_id)
     engine_table.deal_turn()
     await broadcast_table_state(table_id)
-    return _table_state(table_id, engine_table)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
 @router.post("/{table_id}/deal_river", response_model=schemas.TableState)
@@ -371,7 +373,7 @@ async def deal_river(
     engine_table = _apply_timeouts(table_id)
     engine_table.deal_river()
     await broadcast_table_state(table_id)
-    return _table_state(table_id, engine_table)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
 @router.get("/{table_id}", response_model=schemas.TableState)
@@ -382,7 +384,7 @@ async def get_table_state(
 ):
     _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _apply_timeouts(table_id)
-    return _table_state(table_id, engine_table)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
 @router.get("/{table_id}/meta", response_model=schemas.PokerTableMeta)
@@ -420,6 +422,6 @@ async def showdown(
             for p in winners
         ],
         "best_rank": best_rank,
-        "table": _table_state(table_id, engine_table),
+        "table": _table_state(table_id, engine_table, viewer_user_id=current_user.id),
         "auto_started": started,
     }

@@ -330,6 +330,22 @@
       box-shadow: 0 6px 14px rgba(0,0,0,0.8);
     }
 
+    /* Floating deal animation card */
+    .deal-fly-card {
+      position: fixed;
+      width: 90px;
+      height: 130px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(1.05);
+      border-radius: 12px;
+      box-shadow: 0 12px 26px rgba(0,0,0,0.55);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.45s ease-out, opacity 0.35s ease-out;
+      z-index: 12000;
+    }
+
     /* Highlight acting player */
     .seat.highlight .seat-inner {
       border-color: #22c55e;
@@ -1056,6 +1072,40 @@
       return `/static/cards/${filename}`;
     }
 
+    function animateDealtCardToSeat(cardImageSrc, targetEl) {
+      if (!cardImageSrc || !targetEl) return;
+
+      const flyCard = document.createElement("img");
+      flyCard.src = cardImageSrc;
+      flyCard.className = "deal-fly-card";
+
+      document.body.appendChild(flyCard);
+
+      const startX = window.innerWidth / 2 - flyCard.width / 2;
+      const startY = window.innerHeight / 2 - flyCard.height / 2;
+      flyCard.style.left = `${startX}px`;
+      flyCard.style.top = `${startY}px`;
+
+      requestAnimationFrame(() => {
+        const targetRect = targetEl.getBoundingClientRect();
+        const destX = targetRect.left + targetRect.width / 2 - flyCard.width / 2;
+        const destY = targetRect.top + targetRect.height / 2 - flyCard.height / 2;
+        const translateX = destX - startX;
+        const translateY = destY - startY;
+
+        flyCard.style.opacity = "1";
+        flyCard.style.transform = `translate(${translateX}px, ${translateY}px) scale(0.92)`;
+      });
+
+      flyCard.addEventListener(
+        "transitionend",
+        () => {
+          flyCard.remove();
+        },
+        { once: true }
+      );
+    }
+
     function persistAuth() {
       if (!accessToken || !currentUserEmail) return;
       try {
@@ -1475,8 +1525,10 @@
 
         // Cards
         if (cardsEl) {
+          const prevPlayer = prevState?.players?.find(pp => pp.seat === p.seat);
+          const prevCards = prevPlayer?.hole_cards || [];
           cardsEl.innerHTML = "";
-          p.hole_cards.forEach(c => {
+          p.hole_cards.forEach((c, idx) => {
             const span = document.createElement("span");
             span.className = "seat-card";
             const imgSrc = getCardImageSrc(c);
@@ -1486,6 +1538,12 @@
               span.textContent = c;
             }
             cardsEl.appendChild(span);
+
+            const isNewCard = idx >= prevCards.length || prevCards[idx] !== p.hole_cards[idx];
+            if (isNewCard && imgSrc) {
+              span.classList.add("dealt");
+              animateDealtCardToSeat(imgSrc, span.querySelector("img") || span);
+            }
           });
         }
 
