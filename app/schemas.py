@@ -189,7 +189,7 @@ class AddPlayerResponse(BaseModel):
 
 class ActionRequest(BaseModel):
     player_id: int
-    action: Literal["fold", "call", "raise_to"]
+    action: Literal["fold", "check", "call", "raise_to"]
     amount: Optional[int] = None
 
 

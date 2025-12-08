@@ -297,7 +297,7 @@ class Table:
             return None
 
         player = self._player_by_seat(self.next_to_act_seat)
-        action = "call" if player.committed == self.current_bet else "fold"
+        action = "check" if player.committed == self.current_bet else "fold"
         try:
             self._apply_action(player.id, action, auto=True)
         except Exception:
@@ -336,6 +336,10 @@ class Table:
         if action == "fold":
             acting_player.has_folded = True
             acting_player.in_hand = False
+
+        elif action == "check":
+            if acting_player.committed != self.current_bet:
+                raise ValueError("Cannot check when facing a bet")
 
         elif action == "call":
             to_call = self.current_bet - acting_player.committed
