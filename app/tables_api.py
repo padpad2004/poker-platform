@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.poker.table import Table
 from . import models, schemas
 from .deps import get_current_user, get_db
+from .database import SessionLocal
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 
@@ -38,7 +39,44 @@ def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
         bomb_pot_amount=table_meta.bomb_pot_amount,
     )
     TABLES[table_id] = table
+    _restore_persisted_stacks(table_id, table, db)
     return table
+
+
+def _restore_persisted_stacks(table_id: int, engine_table: Table, db: Session) -> None:
+    """Re-seat players using the last known stacks saved for this table."""
+
+    persisted = (
+        db.query(models.TableStack)
+        .filter(models.TableStack.table_id == table_id)
+        .all()
+    )
+
+    for row in persisted:
+        user = db.query(models.User).filter(models.User.id == row.user_id).first()
+        display_name = row.name or (user.username if user else "Player")
+        profile_picture = row.profile_picture_url or (user.profile_picture_url if user else None)
+
+        try:
+            engine_table.add_player(
+                name=display_name,
+                starting_stack=row.stack,
+                user_id=row.user_id,
+                profile_picture_url=profile_picture,
+                seat=row.seat,
+            )
+        except ValueError:
+            # If seats clash due to data drift, fall back to automatic seating
+            engine_table.add_player(
+                name=display_name,
+                starting_stack=row.stack,
+                user_id=row.user_id,
+                profile_picture_url=profile_picture,
+                seat=None,
+            )
+
+    if engine_table.players:
+        engine_table._next_player_id = max(p.id for p in engine_table.players) + 1
 
 
 def _ensure_user_in_table_club(
@@ -257,6 +295,38 @@ def _process_pending_leavers(table_id: int, engine_table: Table, db: Session) ->
         db.commit()
 
 
+def _persist_table_stacks(table_id: int, engine_table: Table, db: Session) -> None:
+    """Store current in-play stacks so they survive server restarts."""
+
+    existing = {
+        row.user_id: row
+        for row in db.query(models.TableStack).filter(models.TableStack.table_id == table_id)
+    }
+
+    seen_user_ids = set()
+
+    for player in engine_table.players:
+        if player.user_id is None:
+            continue
+
+        seen_user_ids.add(player.user_id)
+        row = existing.get(player.user_id)
+        if not row:
+            row = models.TableStack(table_id=table_id, user_id=player.user_id)
+
+        row.stack = int(round(player.stack))
+        row.seat = player.seat
+        row.name = player.name
+        row.profile_picture_url = player.profile_picture_url
+        db.add(row)
+
+    for user_id, row in existing.items():
+        if user_id not in seen_user_ids:
+            db.delete(row)
+
+    db.commit()
+
+
 def _auto_start_hand_if_ready(engine_table: Table) -> bool:
     """Start a fresh hand when at least two players are seated."""
     if len(engine_table.players) < 2:
@@ -273,22 +343,28 @@ async def broadcast_table_state(table_id: int):
     # Broadcasts assume the engine table already exists; callers should
     # ensure it is initialized before invoking this function.
     engine_table = _get_engine_table(table_id)
-    _apply_timeouts(table_id)
-    _auto_progress_hand(engine_table)
-    _auto_start_hand_if_ready(engine_table)
-    connections = TABLE_CONNECTIONS.get(table_id, {})
-    player_user_ids = {p.user_id for p in engine_table.players if p.user_id is not None}
-
+    player_user_ids: Set[int] = set()
+    connections: Dict[WebSocket, Optional[int]] = {}
     sent: Set[WebSocket] = set()
+    db = SessionLocal()
+    try:
+        _apply_timeouts(table_id)
+        _auto_progress_hand(engine_table)
+        _auto_start_hand_if_ready(engine_table)
+        _persist_table_stacks(table_id, engine_table, db)
+        connections = TABLE_CONNECTIONS.get(table_id, {})
+        player_user_ids = {p.user_id for p in engine_table.players if p.user_id is not None}
 
-    # First notify anyone subscribed to the specific table
-    for ws, viewer_user_id in list(connections.items()):
-        try:
-            state = _table_state_for_viewer(table_id, engine_table, viewer_user_id)
-            await ws.send_json(state.dict())
-            sent.add(ws)
-        except Exception:
-            connections.pop(ws, None)
+        # First notify anyone subscribed to the specific table
+        for ws, viewer_user_id in list(connections.items()):
+            try:
+                state = _table_state_for_viewer(table_id, engine_table, viewer_user_id)
+                await ws.send_json(state.dict())
+                sent.add(ws)
+            except Exception:
+                connections.pop(ws, None)
+    finally:
+        db.close()
 
     # Also notify any user-level websocket connections for seated players
     for user_id in player_user_ids:

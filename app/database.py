@@ -30,6 +30,31 @@ def ensure_schema():
             )
         }
 
+        if "table_stacks" not in existing_tables:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS table_stacks (
+                        id INTEGER PRIMARY KEY,
+                        table_id INTEGER NOT NULL,
+                        user_id INTEGER NOT NULL,
+                        seat INTEGER NOT NULL,
+                        stack INTEGER NOT NULL,
+                        name TEXT,
+                        profile_picture_url TEXT,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY(table_id) REFERENCES poker_tables(id),
+                        FOREIGN KEY(user_id) REFERENCES users(id)
+                    );
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS idx_table_stacks_table_user ON table_stacks(table_id, user_id);"
+                )
+            )
+
         if "poker_tables" in existing_tables:
             columns = {
                 row[1] for row in conn.execute(text("PRAGMA table_info(poker_tables);"))

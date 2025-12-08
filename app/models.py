@@ -83,3 +83,16 @@ class PokerTable(Base):
     # These two relationships are SAFE — they do NOT create ambiguous FK conflicts
     club = relationship("Club", foreign_keys=[club_id])
     creator = relationship("User", foreign_keys=[created_by_user_id])
+
+
+class TableStack(Base):
+    __tablename__ = "table_stacks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(Integer, ForeignKey("poker_tables.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    seat = Column(Integer, nullable=False)
+    stack = Column(Integer, nullable=False)
+    name = Column(String, nullable=True)
+    profile_picture_url = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
