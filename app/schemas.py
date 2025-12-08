@@ -66,6 +66,10 @@ class ClubCreate(ClubBase):
     pass
 
 
+class ClubCrestUpdate(BaseModel):
+    crest_url: Optional[str] = None
+
+
 class ClubRead(ClubBase):
     id: int
     owner_id: int
