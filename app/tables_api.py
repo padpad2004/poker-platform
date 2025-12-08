@@ -368,6 +368,47 @@ async def change_seat(
     return schemas.AddPlayerResponse(table_id=table_id, player_id=player.id, seat=player.seat)
 
 
+@router.post("/{table_id}/leave", response_model=schemas.LeaveTableResponse)
+async def leave_table(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _get_engine_table(table_id, db)
+
+    if not engine_table.players:
+        raise HTTPException(status_code=400, detail="Table is already empty")
+
+    if not any(p.user_id == current_user.id for p in engine_table.players):
+        raise HTTPException(status_code=404, detail="You are not seated at this table")
+
+    if engine_table.street not in ("prehand", "showdown") and engine_table.next_to_act_seat is not None:
+        raise HTTPException(status_code=400, detail="You can only leave between hands")
+
+    try:
+        removed = engine_table.remove_player_by_user(current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.balance += removed.stack
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    await broadcast_table_state(table_id)
+
+    return schemas.LeaveTableResponse(
+        table_id=table_id,
+        seat=removed.seat,
+        returned_amount=removed.stack,
+    )
+
+
 @router.post("/{table_id}/start_hand", response_model=schemas.TableState)
 async def start_hand(
     table_id: int,

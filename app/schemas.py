@@ -175,6 +175,12 @@ class ChangeSeatRequest(BaseModel):
     seat: int
 
 
+class LeaveTableResponse(BaseModel):
+    table_id: int
+    seat: int
+    returned_amount: float
+
+
 class AddPlayerResponse(BaseModel):
     table_id: int
     player_id: int
