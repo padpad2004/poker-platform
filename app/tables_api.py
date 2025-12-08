@@ -565,21 +565,8 @@ async def showdown(
     engine_table = _get_engine_table(table_id, db)
     winners, best_rank, results, payouts = engine_table.showdown()
 
-    # Credit wallet balances for winners tied to real users
-    for winner in winners:
-        if winner.user_id is None:
-            continue
-
-        winnings = payouts.get(winner.id, 0)
-        if winnings <= 0:
-            continue
-
-        user = db.query(models.User).filter(models.User.id == winner.user_id).first()
-        if user:
-            user.balance += int(winnings)
-            db.add(user)
-
-    db.commit()
+    # Wallet balances are reconciled when players leave the table. Avoid
+    # crediting winners here to prevent double-counting when they cash out.
     started = _auto_start_hand_if_ready(engine_table)
     await broadcast_table_state(table_id)
 
