@@ -1,4 +1,7 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -128,4 +131,65 @@ def get_profile(
         profile_picture_url=user.profile_picture_url,
         current_club_name=club_name,
         hand_history=hand_rows,
+    )
+
+
+@router.get("/me/export")
+def export_user_data(
+    email: str = Query(..., description="User email"),
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    memberships = (
+        db.query(models.ClubMember)
+        .filter(models.ClubMember.user_id == user.id)
+        .all()
+    )
+    hand_histories = (
+        db.query(models.HandHistory)
+        .filter(models.HandHistory.user_id == user.id)
+        .order_by(models.HandHistory.created_at.desc())
+        .all()
+    )
+
+    payload = {
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "created_at": user.created_at.isoformat() + "Z",
+            "balance": user.balance,
+            "current_club_id": user.current_club_id,
+            "profile_picture_url": user.profile_picture_url,
+        },
+        "memberships": [
+            {
+                "club_id": membership.club_id,
+                "club_name": membership.club.name if membership.club else None,
+                "role": membership.role,
+                "joined_at": membership.created_at.isoformat() + "Z",
+            }
+            for membership in memberships
+        ],
+        "hand_history": [
+            {
+                "id": hand.id,
+                "table_name": hand.table_name,
+                "result": hand.result,
+                "net_change": hand.net_change,
+                "summary": hand.summary,
+                "created_at": hand.created_at.isoformat() + "Z",
+            }
+            for hand in hand_histories
+        ],
+    }
+
+    filename = f"poker-user-data-{user.id}.json"
+    return JSONResponse(
+        content=payload,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
