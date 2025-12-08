@@ -332,9 +332,6 @@
           <h2>Club tournaments</h2>
           <p class="subtext">Register for structured events. New tables open automatically as each fills.</p>
         </div>
-        <div class="controls">
-          <a id="openTournamentBuilder" class="btn secondary" href="/tournament.html">Host tournament</a>
-        </div>
       </div>
 
       <div id="tournamentList" class="table-list"></div>
@@ -368,7 +365,6 @@
     const logoutBtn = document.getElementById("logoutBtn");
     const tournamentListEl = document.getElementById("tournamentList");
     const tournamentEmptyEl = document.getElementById("tournamentEmpty");
-    const openTournamentBuilder = document.getElementById("openTournamentBuilder");
 
     function restoreAuthMetadata() {
       try {
@@ -624,14 +620,6 @@
       alert(`You're registered for ${tournament.name || "the tournament"}. Tables will auto-open as seats fill.`);
     }
 
-    function syncTournamentBuilderLink() {
-      if (!openTournamentBuilder) return;
-      const storedClubId = localStorage.getItem(CLUB_CONTEXT_KEY);
-      openTournamentBuilder.href = storedClubId
-        ? `/tournament.html?club_id=${encodeURIComponent(storedClubId)}`
-        : "/tournament.html";
-    }
-
     function renderTables(tables) {
       tableList.innerHTML = "";
       if (!tables.length) {
@@ -743,7 +731,6 @@
     restoreAuthMetadata();
     loadProfileAvatar();
     determineClubOwnership();
-    syncTournamentBuilderLink();
     ensureClubMembership().then((ok) => {
       if (ok) {
         loadTables();
