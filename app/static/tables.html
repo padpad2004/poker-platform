@@ -83,6 +83,15 @@
       font-weight: 700;
       color: #0b1224;
       box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
+      overflow: hidden;
+    }
+
+    .logo-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: 50%;
     }
 
     .page-title {
@@ -255,7 +264,7 @@
 <body>
   <header>
     <div class="brand">
-      <div class="logo-circle">P</div>
+      <div class="logo-circle" id="navAvatar">P</div>
       <div>
         <p class="page-title">Available Tables</p>
         <p class="subtext">Pick a table created by your club owner.</p>
@@ -290,10 +299,11 @@
   </main>
 
   <script>
+    const authInfo = JSON.parse(localStorage.getItem("pokerAuth") || "{}");
     const AUTH_KEY = "poker_token";
     const AUTH_STORAGE_KEY = "pokerAuth";
     let accessToken = localStorage.getItem(AUTH_KEY);
-    let currentUserEmail = "";
+    let currentUserEmail = authInfo.email || "";
     let currentUserId = null;
 
     if (!accessToken) {
@@ -302,6 +312,7 @@
 
     const WEBSITE_OWNER_EMAIL = "padpadpoker@gmail.com";
 
+    const navAvatar = document.getElementById("navAvatar");
     const clubManagerBtn = document.getElementById("clubManagerBtn");
     const dataOverviewBtn = document.getElementById("dataOverviewBtn");
     const tableList = document.getElementById("tableList");
@@ -372,6 +383,38 @@
         clubManagerBtn.style.display = ownsClub ? "inline-flex" : "none";
       } catch (err) {
         console.warn("Failed to determine club ownership", err);
+      }
+    }
+
+    function renderAvatar(targetEl, url, fallbackText) {
+      if (!targetEl) return;
+
+      targetEl.innerHTML = "";
+      if (url) {
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = "Profile picture";
+        img.onerror = () => {
+          targetEl.textContent = fallbackText;
+        };
+        targetEl.appendChild(img);
+      } else {
+        targetEl.textContent = fallbackText;
+      }
+    }
+
+    async function loadProfileAvatar() {
+      if (!currentUserEmail) restoreAuthMetadata();
+      if (!currentUserEmail) return;
+
+      try {
+        const data = await api(`/me/profile?email=${encodeURIComponent(currentUserEmail)}`);
+        const fallbackInitial = data.username?.[0]?.toUpperCase() || currentUserEmail?.[0]?.toUpperCase() || "P";
+        renderAvatar(navAvatar, data.profile_picture_url, fallbackInitial);
+      } catch (error) {
+        console.warn("Failed to load profile avatar", error);
+        const fallbackInitial = currentUserEmail?.[0]?.toUpperCase() || "P";
+        renderAvatar(navAvatar, null, fallbackInitial);
       }
     }
 
@@ -481,6 +524,7 @@
     });
 
     restoreAuthMetadata();
+    loadProfileAvatar();
     determineClubOwnership();
     loadTables();
   </script>
