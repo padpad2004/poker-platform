@@ -537,6 +537,16 @@
         <div id="tablesEmpty" class="muted">No active tables for this club.</div>
         <div id="tablesList" class="list"></div>
       </div>
+
+      <div style="margin-top: 16px;">
+        <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Game history</h3>
+        <div class="muted">24-hour table reports summarizing each player's buy-ins and results.</div>
+        <div style="margin: 10px 0; display:flex; gap:8px; flex-wrap: wrap;">
+          <button id="clubHistoryBtn" class="ghost-button" disabled>Game history</button>
+        </div>
+        <div id="clubHistoryEmpty" class="muted">No game reports yet.</div>
+        <div id="clubHistoryList" class="list"></div>
+      </div>
     </div>
   </div>
 
@@ -654,6 +664,9 @@
     const membersBody = document.getElementById("membersBody");
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
+    const clubHistoryBtn = document.getElementById("clubHistoryBtn");
+    const clubHistoryEmpty = document.getElementById("clubHistoryEmpty");
+    const clubHistoryList = document.getElementById("clubHistoryList");
     const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
     const quickCreateTournamentBtn = document.getElementById("quickCreateTournamentBtn");
     const gameTypeModal = document.getElementById("gameTypeModal");
@@ -876,6 +889,41 @@
       });
     }
 
+    function renderClubHistory(entries) {
+      clubHistoryList.innerHTML = "";
+      if (!entries.length) {
+        clubHistoryEmpty.style.display = "block";
+        return;
+      }
+
+      clubHistoryEmpty.style.display = "none";
+      entries.forEach((entry) => {
+        const card = document.createElement("div");
+        card.className = "chip";
+
+        const info = document.createElement("div");
+        info.innerHTML = `
+          <strong>Table #${entry.table_id}</strong>
+          <div class="muted">${new Date(entry.generated_at).toLocaleString()}</div>
+        `;
+
+        const actions = document.createElement("div");
+        actions.className = "chip-actions";
+        const buyIn = document.createElement("div");
+        buyIn.className = "muted";
+        buyIn.textContent = `Buy-in ${entry.buy_in}`;
+        const profit = document.createElement("div");
+        profit.className = `badge ${entry.profit_loss >= 0 ? "badge" : "badge"}`;
+        profit.textContent = `${entry.profit_loss >= 0 ? "+" : ""}${entry.profit_loss}`;
+        actions.appendChild(buyIn);
+        actions.appendChild(profit);
+
+        card.appendChild(info);
+        card.appendChild(actions);
+        clubHistoryList.appendChild(card);
+      });
+    }
+
     async function closeTable(tableId) {
       if (!currentClubId) return alert("Select a club first");
       const confirmed = await showCustomConfirm({
@@ -891,6 +939,18 @@
         await loadClubDetail(currentClubId);
       } catch (e) {
         alert(e.message);
+      }
+    }
+
+    async function loadClubHistory(clubId) {
+      if (!clubId) return;
+      clubHistoryEmpty.style.display = "none";
+      clubHistoryList.innerHTML = "<div class=\"muted\">Loading game history...</div>";
+      try {
+        const entries = await api(`/clubs/${clubId}/game-history`);
+        renderClubHistory(entries || []);
+      } catch (e) {
+        clubHistoryList.innerHTML = `<div class="muted">${e.message || "Unable to load game history."}</div>`;
       }
     }
 
@@ -927,6 +987,8 @@
         }
         renderMembers(detail.members || []);
         renderTables(detail.tables || []);
+        clubHistoryBtn.disabled = false;
+        loadClubHistory(currentClubId);
       } catch (e) {
         alert(e.message);
       }
@@ -1189,6 +1251,8 @@
     if (quickCreateTournamentBtn) {
       quickCreateTournamentBtn.onclick = goToTournamentBuilder;
     }
+
+    clubHistoryBtn?.addEventListener("click", () => loadClubHistory(currentClubId));
 
   </script>
 

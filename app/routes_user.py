@@ -153,6 +153,41 @@ def get_profile(
     )
 
 
+@router.get("/me/game-history", response_model=list[schemas.TableReportEntry])
+def get_game_history(
+    email: str = Query(..., description="User email"),
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    rows = (
+        db.query(models.TableReportEntry, models.TableReport.generated_at)
+        .join(
+            models.TableReport,
+            models.TableReport.id == models.TableReportEntry.table_report_id,
+        )
+        .filter(models.TableReportEntry.user_id == user.id)
+        .order_by(models.TableReport.generated_at.desc())
+        .all()
+    )
+
+    return [
+        schemas.TableReportEntry(
+            table_report_id=entry.table_report_id,
+            table_id=entry.table_id,
+            club_id=entry.club_id,
+            user_id=entry.user_id,
+            buy_in=entry.buy_in,
+            cash_out=entry.cash_out,
+            profit_loss=entry.profit_loss,
+            generated_at=generated_at,
+        )
+        for entry, generated_at in rows
+    ]
+
+
 class UniversityUpdateRequest(BaseModel):
     university: str | None = None
 

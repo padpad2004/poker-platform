@@ -1,9 +1,11 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .deps import get_db, get_current_user
-from .tables_api import TABLES, TABLE_CONNECTIONS
+from .tables_api import TABLES, TABLE_CONNECTIONS, close_table_and_report
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
@@ -187,6 +189,20 @@ def get_club_detail(
         .all()
     )
 
+    expiry_cutoff = datetime.utcnow() - timedelta(hours=24)
+    for table in list(tables):
+        if table.created_at < expiry_cutoff:
+            close_table_and_report(table, db)
+
+    tables = (
+        db.query(models.PokerTable)
+        .filter(
+            models.PokerTable.club_id == club_id,
+            models.PokerTable.status == "active",
+        )
+        .all()
+    )
+
     return schemas.ClubDetail(
         id=club.id,
         name=club.name,
@@ -197,6 +213,55 @@ def get_club_detail(
         members=members,
         tables=tables,
     )
+
+
+@router.get("/{club_id}/game-history", response_model=list[schemas.TableReportEntry])
+def get_club_game_history(
+    club_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    is_owner = club.owner_id == current_user.id
+    is_member = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club.id,
+            models.ClubMember.user_id == current_user.id,
+        )
+        .first()
+        is not None
+    )
+    if not (is_owner or is_member):
+        raise HTTPException(status_code=403, detail="Not a member of this club")
+
+    rows = (
+        db.query(models.TableReportEntry, models.TableReport.generated_at)
+        .join(
+            models.TableReport,
+            models.TableReport.id == models.TableReportEntry.table_report_id,
+        )
+        .filter(models.TableReport.club_id == club_id)
+        .order_by(models.TableReport.generated_at.desc())
+        .all()
+    )
+
+    return [
+        schemas.TableReportEntry(
+            table_report_id=entry.table_report_id,
+            table_id=entry.table_id,
+            club_id=entry.club_id,
+            user_id=entry.user_id,
+            buy_in=entry.buy_in,
+            cash_out=entry.cash_out,
+            profit_loss=entry.profit_loss,
+            generated_at=generated_at,
+        )
+        for entry, generated_at in rows
+    ]
 
 
 @router.post(
@@ -353,9 +418,5 @@ def close_table(
     if not table:
         raise HTTPException(status_code=404, detail="Active table not found")
 
-    table.status = "closed"
-    db.add(table)
-    db.commit()
-
-    TABLES.pop(table_id, None)
+    close_table_and_report(table, db)
     TABLE_CONNECTIONS.pop(table_id, None)

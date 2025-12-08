@@ -339,6 +339,17 @@
       </div>
       <div id="history" class="history-list"></div>
     </div>
+
+    <div class="panel">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <h2 style="margin:0">Game history</h2>
+          <p class="muted" style="margin:4px 0 0;">24-hour table reports with buy-ins and results.</p>
+        </div>
+        <button class="btn secondary" id="gameHistoryBtn">Game history</button>
+      </div>
+      <div id="gameHistory" class="history-list"></div>
+    </div>
   </main>
 
   <script>
@@ -366,6 +377,8 @@
     const avatarMessage = document.getElementById("avatarMessage");
     const refreshBtn = document.getElementById("refreshBtn");
     const historyList = document.getElementById("history");
+    const gameHistoryBtn = document.getElementById("gameHistoryBtn");
+    const gameHistoryList = document.getElementById("gameHistory");
     const presetGrid = document.getElementById("presetGrid");
     const downloadDataBtn = document.getElementById("downloadDataBtn");
     const downloadMessage = document.getElementById("downloadMessage");
@@ -469,6 +482,38 @@
         card.appendChild(left);
         card.appendChild(right);
         historyList.appendChild(card);
+      });
+    }
+
+    function renderGameHistory(items) {
+      gameHistoryList.innerHTML = "";
+      if (!items.length) {
+        gameHistoryList.innerHTML = '<div class="empty-state">No game reports yet.</div>';
+        return;
+      }
+
+      items.forEach((entry) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+
+        const left = document.createElement("div");
+        left.innerHTML = `<div style="font-weight:700">Table #${entry.table_id}</div><div class=\"muted\">${new Date(entry.generated_at).toLocaleString()}</div>`;
+
+        const right = document.createElement("div");
+        right.style.textAlign = "right";
+        const buyIn = document.createElement("div");
+        buyIn.className = "muted";
+        buyIn.textContent = `Buy-in: ${entry.buy_in}`;
+        const profit = document.createElement("div");
+        profit.className = `result ${entry.profit_loss >= 0 ? "win" : "loss"}`;
+        const sign = entry.profit_loss >= 0 ? "+" : "";
+        profit.textContent = `${sign}${entry.profit_loss}`;
+        right.appendChild(buyIn);
+        right.appendChild(profit);
+
+        card.appendChild(left);
+        card.appendChild(right);
+        gameHistoryList.appendChild(card);
       });
     }
 
@@ -596,6 +641,15 @@
       }
     }
 
+    async function loadGameHistory() {
+      try {
+        const data = await api(`/me/game-history?email=${encodeURIComponent(authInfo.email)}`);
+        renderGameHistory(data || []);
+      } catch (error) {
+        gameHistoryList.innerHTML = `<div class="empty-state">${error.message || "Unable to load game history."}</div>`;
+      }
+    }
+
     avatarForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       avatarMessage.textContent = "";
@@ -611,6 +665,7 @@
     }
 
     refreshBtn.addEventListener("click", loadProfile);
+    gameHistoryBtn.addEventListener("click", loadGameHistory);
 
     async function downloadUserData() {
       downloadMessage.textContent = "";
@@ -660,6 +715,7 @@
     });
 
     loadProfile();
+    loadGameHistory();
   </script>
 
 <div class="legal-footer">

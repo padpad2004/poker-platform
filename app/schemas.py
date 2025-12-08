@@ -43,6 +43,19 @@ class HandHistoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TableReportEntry(BaseModel):
+    table_report_id: int
+    table_id: int
+    club_id: int
+    user_id: int
+    buy_in: int
+    cash_out: Optional[int]
+    profit_loss: int
+    generated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProfileResponse(UserMe):
     current_club_name: Optional[str] = None
     hand_history: List[HandHistoryRead]
