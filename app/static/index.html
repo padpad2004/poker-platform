@@ -310,7 +310,7 @@
     .table-wrapper {
       position: relative;
       width: 100%;
-      padding-top: 60%;
+      padding-top: 55%;
       background: radial-gradient(circle at top, #0b1120 0, #020617 60%);
       border-radius: 16px;
       overflow: hidden;
@@ -319,7 +319,7 @@
 
     .felt {
       position: absolute;
-      inset: 8%;
+      inset: 10%;
       background: radial-gradient(circle at 30% 20%, #22c55e 0, #065f46 35%, #022c22 80%);
       border-radius: 999px;
       box-shadow:
@@ -328,6 +328,14 @@
       display: flex;
       justify-content: center;
       align-items: center;
+    }
+
+    .table-panel-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
     }
 
     .center-area {
@@ -961,14 +969,17 @@
       </div>
     </div>
 
-    <!-- RIGHT: Table + bottom action bar -->
+      <!-- RIGHT: Table + bottom action bar -->
     <div class="panel table-panel">
       <div class="table-panel-header">
         <div>
           <h2>Table <span id="tableHeadingLabel">-</span></h2>
           <div class="table-subtitle">Focused table view</div>
         </div>
-        <button id="controlsToggleBtn" class="btn secondary">Hide Poker Engine UI</button>
+        <div class="table-panel-actions">
+          <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='tables.html'">Back to Table Lobby</button>
+          <button id="controlsToggleBtn" class="btn secondary">Hide Poker Engine UI</button>
+        </div>
       </div>
       <div class="table-wrapper">
         <div class="felt">
