@@ -100,6 +100,7 @@ def _table_state_for_viewer(
                     else ["XX"] * len(p.hole_cards)
                 ),
                 user_id=p.user_id,
+                profile_picture_url=p.profile_picture_url,
             )
             for p in engine_table.players
         ],
@@ -308,6 +309,7 @@ async def sit_me(
             name=current_user.username,
             starting_stack=req.buy_in,
             user_id=current_user.id,
+            profile_picture_url=current_user.profile_picture_url,
             seat=req.seat,
         )
     except ValueError as e:

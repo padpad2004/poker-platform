@@ -151,6 +151,44 @@
 
     .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .preset-option {
+      height: 86px;
+      border-radius: 14px;
+      border: 1px solid var(--panel-border);
+      background-size: cover;
+      background-position: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      transition: transform 0.12s ease, border-color 0.12s ease;
+    }
+
+    .preset-option:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+    }
+
+    .preset-option.selected::after {
+      content: "Selected";
+      position: absolute;
+      bottom: 6px;
+      right: 8px;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--accent);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
     .muted { color: var(--text-muted); }
 
     .pill {
@@ -246,6 +284,8 @@
           <input type="url" id="avatarUrl" name="avatarUrl" placeholder="https://..." required />
           <button type="submit" class="btn">Save picture</button>
         </form>
+        <p class="muted" style="margin: 12px 0 6px;">Or pick one of our ready-made avatars:</p>
+        <div id="presetGrid" class="preset-grid"></div>
         <div id="avatarMessage" class="muted"></div>
       </div>
     </div>
@@ -282,6 +322,15 @@
     const avatarMessage = document.getElementById("avatarMessage");
     const refreshBtn = document.getElementById("refreshBtn");
     const historyList = document.getElementById("history");
+    const presetGrid = document.getElementById("presetGrid");
+
+    const presetAvatars = [
+      { url: "/static/avatars/avatar-club.svg", label: "Club" },
+      { url: "/static/avatars/avatar-spade.svg", label: "Spade" },
+      { url: "/static/avatars/avatar-heart.svg", label: "Heart" },
+      { url: "/static/avatars/avatar-diamond.svg", label: "Diamond" },
+      { url: "/static/avatars/avatar-chips.svg", label: "Chips" },
+    ];
 
     async function api(path, options = {}) {
       const headers = {
@@ -351,6 +400,39 @@
       });
     }
 
+    function renderPresetOptions(activeUrl = "") {
+      if (!presetGrid) return;
+      presetGrid.innerHTML = "";
+
+      presetAvatars.forEach((item) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `preset-option${activeUrl === item.url ? " selected" : ""}`;
+        btn.style.backgroundImage = `url(${item.url})`;
+        btn.title = `${item.label} avatar`;
+        btn.addEventListener("click", () => {
+          avatarMessage.textContent = "";
+          avatarUrlInput.value = item.url;
+          saveAvatar(item.url, `${item.label} avatar selected.`);
+        });
+        presetGrid.appendChild(btn);
+      });
+    }
+
+    async function saveAvatar(url, successText = "Profile picture updated.") {
+      try {
+        const payload = { profile_picture_url: (url || "").trim() };
+        await api(`/me/profile-picture?email=${encodeURIComponent(authInfo.email)}`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        avatarMessage.textContent = successText;
+        await loadProfile();
+      } catch (error) {
+        avatarMessage.textContent = error.message || "Unable to save picture.";
+      }
+    }
+
     async function loadProfile() {
       try {
         const data = await api(`/me/profile?email=${encodeURIComponent(authInfo.email)}`);
@@ -359,6 +441,7 @@
         balanceEl.textContent = `${data.balance} chips`;
         avatarUrlInput.value = data.profile_picture_url || "";
         renderAvatar(data.profile_picture_url, data.username?.[0]?.toUpperCase() || "🂡");
+        renderPresetOptions(data.profile_picture_url || "");
 
         if (data.current_club_name) {
           clubEl.textContent = data.current_club_name;
@@ -376,17 +459,7 @@
     avatarForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       avatarMessage.textContent = "";
-      try {
-        const payload = { profile_picture_url: avatarUrlInput.value.trim() };
-        await api(`/me/profile-picture?email=${encodeURIComponent(authInfo.email)}`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        avatarMessage.textContent = "Profile picture updated.";
-        loadProfile();
-      } catch (error) {
-        avatarMessage.textContent = error.message || "Unable to save picture.";
-      }
+      saveAvatar(avatarUrlInput.value.trim());
     });
 
     refreshBtn.addEventListener("click", loadProfile);

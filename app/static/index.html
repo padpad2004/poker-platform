@@ -383,32 +383,59 @@
     }
 
     .seat-main {
-      display: flex;
+      display: grid;
+      grid-template-columns: 76px 1fr;
+      grid-template-rows: auto auto;
       align-items: center;
-      gap: 8px;
+      gap: 6px 10px;
     }
 
     /* Avatar bubble */
     .seat-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 999px;
+      position: relative;
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
       background: radial-gradient(circle at 30% 20%, #4f46e5, #0f172a);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9), 0 4px 8px rgba(0,0,0,0.7);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.9), 0 4px 12px rgba(0,0,0,0.7);
       flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .seat-avatar-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+    }
+
+    .seat-avatar.has-image .seat-avatar-img {
+      opacity: 1;
     }
 
     .seat-avatar-initial {
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 18px;
+      font-weight: 800;
       color: #e5e7eb;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      transition: opacity 0.15s ease-out;
+    }
+
+    .seat-avatar.has-image .seat-avatar-initial {
+      opacity: 0;
     }
 
     /* Name + stack row */
     .seat-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       flex: 1;
     }
 
@@ -424,9 +451,13 @@
     }
 
     .seat-stack {
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 800;
       color: #4ade80; /* bright green for chips */
+      padding: 4px 8px;
+      border-radius: 10px;
+      background: rgba(74, 222, 128, 0.14);
+      border: 1px solid rgba(74, 222, 128, 0.3);
     }
 
     /* Status + bet row */
@@ -927,6 +958,7 @@
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
                   <span class="seat-avatar-initial">?</span>
                 </div>
                 <div class="seat-body">
@@ -953,6 +985,7 @@
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
                   <span class="seat-avatar-initial">?</span>
                 </div>
                 <div class="seat-body">
@@ -979,6 +1012,7 @@
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
                   <span class="seat-avatar-initial">?</span>
                 </div>
                 <div class="seat-body">
@@ -1005,6 +1039,7 @@
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
                   <span class="seat-avatar-initial">?</span>
                 </div>
                 <div class="seat-body">
@@ -1031,6 +1066,7 @@
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
                   <span class="seat-avatar-initial">?</span>
                 </div>
                 <div class="seat-body">
@@ -1057,6 +1093,7 @@
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
                   <span class="seat-avatar-initial">?</span>
                 </div>
                 <div class="seat-body">
@@ -1522,6 +1559,8 @@
         const statusEl = seat.querySelector(".seat-status");
         const betEl = seat.querySelector(".seat-bet");
         const avatarInitialEl = seat.querySelector(".seat-avatar-initial");
+        const avatarImgEl = seat.querySelector(".seat-avatar-img");
+        const avatarBox = seat.querySelector(".seat-avatar");
         const cardsEl = seat.querySelector(".seat-cards");
 
         if (nameEl) nameEl.textContent = "Empty";
@@ -1529,6 +1568,8 @@
         if (statusEl) statusEl.textContent = "Click to sit";
         if (betEl) betEl.textContent = "";
         if (avatarInitialEl) avatarInitialEl.textContent = "?";
+        if (avatarImgEl) avatarImgEl.src = "";
+        if (avatarBox) avatarBox.classList.remove("has-image");
         if (cardsEl) cardsEl.innerHTML = "";
       });
     }
@@ -1843,6 +1884,8 @@
         const statusEl = seatDiv.querySelector(".seat-status");
         const betEl = seatDiv.querySelector(".seat-bet");
         const avatarInitialEl = seatDiv.querySelector(".seat-avatar-initial");
+        const avatarImgEl = seatDiv.querySelector(".seat-avatar-img");
+        const avatarBox = seatDiv.querySelector(".seat-avatar");
         const cardsEl = seatDiv.querySelector(".seat-cards");
         const dealerChip = seatDiv.querySelector(".dealer-chip");
         const sbChip = seatDiv.querySelector(".sb-chip");
@@ -1856,6 +1899,19 @@
         if (avatarInitialEl) {
           const initialSource = p.name || p.email || "?";
           avatarInitialEl.textContent = initialSource.trim().charAt(0).toUpperCase() || "?";
+        }
+
+        if (avatarImgEl && avatarBox) {
+          avatarBox.classList.remove("has-image");
+          avatarImgEl.src = "";
+          avatarImgEl.onerror = () => {
+            avatarBox.classList.remove("has-image");
+          };
+
+          if (p.profile_picture_url) {
+            avatarImgEl.src = p.profile_picture_url;
+            avatarBox.classList.add("has-image");
+          }
         }
 
         // Status

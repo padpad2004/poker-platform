@@ -124,6 +124,7 @@ class PlayerState(BaseModel):
     all_in: bool
     hole_cards: List[str]
     user_id: Optional[int]
+    profile_picture_url: Optional[str] = None
 
 class TableState(BaseModel):
     id: int

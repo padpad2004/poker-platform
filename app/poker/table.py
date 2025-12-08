@@ -18,6 +18,7 @@ class Player:
     committed: int = 0          # chips committed this betting round
     all_in: bool = False
     user_id: Optional[int] = None  # real user id if seated, else None (bot / generic)
+    profile_picture_url: Optional[str] = None  # chosen avatar for the seated player
 
     def __repr__(self) -> str:
         cards = " ".join(str(c) for c in self.hole_cards) if self.hole_cards else "--"
@@ -74,6 +75,7 @@ class Table:
         name: str,
         starting_stack: int = 100,
         user_id: Optional[int] = None,
+        profile_picture_url: Optional[str] = None,
         seat: Optional[int] = None,
     ) -> Player:
         """
@@ -107,6 +109,7 @@ class Table:
             seat=chosen_seat,
             stack=starting_stack,
             user_id=user_id,
+            profile_picture_url=profile_picture_url,
         )
         self.players.append(new_player)
         return new_player
