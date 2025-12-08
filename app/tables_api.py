@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import Dict, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket
@@ -8,6 +9,7 @@ from . import models, schemas
 from .deps import get_current_user, get_db
 
 router = APIRouter(prefix="/tables", tags=["tables"])
+TABLE_EXPIRY = timedelta(hours=24)
 
 # In-memory engine tables
 TABLES: Dict[int, Table] = {}
@@ -30,6 +32,9 @@ def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
     if not table_meta:
         raise HTTPException(status_code=404, detail="Table not found")
 
+    if table_meta.status == "closed":
+        raise HTTPException(status_code=400, detail="Table is closed")
+
     table = Table(
         max_seats=table_meta.max_seats,
         small_blind=table_meta.small_blind,
@@ -49,6 +54,8 @@ def _ensure_user_in_table_club(
     table_meta = db.query(models.PokerTable).filter(models.PokerTable.id == table_id).first()
     if not table_meta:
         raise HTTPException(status_code=404, detail="Table not found")
+
+    table_meta = _close_table_if_expired(table_meta, db)
 
     club = table_meta.club
     is_owner = club.owner_id == current_user.id
@@ -121,6 +128,105 @@ def _player_for_user(engine_table: Table, user_id: int):
         if player.user_id == user_id:
             return player
     return None
+
+
+def _active_session(table_id: int, user_id: int, db: Session):
+    return (
+        db.query(models.TableSession)
+        .filter(
+            models.TableSession.table_id == table_id,
+            models.TableSession.user_id == user_id,
+            models.TableSession.cash_out.is_(None),
+        )
+        .order_by(models.TableSession.created_at.desc())
+        .first()
+    )
+
+
+def _finalize_session(table_id: int, user_id: int, cash_out: float, db: Session):
+    session = _active_session(table_id, user_id, db)
+    if not session:
+        return
+
+    payout = int(round(cash_out))
+    session.cash_out = payout
+    session.profit_loss = payout - session.buy_in
+    session.closed_at = datetime.utcnow()
+    db.add(session)
+
+
+def _generate_table_report(
+    table_meta: models.PokerTable, db: Session, engine_table: Table | None = None
+) -> Optional[models.TableReport]:
+    engine_table = engine_table or TABLES.get(table_meta.id)
+
+    if engine_table:
+        for player in engine_table.players:
+            if player.user_id is None:
+                continue
+            _finalize_session(table_meta.id, player.user_id, player.stack, db)
+            user = db.query(models.User).filter(models.User.id == player.user_id).first()
+            if user:
+                user.balance += int(round(player.stack))
+                db.add(user)
+
+    db.commit()
+
+    sessions = (
+        db.query(models.TableSession)
+        .filter(models.TableSession.table_id == table_meta.id)
+        .all()
+    )
+
+    if not sessions:
+        return None
+
+    report = models.TableReport(
+        table_id=table_meta.id, club_id=table_meta.club_id, generated_at=datetime.utcnow()
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    for session in sessions:
+        cash_out = session.cash_out if session.cash_out is not None else 0
+        profit_loss = (
+            session.profit_loss if session.profit_loss is not None else cash_out - session.buy_in
+        )
+        entry = models.TableReportEntry(
+            table_report_id=report.id,
+            table_id=table_meta.id,
+            club_id=table_meta.club_id,
+            user_id=session.user_id,
+            buy_in=session.buy_in,
+            cash_out=session.cash_out,
+            profit_loss=profit_loss,
+        )
+        db.add(entry)
+
+    db.commit()
+    return report
+
+
+def _close_table(table_meta: models.PokerTable, db: Session):
+    engine_table = TABLES.pop(table_meta.id, None)
+    _generate_table_report(table_meta, db, engine_table)
+    table_meta.status = "closed"
+    db.add(table_meta)
+    db.commit()
+
+
+def _close_table_if_expired(table_meta: models.PokerTable, db: Session):
+    if table_meta.status != "active":
+        return table_meta
+
+    if table_meta.created_at < datetime.utcnow() - TABLE_EXPIRY:
+        _close_table(table_meta, db)
+    return table_meta
+
+
+def close_table_and_report(table_meta: models.PokerTable, db: Session):
+    _close_table(table_meta, db)
 
 
 def _apply_timeouts(table_id: int, db: Session | None = None) -> Table:
@@ -251,6 +357,10 @@ def _process_pending_leavers(table_id: int, engine_table: Table, db: Session) ->
             db.add(user)
             any_updates = True
 
+        if user_id is not None:
+            _finalize_session(table_id, user_id, removed.stack, db)
+            any_updates = True
+
         engine_table.pending_leave_user_ids.discard(user_id)
 
     if any_updates:
@@ -315,13 +425,18 @@ def list_my_tables(
 ):
     """List tables within clubs the user belongs to."""
 
-    return (
+    tables = (
         db.query(models.PokerTable)
         .join(models.Club, models.PokerTable.club_id == models.Club.id)
         .join(models.ClubMember, models.ClubMember.club_id == models.Club.id)
         .filter(models.ClubMember.user_id == current_user.id)
         .all()
     )
+
+    for table in tables:
+        _close_table_if_expired(table, db)
+
+    return tables
 
 
 @router.post("/", response_model=schemas.CreateTableResponse)
@@ -401,6 +516,10 @@ async def sit_me(
         if p.user_id == current_user.id:
             raise HTTPException(status_code=400, detail="User already seated at this table")
 
+    existing_session = _active_session(table_id, current_user.id, db)
+    if existing_session:
+        raise HTTPException(status_code=400, detail="You already have an open session here")
+
     if req.buy_in <= 0:
         raise HTTPException(status_code=400, detail="Buy-in must be positive")
 
@@ -424,6 +543,8 @@ async def sit_me(
 
     user.balance -= req.buy_in
     db.add(user)
+    session = models.TableSession(table_id=table_id, user_id=current_user.id, buy_in=req.buy_in)
+    db.add(session)
     db.commit()
     db.refresh(user)
 
@@ -495,6 +616,7 @@ async def leave_table(
 
     user.balance += removed.stack
     db.add(user)
+    _finalize_session(table_id, current_user.id, removed.stack, db)
     db.commit()
     db.refresh(user)
 

@@ -65,6 +65,39 @@ class HandHistory(Base):
     user = relationship("User", back_populates="hand_histories")
 
 
+class TableSession(Base):
+    __tablename__ = "table_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(Integer, ForeignKey("poker_tables.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    buy_in = Column(Integer, nullable=False)
+    cash_out = Column(Integer, nullable=True)
+    profit_loss = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+
+
+class TableReport(Base):
+    __tablename__ = "table_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_id = Column(Integer, ForeignKey("poker_tables.id"), nullable=False)
+    club_id = Column(Integer, ForeignKey("clubs.id"), nullable=False)
+    generated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TableReportEntry(Base):
+    __tablename__ = "table_report_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_report_id = Column(Integer, ForeignKey("table_reports.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    buy_in = Column(Integer, nullable=False)
+    cash_out = Column(Integer, nullable=True)
+    profit_loss = Column(Integer, nullable=False)
+
+
 class PokerTable(Base):
     __tablename__ = "poker_tables"
 
