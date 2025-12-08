@@ -12,6 +12,7 @@ from app.auth import router as auth_router
 from app.clubs import router as clubs_router
 from app.tables_api import router as tables_router
 from app.admin import router as admin_router
+from app.ws_api import ws_router
 from app import routes_user
 
 Base.metadata.create_all(bind=engine)
@@ -59,6 +60,7 @@ app.include_router(clubs_router)         # /clubs/...
 app.include_router(routes_user.router)   # /me, /wallet/topup, /me/club
 app.include_router(tables_router)        # /tables/...
 app.include_router(admin_router)         # /admin/...
+app.include_router(ws_router)            # /ws/...
 
 # ---- Static files (/static/...) ----
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
