@@ -315,9 +315,11 @@
       position: relative;
       width: 100%;
       padding-top: 50%;
+      padding-bottom: 140px;
       background: radial-gradient(circle at top, #0b1120 0, #020617 60%);
       border-radius: 16px;
-      overflow: hidden;
+      /* Reserve extra space so the action dock isn't clipped on shorter viewports */
+      overflow: visible;
       margin-bottom: 24px;
     }
 
