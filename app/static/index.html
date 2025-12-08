@@ -1089,6 +1089,16 @@
           body: JSON.stringify({ seat: seatIndex, buy_in: buyIn }),
         });
         await fetchMe();
+
+        // Immediately refresh the table view in case the WebSocket hasn't delivered an update yet
+        // (e.g. if the connection dropped). This keeps the seat state in sync with the backend
+        // and avoids repeated "already seated" errors.
+        try {
+          const state = await api(`/tables/${tableId}`, { method: "GET" });
+          renderState(state);
+        } catch (fetchErr) {
+          console.warn("Failed to refresh table after sitting:", fetchErr);
+        }
       } catch (e) {
         alert(e.message);
       }
