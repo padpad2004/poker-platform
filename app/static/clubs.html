@@ -324,6 +324,22 @@
     </div>
 
     <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Table Setup</h3>
+    <div class="stacked" style="align-items:flex-start;">
+      <div style="flex:1; min-width: 160px;">
+        <label style="margin-bottom: 6px;">Blind Preset</label>
+        <select id="blindPresetSelect" style="width: 100%;"></select>
+      </div>
+      <div style="display:flex; gap: 10px; flex-wrap: wrap; width: 100%;">
+        <div style="min-width: 120px;">
+          <label>Small Blind</label>
+          <input type="number" id="smallBlindInput" min="0.01" step="0.01" value="0.05" />
+        </div>
+        <div style="min-width: 120px;">
+          <label>Big Blind</label>
+          <input type="number" id="bigBlindInput" min="0.02" step="0.01" value="0.10" />
+        </div>
+      </div>
+    </div>
     <div class="stacked">
       <button id="createTableBtn" disabled>Create Table for Club</button>
       <button id="sitMeBtn" disabled>Sit as Me</button>
@@ -405,6 +421,9 @@
     const topupCancelBtn = document.getElementById("topupCancelBtn");
     const createTableBtn = document.getElementById("createTableBtn");
     const sitMeBtn = document.getElementById("sitMeBtn");
+    const blindPresetSelect = document.getElementById("blindPresetSelect");
+    const smallBlindInput = document.getElementById("smallBlindInput");
+    const bigBlindInput = document.getElementById("bigBlindInput");
     const joinTableIdInput = document.getElementById("joinTableIdInput");
     const joinTableBtn = document.getElementById("joinTableBtn");
     const tableIdSpan = document.getElementById("tableId");
@@ -414,6 +433,66 @@
     const nextToActSpan = document.getElementById("nextToAct");
     const rawStatePre = document.getElementById("rawState");
     const openTableLink = document.getElementById("openTableLink");
+
+    const BLIND_PRESETS = [
+      { small: 0.05, big: 0.1, label: "0.05 / 0.10" },
+      { small: 0.1, big: 0.2, label: "0.10 / 0.20" },
+      { small: 0.25, big: 0.5, label: "0.25 / 0.50" },
+      { small: 0.5, big: 1, label: "0.50 / 1" },
+      { small: 1, big: 2, label: "1 / 2" },
+    ];
+
+    function presetValue(preset) {
+      return `${preset.small}-${preset.big}`;
+    }
+
+    function applyBlindPreset(preset) {
+      if (!preset || !smallBlindInput || !bigBlindInput) return;
+      smallBlindInput.value = preset.small;
+      bigBlindInput.value = preset.big;
+    }
+
+    function syncPresetSelection() {
+      if (!blindPresetSelect || !smallBlindInput || !bigBlindInput) return;
+      const sbVal = Number(smallBlindInput.value);
+      const bbVal = Number(bigBlindInput.value);
+      const match = BLIND_PRESETS.find(p => p.small === sbVal && p.big === bbVal);
+      blindPresetSelect.value = match ? presetValue(match) : "custom";
+    }
+
+    function populateBlindPresets() {
+      if (!blindPresetSelect) return;
+      blindPresetSelect.innerHTML = "";
+
+      BLIND_PRESETS.forEach(preset => {
+        const opt = document.createElement("option");
+        opt.value = presetValue(preset);
+        opt.textContent = preset.label;
+        blindPresetSelect.appendChild(opt);
+      });
+
+      const customOption = document.createElement("option");
+      customOption.value = "custom";
+      customOption.textContent = "Custom";
+      blindPresetSelect.appendChild(customOption);
+
+      const firstPreset = BLIND_PRESETS[0];
+      if (firstPreset) {
+        blindPresetSelect.value = presetValue(firstPreset);
+        applyBlindPreset(firstPreset);
+      }
+    }
+
+    populateBlindPresets();
+
+    if (blindPresetSelect) {
+      blindPresetSelect.addEventListener("change", () => {
+        const preset = BLIND_PRESETS.find(p => presetValue(p) === blindPresetSelect.value);
+        if (preset) applyBlindPreset(preset);
+      });
+    }
+    if (smallBlindInput) smallBlindInput.addEventListener("input", syncPresetSelection);
+    if (bigBlindInput) bigBlindInput.addEventListener("input", syncPresetSelection);
 
     function setAuthEnabled(enabled) {
       createClubBtn.disabled = !enabled;
@@ -785,16 +864,25 @@
     createTableBtn.onclick = async () => {
       requireAuth();
       if (!currentClubId) return alert("Create or join a club first.");
+      const sbVal = Number(smallBlindInput.value);
+      const bbVal = Number(bigBlindInput.value);
+      if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
+        return alert("Enter positive blind amounts");
+      }
+      if (bbVal <= sbVal) {
+        return alert("Big blind must be greater than small blind");
+      }
       try {
         const data = await api("/tables/", {
           method: "POST",
-          body: JSON.stringify({ club_id: currentClubId, max_seats: 6, small_blind: 1, big_blind: 2 }),
+          body: JSON.stringify({ club_id: currentClubId, max_seats: 6, small_blind: sbVal, big_blind: bbVal }),
         });
         tableId = data.table_id;
         tableIdSpan.textContent = tableId;
         sitMeBtn.disabled = false;
         updateTableLink();
         connectTableSocket();
+        loadClubs();
         alert(`Created table ID ${tableId}`);
       } catch (err) {
         alert(err.message);
