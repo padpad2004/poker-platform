@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Club Members | Poker Platform</title>
+  <style>
+    :root {
+      --bg: #0b1222;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: radial-gradient(circle at top, #111827 0, #0b1222 60%);
+      color: var(--text-main);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+
+    a { color: #93c5fd; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.45);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .muted { color: var(--text-muted); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: rgba(37, 99, 235, 0.14);
+      border: 1px solid #1d4ed8;
+      color: #c7d2fe;
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #1f2937;
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    input[type="number"] {
+      width: 120px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      background: #0b1020;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    button, .button-link {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: none;
+      background: var(--btn);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover:not(:disabled),
+    .button-link:hover { background: var(--btn-hover); }
+
+    button:disabled { background: #374151; cursor: not-allowed; }
+
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+
+    .small { padding: 6px 10px; font-size: 12px; }
+
+    .page-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .club-title {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .feedback {
+      margin-top: 10px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">Club Members</div>
+    <div class="header-actions">
+      <a class="button-link" id="backLink" href="/club-management">Back to Club Management</a>
+    </div>
+  </header>
+
+  <div class="panel">
+    <div class="page-meta">
+      <div>
+        <h2 class="club-title" id="clubTitle">Loading club...</h2>
+        <div class="muted" id="clubMeta">Please wait while we fetch club details.</div>
+      </div>
+      <div class="badge" id="clubStatus">--</div>
+    </div>
+
+    <div id="emptyState" class="muted" style="display:none;">No members found for this club.</div>
+    <div id="membersWrap" style="display:none;">
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Joined</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="membersBody"></tbody>
+      </table>
+    </div>
+    <div class="feedback muted" id="feedback"></div>
+  </div>
+
+  <script>
+    const AUTH_STORAGE_KEY = "pokerAuth";
+    const membersBody = document.getElementById("membersBody");
+    const emptyState = document.getElementById("emptyState");
+    const membersWrap = document.getElementById("membersWrap");
+    const clubTitle = document.getElementById("clubTitle");
+    const clubMeta = document.getElementById("clubMeta");
+    const clubStatus = document.getElementById("clubStatus");
+    const feedback = document.getElementById("feedback");
+    const backLink = document.getElementById("backLink");
+
+    let accessToken = "";
+    let currentUserEmail = "";
+    let currentUserId = null;
+    let clubId = null;
+
+    function setFeedback(message, isError = false) {
+      feedback.textContent = message || "";
+      feedback.style.color = isError ? "#f87171" : "var(--text-muted)";
+    }
+
+    function restoreAuth() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed.token && parsed.email) {
+          accessToken = parsed.token;
+          currentUserEmail = parsed.email;
+        }
+      } catch (err) {
+        console.warn("Failed to restore auth", err);
+      }
+    }
+
+    async function loadProfile() {
+      if (!currentUserEmail) return;
+      try {
+        const me = await api(`/me?email=${encodeURIComponent(currentUserEmail)}`);
+        currentUserId = me.id;
+      } catch (err) {
+        console.warn("Failed to load profile", err);
+      }
+    }
+
+    async function api(path, options = {}) {
+      const headers = options.headers || {};
+      if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
+      const opts = { ...options, headers };
+      const res = await fetch(path, opts);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Error ${res.status}`);
+      }
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        return res.json();
+      }
+      return res.text();
+    }
+
+    function parseClubId() {
+      const params = new URLSearchParams(window.location.search);
+      const rawId = params.get("club_id");
+      if (!rawId) return null;
+      const parsed = Number(rawId);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function ensureClubId() {
+      clubId = parseClubId();
+      if (!clubId) {
+        setFeedback("No club selected. Return to management and choose a club.", true);
+        throw new Error("Missing club id");
+      }
+      backLink.href = `/club-management.html?club_id=${clubId}`;
+    }
+
+    function renderMembers(members) {
+      membersBody.innerHTML = "";
+      if (!members.length) {
+        emptyState.style.display = "block";
+        membersWrap.style.display = "none";
+        return;
+      }
+      emptyState.style.display = "none";
+      membersWrap.style.display = "block";
+
+      members.forEach((m) => {
+        const tr = document.createElement("tr");
+        tr.dataset.userId = m.user_id;
+        tr.innerHTML = `
+          <td>${m.user_email}</td>
+          <td><span class="badge">${m.role}</span></td>
+          <td>${new Date(m.created_at).toLocaleString()}</td>
+          <td>
+            <div class="actions">
+              <input type="number" placeholder="Add amount" class="balanceInput" data-user-id="${m.user_id}" />
+              <button class="small" data-action="add" data-user-id="${m.user_id}">Add Balance</button>
+              <button class="btn-danger small" data-action="remove" data-user-id="${m.user_id}" ${m.role === "owner" ? "disabled" : ""}>Remove</button>
+            </div>
+          </td>
+        `;
+        membersBody.appendChild(tr);
+      });
+    }
+
+    async function loadClubDetail() {
+      try {
+        const detail = await api(`/clubs/${clubId}`);
+        if (!currentUserId) {
+          setFeedback("Could not verify your account. Please login again.", true);
+          alert("Please login first.");
+          window.location.href = "/";
+          return;
+        }
+        if (currentUserId && detail.owner_id !== currentUserId) {
+          setFeedback("Only the club owner can manage members.", true);
+          alert("Only the club owner can manage members of this club.");
+          window.location.href = "/club-management";
+          return;
+        }
+        clubTitle.textContent = detail.name;
+        clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+        clubStatus.textContent = detail.status;
+        renderMembers(detail.members || []);
+      } catch (err) {
+        console.error(err);
+        setFeedback(err.message || "Failed to load club details.", true);
+      }
+    }
+
+    async function addBalance(userId, amount) {
+      if (!amount || isNaN(amount)) {
+        alert("Enter a valid amount to add.");
+        return;
+      }
+      try {
+        setFeedback("Updating balance...");
+        await api(`/clubs/${clubId}/members/${userId}/balance`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount_delta: Number(amount) }),
+        });
+        setFeedback("Balance updated.");
+        await loadClubDetail();
+      } catch (err) {
+        console.error(err);
+        setFeedback(err.message || "Failed to update balance", true);
+      }
+    }
+
+    async function removeMember(userId) {
+      const confirmed = window.confirm("Remove this member from the club?");
+      if (!confirmed) return;
+      try {
+        setFeedback("Removing member...");
+        await api(`/clubs/${clubId}/members/${userId}`, { method: "DELETE" });
+        setFeedback("Member removed.");
+        await loadClubDetail();
+      } catch (err) {
+        console.error(err);
+        setFeedback(err.message || "Failed to remove member", true);
+      }
+    }
+
+    membersBody.addEventListener("click", (event) => {
+      const target = event.target;
+      const userId = target.dataset.userId;
+      if (!userId) return;
+      if (target.dataset.action === "add") {
+        const input = target.closest("tr").querySelector(".balanceInput");
+        const amount = Number(input.value || 0);
+        if (amount <= 0) return alert("Enter a positive amount to add.");
+        addBalance(userId, amount);
+      }
+      if (target.dataset.action === "remove") {
+        removeMember(userId);
+      }
+    });
+
+    function init() {
+      restoreAuth();
+      ensureClubId();
+      if (!accessToken) {
+        setFeedback("Please login again to manage club members.", true);
+        alert("Please login first.");
+        window.location.href = "/";
+        return;
+      }
+      loadProfile().then(loadClubDetail);
+    }
+
+    init();
+  </script>
+</body>
+</html>
