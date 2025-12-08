@@ -77,6 +77,12 @@ def _serve_html(filename: str) -> HTMLResponse:
 
 @app.get("/")
 def read_root():
+    return _serve_html("login.html")
+
+
+@app.get("/poker")
+@app.get("/poker.html")
+def read_poker_page():
     return _serve_html("index.html")
 
 

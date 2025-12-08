@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PadPad Poker | Login</title>
+  <style>
+    :root {
+      --bg: #0b1224;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+      --danger: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: radial-gradient(circle at 20% 20%, #111827, #0b1224 55%),
+        radial-gradient(circle at 80% 10%, #1e293b, #0b1224 45%),
+        #0b1224;
+      color: var(--text-main);
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(420px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 32px 28px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .logo-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: #0b1224;
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    p.subhead {
+      margin: 4px 0 22px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 14px 0 6px;
+      text-transform: uppercase;
+    }
+
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid #1f2937;
+      background: #0b1224;
+      color: var(--text-main);
+      font-size: 14px;
+      outline: none;
+      transition: border 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 12px 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--btn), #1d4ed8);
+      color: white;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover { box-shadow: 0 12px 25px rgba(37, 99, 235, 0.25); }
+    button:active { transform: translateY(1px); }
+
+    .helper {
+      margin-top: 14px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .error {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: rgba(220, 38, 38, 0.1);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      border-radius: 10px;
+      color: #fecdd3;
+      display: none;
+      font-size: 13px;
+    }
+  </style>
+  <script>
+    // Redirect straight to the table if a token already exists
+    const existingToken = localStorage.getItem("poker_token");
+    if (existingToken) {
+      window.location.href = "/poker";
+    }
+  </script>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="logo-circle">P</div>
+      <div>
+        <h1>PadPad Poker</h1>
+        <p class="subhead">Welcome back! Log in to play your next hand.</p>
+      </div>
+    </div>
+
+    <form id="login-form">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="you@example.com" required />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="••••••••" required />
+
+      <button type="submit">Log in</button>
+      <div class="error" id="error-box"></div>
+    </form>
+
+    <p class="helper">Use your PadPad Poker credentials. Need an account? Register via the API.</p>
+  </div>
+
+  <script>
+    const form = document.getElementById("login-form");
+    const errorBox = document.getElementById("error-box");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      errorBox.style.display = "none";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const response = await fetch("/auth/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ username: email, password }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Invalid email or password");
+        }
+
+        const data = await response.json();
+        localStorage.setItem("poker_token", data.access_token);
+        window.location.href = "/poker";
+      } catch (error) {
+        errorBox.textContent = error.message || "Unable to log in. Please try again.";
+        errorBox.style.display = "block";
+      }
+    });
+  </script>
+</body>
+</html>
