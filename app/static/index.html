@@ -498,6 +498,12 @@
 
     .button-chip.hidden { display: none; }
 
+    .seat-action-message {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
     .seat-status {
       font-size: 11px;
       color: #9ca3af;
@@ -1154,6 +1160,10 @@
                 <button id="raise50Btn" disabled>50%</button>
                 <button id="raise100Btn" disabled>100%</button>
               </div>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+                <button id="changeSeatBtn" disabled>Change Seat</button>
+                <span id="seatActionMessage" class="seat-action-message"></span>
+              </div>
             </div>
           </div>
         </div> <!-- end .action-dock -->
@@ -1183,9 +1193,23 @@
         <input type="range" id="buyinRange" min="1" step="1" />
         <div id="buyinRangeValue" style="width:48px;text-align:center;font-weight:600;"></div>
       </div>
+      <div id="buyinError" class="seat-action-message" style="color:#fca5a5;"></div>
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button id="buyinCancelBtn" class="btn-danger">Cancel</button>
         <button id="buyinConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change seat modal -->
+  <div id="seatChangeModal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Change your seat</h3>
+      <div id="seatChangeMessage" class="seat-action-message"></div>
+      <div id="seatChangeOptions" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:12px 0;"></div>
+      <div id="seatChangeError" class="seat-action-message" style="color:#fca5a5;"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button id="seatChangeCancelBtn" class="btn-danger">Cancel</button>
       </div>
     </div>
   </div>
@@ -1208,6 +1232,7 @@
     let tableSocket = null;
     let accessToken = null;
     let currentUserEmail = null;
+    let currentUserId = null;
     let currentUsername = null;
     let currentClubId = null;
     let actingPlayer = null; // current acting player object from state
@@ -1250,6 +1275,7 @@
     const buyinBalanceLabel = document.getElementById("buyinBalanceLabel");
     const buyinConfirmBtn = document.getElementById("buyinConfirmBtn");
     const buyinCancelBtn = document.getElementById("buyinCancelBtn");
+    const buyinError = document.getElementById("buyinError");
 
     const clubNameInput = document.getElementById("clubNameInput");
     const createClubBtn = document.getElementById("createClubBtn");
@@ -1261,6 +1287,7 @@
     const hideFullTablesCheckbox = document.getElementById("hideFullTables");
     const tableListEl = document.getElementById("tableList");
     const controlsToggleBtn = document.getElementById("controlsToggleBtn");
+    const changeSeatBtn = document.getElementById("changeSeatBtn");
 
     const seatElements = document.querySelectorAll(".seat");
     const actionDock = document.querySelector(".action-dock");
@@ -1300,6 +1327,13 @@
     const raise30Btn = document.getElementById("raise30Btn");
     const raise50Btn = document.getElementById("raise50Btn");
     const raise100Btn = document.getElementById("raise100Btn");
+    const seatActionMessage = document.getElementById("seatActionMessage");
+
+    const seatChangeModal = document.getElementById("seatChangeModal");
+    const seatChangeMessage = document.getElementById("seatChangeMessage");
+    const seatChangeOptions = document.getElementById("seatChangeOptions");
+    const seatChangeCancelBtn = document.getElementById("seatChangeCancelBtn");
+    const seatChangeError = document.getElementById("seatChangeError");
 
     // Big card popup elements
     const bigCardOverlay = document.getElementById("bigCardOverlay");
@@ -1317,6 +1351,10 @@
 
     if (controlsToggleBtn) {
       controlsToggleBtn.onclick = () => setControlsHidden(!controlsHidden);
+    }
+
+    if (changeSeatBtn) {
+      changeSeatBtn.onclick = () => openSeatChangeModal();
     }
 
     function getCardImageFilename(card) {
@@ -1643,6 +1681,8 @@
 
       pendingSeatIndex = seatIndex;
 
+      if (buyinError) buyinError.textContent = "";
+
       const maxBuyIn = Math.max(1, Math.floor(currentUserBalance));
       const suggestedBuyIn = Math.min(currentUserBalance, 100) || maxBuyIn;
       const initialBuyIn = Math.min(Math.max(1, Math.floor(suggestedBuyIn)), maxBuyIn);
@@ -1665,10 +1705,6 @@
     }
 
     async function handleSeatClick(seatEl) {
-      if (!seatEl.classList.contains("empty")) {
-        return;
-      }
-
       if (!accessToken) {
         alert("Login first");
         return;
@@ -1679,12 +1715,23 @@
         return;
       }
 
+      const seatIndex = Number(seatEl.dataset.seat);
+      const mySeat = getViewerSeat(lastState);
+
+      if (!seatEl.classList.contains("empty")) {
+        return;
+      }
+
+      if (mySeat != null) {
+        attemptSeatChange(seatIndex);
+        return;
+      }
+
       if (currentUserBalance <= 0) {
         alert("You need chips in your wallet to sit down. Top up first.");
         return;
       }
 
-      const seatIndex = Number(seatEl.dataset.seat);
       showBuyinModal(seatIndex);
     }
 
@@ -1722,7 +1769,11 @@
 
         hideBuyinModal();
       } catch (e) {
-        alert(e.message);
+        if (buyinError) {
+          buyinError.textContent = e.message || "Unable to take a seat.";
+        } else {
+          alert(e.message);
+        }
       }
     }
 
@@ -1747,6 +1798,9 @@
         if (me.username) {
           currentUsername = me.username;
           if (currentUsernameSpan) currentUsernameSpan.textContent = me.username;
+        }
+        if (typeof me.id === "number") {
+          currentUserId = me.id;
         }
         if (me.email) {
           currentUserEmail = me.email;
@@ -2039,6 +2093,88 @@
       showdownBtn.disabled = state.street !== "river";
 
       updateActionDock(state);
+      updateSeatChangeUI();
+    }
+
+    function getViewerSeat(state) {
+      if (!state || currentUserId == null) return null;
+      const mine = state.players?.find(p => p.user_id === currentUserId);
+      return mine ? mine.seat : null;
+    }
+
+    function updateSeatChangeUI() {
+      if (!seatActionMessage || !lastState) return;
+      const mySeat = getViewerSeat(lastState);
+      if (mySeat == null) {
+        seatActionMessage.textContent = "Tap an empty seat to join.";
+        if (changeSeatBtn) changeSeatBtn.disabled = true;
+        return;
+      }
+      seatActionMessage.textContent = `You are seated at #${mySeat}. Use Change Seat to move.`;
+      if (changeSeatBtn) changeSeatBtn.disabled = false;
+    }
+
+    function openSeatChangeModal() {
+      if (!tableId || !lastState) {
+        if (seatActionMessage) {
+          seatActionMessage.textContent = "Join a table first.";
+        }
+        return;
+      }
+
+      if (seatChangeError) seatChangeError.textContent = "";
+      if (seatChangeOptions) seatChangeOptions.innerHTML = "";
+
+      const mySeat = getViewerSeat(lastState);
+      if (seatChangeMessage) {
+        seatChangeMessage.textContent =
+          mySeat == null
+            ? "Pick any open seat."
+            : `Currently seated at #${mySeat}. Choose a free seat to move.`;
+      }
+
+      for (let seatIndex = 0; seatIndex < TOTAL_SEATS; seatIndex++) {
+        const occupant = lastState.players?.find(p => p.seat === seatIndex);
+        const btn = document.createElement("button");
+        btn.textContent = occupant
+          ? occupant.user_id === currentUserId
+            ? `Seat ${seatIndex} (You)`
+            : `Seat ${seatIndex} (Taken)`
+          : `Seat ${seatIndex}`;
+        btn.style.width = "100%";
+        btn.disabled = Boolean(occupant) && occupant.user_id !== currentUserId;
+        if (!occupant || occupant.user_id === currentUserId) {
+          btn.onclick = () => attemptSeatChange(seatIndex);
+        }
+        seatChangeOptions.appendChild(btn);
+      }
+
+      seatChangeModal?.classList.remove("hidden");
+    }
+
+    function closeSeatChangeModal() {
+      seatChangeModal?.classList.add("hidden");
+    }
+
+    async function attemptSeatChange(targetSeat) {
+      if (!tableId) return;
+      try {
+        await api(`/tables/${tableId}/change_seat`, {
+          method: "POST",
+          body: JSON.stringify({ seat: targetSeat }),
+        });
+        closeSeatChangeModal();
+      } catch (err) {
+        if (seatChangeError) {
+          seatChangeError.textContent = err.message || "Unable to change seat.";
+        } else {
+          alert(err.message);
+        }
+      }
+    }
+
+    if (seatChangeCancelBtn) {
+      seatChangeCancelBtn.onclick = closeSeatChangeModal;
     }
 
     function connectWebSocket() {

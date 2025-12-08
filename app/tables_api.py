@@ -324,6 +324,25 @@ async def sit_me(
     return schemas.AddPlayerResponse(table_id=table_id, player_id=player.id, seat=player.seat)
 
 
+@router.post("/{table_id}/change_seat", response_model=schemas.AddPlayerResponse)
+async def change_seat(
+    table_id: int,
+    req: schemas.ChangeSeatRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _get_engine_table(table_id, db)
+
+    try:
+        player = engine_table.move_player_to_seat(current_user.id, req.seat)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    await broadcast_table_state(table_id)
+    return schemas.AddPlayerResponse(table_id=table_id, player_id=player.id, seat=player.seat)
+
+
 @router.post("/{table_id}/start_hand", response_model=schemas.TableState)
 async def start_hand(
     table_id: int,
