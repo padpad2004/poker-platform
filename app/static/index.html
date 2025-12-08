@@ -552,6 +552,11 @@
       max-width: 220px;
       transform: translate(-50%, -50%);
       color: #e5e7eb;
+      --seat-top: 50%;
+      --seat-left: 50%;
+      top: var(--seat-top);
+      left: var(--seat-left);
+      transition: top 0.25s ease, left 0.25s ease;
     }
 
 
@@ -579,14 +584,6 @@
       opacity: 0.35;
     }
 
-    /* Seat positions (6-max) */
-    .seat[data-seat="0"] { top: 20%; left: 50%; }
-    .seat[data-seat="1"] { top: 32%; left: 82%; }
-    .seat[data-seat="2"] { top: 68%; left: 82%; }
-    .seat[data-seat="3"] { top: 82%; left: 50%; }
-    .seat[data-seat="4"] { top: 68%; left: 18%; }
-    .seat[data-seat="5"] { top: 32%; left: 18%; }
-
     .seat.highlight .seat-inner {
       border-color: var(--accent);
       box-shadow: 0 0 0 1px rgba(34,197,94,0.6), 0 8px 16px rgba(0,0,0,0.8);
@@ -595,15 +592,21 @@
     /* ACTION DOCK */
 
     .action-dock {
-      margin-top: 0;
-      padding: 10px 16px;
-      border-radius: 16px;
-      background: #020617;
+      position: absolute;
+      top: calc(var(--action-top, 82%) + 5%);
+      left: var(--action-left, 50%);
+      transform: translate(-50%, -10%);
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: rgba(2, 6, 23, 0.92);
       border: 1px solid #1f2937;
+      box-shadow: 0 18px 36px rgba(0,0,0,0.65);
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      justify-content: center;
+      gap: 14px;
+      backdrop-filter: blur(4px);
+      z-index: 20;
     }
 
     .action-left,
@@ -611,13 +614,13 @@
     .action-right {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 10px;
     }
 
     .action-left button {
-      padding: 10px 20px;
-      font-size: 14px;
-      font-weight: 600;
+      padding: 14px 26px;
+      font-size: 16px;
+      font-weight: 700;
     }
 
     .action-middle-main {
@@ -632,18 +635,26 @@
     }
 
     .action-right button {
-      padding: 4px 8px;
-      font-size: 11px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 700;
     }
 
     .action-right input[type="number"] {
       width: 70px;
-      padding: 2px 4px;
+      padding: 6px 8px;
       border-radius: 999px;
       border: 1px solid #4b5563;
       background: #020617;
       color: #f9fafb;
-      font-size: 11px;
+      font-size: 13px;
+    }
+
+    .action-middle-main button,
+    .action-right button,
+    .action-left button {
+      border-radius: 14px;
+      min-width: 96px;
     }
 
     /* Raw JSON */
@@ -1116,39 +1127,38 @@
             </div>
           </div>
         </div> <!-- end .felt -->
-      </div>   <!-- end .table-wrapper -->
-    
-      <!-- Action dock NOW sits under the table -->
-      <div class="action-dock">
-        <div class="action-left">
-          <button id="foldMainBtn" class="btn-danger" disabled>Fold</button>
-        </div>
-    
-        <div class="action-middle">
-          <div>
-            <div class="bottom-label">Acting Player</div>
-            <div id="actingPlayerLabel">None</div>
+
+        <div class="action-dock">
+          <div class="action-left">
+            <button id="foldMainBtn" class="btn-danger" disabled>Fold</button>
           </div>
-          <div class="action-middle-main">
-            <button id="callMainBtn" disabled>Call / Check</button>
-            <span id="callAmountLabel">0</span>
-          </div>
-        </div>
-    
-        <div class="action-right">
-          <div>
-            <div class="bottom-label">Raise</div>
-            <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-              <input type="number" id="raiseCustomInput" placeholder="Amt" />
-              <button id="raiseCustomBtn" disabled>Raise</button>
-              <button id="raise30Btn" disabled>30%</button>
-              <button id="raise50Btn" disabled>50%</button>
-              <button id="raise100Btn" disabled>100%</button>
+
+          <div class="action-middle">
+            <div>
+              <div class="bottom-label">Acting Player</div>
+              <div id="actingPlayerLabel">None</div>
+            </div>
+            <div class="action-middle-main">
+              <button id="callMainBtn" disabled>Call / Check</button>
+              <span id="callAmountLabel">0</span>
             </div>
           </div>
-        </div>
+
+          <div class="action-right">
+            <div>
+              <div class="bottom-label">Raise</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <input type="number" id="raiseCustomInput" placeholder="Amt" />
+                <button id="raiseCustomBtn" disabled>Raise</button>
+                <button id="raise30Btn" disabled>30%</button>
+                <button id="raise50Btn" disabled>50%</button>
+                <button id="raise100Btn" disabled>100%</button>
+              </div>
+            </div>
+          </div>
         </div> <!-- end .action-dock -->
-      </div>   <!-- end .panel -->
+      </div>   <!-- end .table-wrapper -->
+    </div>   <!-- end .panel -->
 
   <!-- Top up modal -->
   <div id="topupModal" class="modal hidden">
@@ -1205,6 +1215,17 @@
     let controlsHidden = false;
     let pendingSeatIndex = null;
 
+    const TOTAL_SEATS = 6;
+    const VIEWER_DISPLAY_SEAT = 3; // bottom center anchor
+    const SEAT_DISPLAY_POSITIONS = [
+      { top: "20%", left: "50%" },
+      { top: "32%", left: "82%" },
+      { top: "68%", left: "82%" },
+      { top: "82%", left: "50%" },
+      { top: "68%", left: "18%" },
+      { top: "32%", left: "18%" },
+    ];
+
     // DOM elements
     const usernameInput = document.getElementById("usernameInput");
     const emailInput = document.getElementById("emailInput");
@@ -1242,6 +1263,7 @@
     const controlsToggleBtn = document.getElementById("controlsToggleBtn");
 
     const seatElements = document.querySelectorAll(".seat");
+    const actionDock = document.querySelector(".action-dock");
 
     const dealFlopBtn = document.getElementById("dealFlopBtn");
     const dealTurnBtn = document.getElementById("dealTurnBtn");
@@ -1372,6 +1394,42 @@
         },
         { once: true }
       );
+    }
+
+    function findViewerSeat(state) {
+      if (!currentUserEmail || !state?.players?.length) return null;
+      const viewer = state.players.find(
+        (p) => p.email && p.email.toLowerCase() === currentUserEmail.toLowerCase()
+      );
+      return viewer?.seat ?? null;
+    }
+
+    function applySeatLayout(state) {
+      const viewerSeat = findViewerSeat(state);
+      const offset =
+        viewerSeat !== null && viewerSeat !== undefined
+          ? (VIEWER_DISPLAY_SEAT - viewerSeat + TOTAL_SEATS) % TOTAL_SEATS
+          : 0;
+
+      seatElements.forEach((seatEl) => {
+        const actualSeat = Number(seatEl.dataset.seat);
+        const displaySeat = (actualSeat + offset + TOTAL_SEATS) % TOTAL_SEATS;
+        const pos = SEAT_DISPLAY_POSITIONS[displaySeat] || SEAT_DISPLAY_POSITIONS[0];
+
+        seatEl.dataset.displaySeat = displaySeat;
+        seatEl.style.setProperty("--seat-top", pos.top);
+        seatEl.style.setProperty("--seat-left", pos.left);
+      });
+
+      if (actionDock) {
+        const anchorPos = SEAT_DISPLAY_POSITIONS[VIEWER_DISPLAY_SEAT] || {
+          top: "82%",
+          left: "50%",
+        };
+
+        actionDock.style.setProperty("--action-top", anchorPos.top);
+        actionDock.style.setProperty("--action-left", anchorPos.left);
+      }
     }
 
     function persistAuth() {
@@ -1827,6 +1885,8 @@
     function renderState(state) {
       const prevState = lastState;
       lastState = state;
+
+      applySeatLayout(state);
 
       tableIdSpan.textContent = state.id;
       if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
