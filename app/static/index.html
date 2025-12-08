@@ -144,6 +144,121 @@
       gap: 8px;
     }
 
+    /* TABLE SELECTOR */
+    .table-selector {
+      margin: 18px 0;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      background: linear-gradient(120deg, rgba(34,197,94,0.08), rgba(37,99,235,0.05));
+    }
+
+    .selector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .selector-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .selector-sub {
+      color: var(--text-muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .selector-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .table-list {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .table-card {
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(2,6,23,0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    }
+
+    .table-card-main {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .table-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .table-meta {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .table-seats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .seat-pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(34,197,94,0.15);
+      border: 1px solid rgba(34,197,94,0.35);
+      color: #bbf7d0;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .table-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .tag-chip {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--panel-border);
+    }
+
+    .tag-chip.success {
+      border-color: rgba(34,197,94,0.35);
+      color: #bbf7d0;
+      background: rgba(34,197,94,0.12);
+    }
+
+    .table-empty {
+      padding: 10px 0;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
     /* TABLE AREA */
 
     .table-wrapper {
@@ -656,6 +771,25 @@
         <div class="hint">Use the ID of a club you created or joined.</div>
       </div>
 
+      <!-- TABLE SELECTOR -->
+      <div class="table-selector">
+        <div class="selector-header">
+          <div>
+            <p class="selector-title">Available Tables</p>
+            <div class="selector-sub">Pick a table created by your club owner.</div>
+          </div>
+          <div class="selector-actions">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted);">
+              <input type="checkbox" id="hideFullTables" /> Hide full tables
+            </label>
+            <button id="refreshTablesBtn" disabled>Refresh</button>
+          </div>
+        </div>
+        <div id="tableList" class="table-list">
+          <div class="table-empty">Log in to see tables available to your clubs.</div>
+        </div>
+      </div>
+
       <!-- TABLE SETUP -->
       <h2>Table Setup</h2>
       <div class="row">
@@ -982,6 +1116,9 @@
     const bigBlindInput = document.getElementById("bigBlindInput");
     const joinTableIdInput = document.getElementById("joinTableIdInput");
     const joinTableBtn = document.getElementById("joinTableBtn");
+    const refreshTablesBtn = document.getElementById("refreshTablesBtn");
+    const hideFullTablesCheckbox = document.getElementById("hideFullTables");
+    const tableListEl = document.getElementById("tableList");
 
     const addAliceBtn = document.getElementById("addAliceBtn");
     const addBobBtn = document.getElementById("addBobBtn");
@@ -1154,6 +1291,7 @@
       createTableBtn.disabled = !enabled;
       joinTableBtn.disabled = !enabled;
       if (topupOpenBtn) topupOpenBtn.disabled = !enabled;
+      if (refreshTablesBtn) refreshTablesBtn.disabled = !enabled;
       if (logoutBtn) logoutBtn.disabled = !enabled;
     }
 
@@ -1179,6 +1317,106 @@
         throw new Error(`Error ${res.status}: ${text}`);
       }
       return res.json();
+    }
+
+    function renderTableList(tables) {
+      if (!tableListEl) return;
+      tableListEl.innerHTML = "";
+
+      if (!tables.length) {
+        tableListEl.innerHTML = '<div class="table-empty">No tables available right now.</div>';
+        return;
+      }
+
+      tables.forEach((tbl) => {
+        const card = document.createElement("div");
+        card.className = "table-card";
+
+        const title = document.createElement("div");
+        title.className = "table-title";
+        title.textContent = `Table #${tbl.id}`;
+
+        const meta = document.createElement("div");
+        meta.className = "table-meta";
+        meta.textContent = `Blinds ${tbl.small_blind}/${tbl.big_blind} • Club ${tbl.club_id}`;
+
+        const left = document.createElement("div");
+        left.appendChild(title);
+        left.appendChild(meta);
+
+        const seats = document.createElement("div");
+        seats.className = "seat-pill";
+        const seatsLabel = (tbl.playersCount ?? null) !== null
+          ? `${tbl.playersCount}/${tbl.max_seats}`
+          : `${tbl.max_seats} seats`;
+        seats.textContent = seatsLabel;
+
+        const joinBtn = document.createElement("button");
+        joinBtn.textContent = "Join";
+        joinBtn.onclick = () => joinTableById(tbl.id);
+
+        const seatWrap = document.createElement("div");
+        seatWrap.className = "table-seats";
+        seatWrap.appendChild(seats);
+        seatWrap.appendChild(joinBtn);
+
+        const mainRow = document.createElement("div");
+        mainRow.className = "table-card-main";
+        mainRow.appendChild(left);
+        mainRow.appendChild(seatWrap);
+
+        const tags = document.createElement("div");
+        tags.className = "table-tags";
+        const statusTag = document.createElement("span");
+        statusTag.className = "tag-chip success";
+        statusTag.textContent = tbl.status ? tbl.status.toUpperCase() : "ACTIVE";
+        const seatsTag = document.createElement("span");
+        seatsTag.className = "tag-chip";
+        seatsTag.textContent = `${tbl.max_seats}-max table`;
+        tags.appendChild(statusTag);
+        tags.appendChild(seatsTag);
+
+        card.appendChild(mainRow);
+        card.appendChild(tags);
+        tableListEl.appendChild(card);
+      });
+    }
+
+    async function loadTableList() {
+      if (!tableListEl) return;
+      if (!accessToken) {
+        tableListEl.innerHTML = '<div class="table-empty">Log in to see tables available to your clubs.</div>';
+        return;
+      }
+
+      tableListEl.innerHTML = '<div class="table-empty">Loading tables...</div>';
+      try {
+        const tables = await api("/tables/", { method: "GET" });
+        const hideFull = hideFullTablesCheckbox?.checked;
+        const enriched = [];
+
+        for (const tbl of tables) {
+          let playersCount = null;
+          try {
+            const state = await api(`/tables/${tbl.id}`, { method: "GET" });
+            if (Array.isArray(state.players)) {
+              playersCount = state.players.length;
+            }
+          } catch (err) {
+            console.warn("Failed to load table state", err);
+          }
+
+          if (hideFull && playersCount !== null && playersCount >= tbl.max_seats) {
+            continue;
+          }
+
+          enriched.push({ ...tbl, playersCount });
+        }
+
+        renderTableList(enriched);
+      } catch (e) {
+        tableListEl.innerHTML = `<div class="table-empty">${e.message}</div>`;
+      }
     }
 
     function clearSeats() {
@@ -1299,6 +1537,7 @@
         }
         currentClubId = me.current_club_id || null;
         currentClubIdSpan.textContent = currentClubId ? String(currentClubId) : "None";
+        loadTableList();
         if (topupOpenBtn) topupOpenBtn.disabled = false;
         persistAuth();
       } catch (e) {
@@ -1794,6 +2033,33 @@
 
     // -------- Table actions --------
 
+    async function joinTableById(tid) {
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+      const numericId = Number(tid);
+      if (!numericId) {
+        alert("Enter a table ID");
+        return;
+      }
+      try {
+        const state = await api(`/tables/${numericId}`, { method: "GET" });
+        tableId = numericId;
+        tableIdSpan.textContent = String(numericId);
+        if (tableHeadingLabel) tableHeadingLabel.textContent = `#${numericId}`;
+
+        sitMeBtn.disabled = false;
+        addAliceBtn.disabled = true;
+        addBobBtn.disabled = true;
+
+        connectWebSocket();
+        renderState(state);
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
     createTableBtn.onclick = async () => {
       if (!accessToken) {
         alert("Login first");
@@ -1834,6 +2100,7 @@
         addBobBtn.disabled = false;
 
         connectWebSocket();
+        loadTableList();
         alert(`Created table ID ${tableId} for club ${currentClubId}`);
       } catch (e) {
         alert(e.message);
@@ -1841,31 +2108,7 @@
     };
 
     joinTableBtn.onclick = async () => {
-      if (!accessToken) {
-        alert("Login first");
-        return;
-      }
-      const tid = Number(joinTableIdInput.value);
-      if (!tid) {
-        alert("Enter a table ID");
-        return;
-      }
-      try {
-        const state = await api(`/tables/${tid}`, { method: "GET" });
-        tableId = tid;
-        tableIdSpan.textContent = String(tid);
-        if (tableHeadingLabel) tableHeadingLabel.textContent = `#${tid}`;
-
-        sitMeBtn.disabled = false;
-        addAliceBtn.disabled = true;
-        addBobBtn.disabled = true;
-
-        connectWebSocket();
-        renderState(state);
-        alert(`Joined table ${tid}`);
-      } catch (e) {
-        alert(e.message);
-      }
+      await joinTableById(joinTableIdInput.value);
     };
 
     sitMeBtn.onclick = async () => {
@@ -1899,6 +2142,13 @@
         alert(e.message);
       }
     };
+
+    if (refreshTablesBtn) {
+      refreshTablesBtn.onclick = () => loadTableList();
+    }
+    if (hideFullTablesCheckbox) {
+      hideFullTablesCheckbox.addEventListener("change", () => loadTableList());
+    }
 
     addBobBtn.onclick = async () => {
       if (!tableId) return;
