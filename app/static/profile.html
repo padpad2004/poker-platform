@@ -76,6 +76,15 @@
       font-weight: 700;
       color: #0b1224;
       box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
+      overflow: hidden;
+    }
+
+    .logo-circle img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-radius: 50%;
     }
 
     .page-title {
@@ -247,7 +256,7 @@
 <body>
   <header>
     <div class="brand">
-      <div class="logo-circle">P</div>
+      <div class="logo-circle" id="navAvatar">P</div>
       <div>
         <p class="page-title">Player profile</p>
         <p class="subtext">Review your bankroll, club, and recent hands.</p>
@@ -313,6 +322,7 @@
 
     const logoutBtn = document.getElementById("logoutBtn");
     const avatarBox = document.getElementById("avatarBox");
+    const navAvatar = document.getElementById("navAvatar");
     const usernameEl = document.getElementById("username");
     const emailEl = document.getElementById("email");
     const clubEl = document.getElementById("club");
@@ -352,18 +362,20 @@
       return res.json();
     }
 
-    function renderAvatar(url, fallbackText) {
-      avatarBox.innerHTML = "";
+    function renderAvatar(targetEl, url, fallbackText) {
+      if (!targetEl) return;
+
+      targetEl.innerHTML = "";
       if (url) {
         const img = document.createElement("img");
         img.src = url;
         img.alt = "Profile picture";
         img.onerror = () => {
-          avatarBox.textContent = fallbackText;
+          targetEl.textContent = fallbackText;
         };
-        avatarBox.appendChild(img);
+        targetEl.appendChild(img);
       } else {
-        avatarBox.textContent = fallbackText;
+        targetEl.textContent = fallbackText;
       }
     }
 
@@ -440,7 +452,9 @@
         emailEl.textContent = data.email;
         balanceEl.textContent = `${data.balance} chips`;
         avatarUrlInput.value = data.profile_picture_url || "";
-        renderAvatar(data.profile_picture_url, data.username?.[0]?.toUpperCase() || "🂡");
+        const fallbackInitial = data.username?.[0]?.toUpperCase() || "🂡";
+        renderAvatar(avatarBox, data.profile_picture_url, fallbackInitial);
+        renderAvatar(navAvatar, data.profile_picture_url, fallbackInitial || "P");
         renderPresetOptions(data.profile_picture_url || "");
 
         if (data.current_club_name) {
