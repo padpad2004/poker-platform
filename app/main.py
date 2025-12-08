@@ -137,6 +137,12 @@ def read_admin_page():
     return _serve_html("admin.html")
 
 
+@app.get("/pending-users")
+@app.get("/pending-users.html")
+def read_pending_users_page():
+    return _serve_html("pending-users.html")
+
+
 @app.get("/legal")
 @app.get("/legal.html")
 def read_legal_page():

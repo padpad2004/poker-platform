@@ -165,6 +165,28 @@
       margin-top: 4px;
     }
 
+    .nav-links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .nav-link {
+      color: var(--text);
+      text-decoration: none;
+      border: 1px solid var(--panel-border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 600;
+      transition: border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .nav-link:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     .chip-btn {
       background: transparent;
       color: var(--text);
@@ -187,6 +209,9 @@
     <div>
       <h1>Platform Data Overview</h1>
       <div class="subtle">Private admin view that shows all users and clubs.</div>
+      <div class="nav-links">
+        <a class="nav-link" href="/pending-users.html">Pending approvals</a>
+      </div>
     </div>
     <div class="pill" id="stats-pill">Loading…</div>
   </header>
