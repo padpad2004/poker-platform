@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Overview</title>
+  <style>
+    :root {
+      --bg: #0b1222;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --danger: #ef4444;
+      --card: #111827;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #111827, #0b1222 60%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0.02em;
+    }
+
+    .pill {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--accent);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 12px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .card-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      font-weight: 700;
+    }
+
+    .badge {
+      background: rgba(255,255,255,0.08);
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fecdd3;
+      padding: 10px;
+      border-radius: 10px;
+      display: none;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    button {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--panel-border);
+      border-radius: 999px;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Platform Data Overview</h1>
+      <div class="subtle">Private admin view that shows all users and clubs.</div>
+    </div>
+    <div class="pill" id="stats-pill">Loading…</div>
+  </header>
+
+  <div id="error" class="error"></div>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="card-title">
+        <h2>Users</h2>
+        <div class="badge" id="user-count">0 users</div>
+      </div>
+      <div class="list" id="users-list"></div>
+    </section>
+
+    <section class="panel">
+      <div class="card-title">
+        <h2>Clubs</h2>
+        <div class="badge" id="club-count">0 clubs</div>
+      </div>
+      <div class="list" id="clubs-list"></div>
+    </section>
+  </div>
+
+  <script>
+    const authState = JSON.parse(localStorage.getItem("pokerAuth") || "{}");
+    const token = authState.token;
+
+    if (!token) {
+      window.location.href = "/";
+    }
+
+    const errorBox = document.getElementById("error");
+    const usersList = document.getElementById("users-list");
+    const clubsList = document.getElementById("clubs-list");
+    const userCount = document.getElementById("user-count");
+    const clubCount = document.getElementById("club-count");
+    const statsPill = document.getElementById("stats-pill");
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.style.display = "block";
+    }
+
+    function formatDate(value) {
+      const date = new Date(value);
+      return date.toLocaleString();
+    }
+
+    function renderUsers(users) {
+      usersList.innerHTML = "";
+      if (!users.length) {
+        usersList.innerHTML = '<div class="empty">No users found.</div>';
+        return;
+      }
+
+      users.forEach((user) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-title">
+            <span>${user.username}</span>
+            <span class="badge">ID ${user.id}</span>
+          </div>
+          <div class="meta">Email: ${user.email}</div>
+          <div class="meta">Balance: ${user.balance ?? 0}</div>
+          <div class="meta">Created: ${formatDate(user.created_at)}</div>
+        `;
+        usersList.appendChild(card);
+      });
+
+      userCount.textContent = `${users.length} user${users.length === 1 ? "" : "s"}`;
+    }
+
+    function renderClubs(clubs) {
+      clubsList.innerHTML = "";
+      if (!clubs.length) {
+        clubsList.innerHTML = '<div class="empty">No clubs found.</div>';
+        return;
+      }
+
+      clubs.forEach((club) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <div class="card-title">
+            <span>${club.name}</span>
+            <span class="badge">ID ${club.id}</span>
+          </div>
+          <div class="meta">Owner ID: ${club.owner_id}</div>
+          <div class="meta">Status: ${club.status}</div>
+          <div class="meta">Created: ${formatDate(club.created_at)}</div>
+        `;
+        clubsList.appendChild(card);
+      });
+
+      clubCount.textContent = `${clubs.length} club${clubs.length === 1 ? "" : "s"}`;
+    }
+
+    async function loadOverview() {
+      try {
+        const res = await fetch("/admin/overview", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.status === 401) {
+          window.location.href = "/";
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Unable to fetch admin data");
+        }
+
+        const data = await res.json();
+        renderUsers(data.users || []);
+        renderClubs(data.clubs || []);
+        statsPill.textContent = `${data.users?.length || 0} users • ${data.clubs?.length || 0} clubs`;
+      } catch (err) {
+        showError(err.message || "Unexpected error fetching admin data");
+      }
+    }
+
+    loadOverview();
+  </script>
+</body>
+</html>
