@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 
+from sqlalchemy.orm import Session
+
 from app import models
 from app.tables_api import TABLES, TABLE_CONNECTIONS
 
