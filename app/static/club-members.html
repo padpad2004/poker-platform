@@ -145,6 +145,7 @@
   <header>
     <div class="title">Club Members</div>
     <div class="header-actions">
+      <a class="button-link" id="approveLink" href="/club-approvals">Approve / Deny Members</a>
       <a class="button-link" id="backLink" href="/club-management">Back to Club Management</a>
     </div>
   </header>
@@ -186,6 +187,7 @@
     const clubStatus = document.getElementById("clubStatus");
     const feedback = document.getElementById("feedback");
     const backLink = document.getElementById("backLink");
+    const approveLink = document.getElementById("approveLink");
 
     let accessToken = "";
     let currentUserEmail = "";
@@ -252,6 +254,7 @@
         throw new Error("Missing club id");
       }
       backLink.href = `/club-management.html?club_id=${clubId}`;
+      approveLink.href = `/club-approvals.html?club_id=${clubId}`;
     }
 
     function renderMembers(members) {
