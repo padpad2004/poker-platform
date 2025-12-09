@@ -353,6 +353,65 @@ def get_game_history(
     ]
 
 
+@router.get(
+    "/me/game-history/{table_report_id}",
+    response_model=list[schemas.TableReportEntryWithUser],
+)
+def get_game_history_detail(
+    table_report_id: int,
+    email: str = Query(..., description="User email"),
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    participation = (
+        db.query(models.TableReportEntry)
+        .filter(
+            models.TableReportEntry.table_report_id == table_report_id,
+            models.TableReportEntry.user_id == user.id,
+        )
+        .first()
+    )
+
+    if not participation:
+        raise HTTPException(status_code=403, detail="You were not part of this table")
+
+    rows = (
+        db.query(
+            models.TableReportEntry,
+            models.TableReport.generated_at,
+            models.User.username,
+        )
+        .join(
+            models.TableReport,
+            models.TableReport.id == models.TableReportEntry.table_report_id,
+        )
+        .join(models.User, models.User.id == models.TableReportEntry.user_id)
+        .filter(models.TableReportEntry.table_report_id == table_report_id)
+        .all()
+    )
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Table report not found")
+
+    return [
+        schemas.TableReportEntryWithUser(
+            table_report_id=entry.table_report_id,
+            table_id=entry.table_id,
+            club_id=entry.club_id,
+            user_id=entry.user_id,
+            buy_in=entry.buy_in,
+            cash_out=entry.cash_out,
+            profit_loss=entry.profit_loss,
+            generated_at=generated_at,
+            username=username,
+        )
+        for entry, generated_at, username in rows
+    ]
+
+
 class UniversityUpdateRequest(BaseModel):
     university: str | None = None
 

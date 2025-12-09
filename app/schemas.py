@@ -56,6 +56,12 @@ class TableReportEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class TableReportEntryWithUser(TableReportEntry):
+    username: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ProfileResponse(UserMe):
     current_club_name: Optional[str] = None
     hand_history: List[HandHistoryRead]
