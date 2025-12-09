@@ -276,6 +276,55 @@
 
     .empty-state { text-align: center; color: var(--text-muted); padding: 14px 0; }
 
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 20;
+      padding: 16px;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      padding: 18px;
+      width: min(520px, 100%);
+      box-shadow: 0 24px 70px rgba(0,0,0,0.55);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .modal-title { font-size: 18px; margin: 0; }
+
+    .report-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .report-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      background: var(--card);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .report-meta { color: var(--text-muted); font-size: 13px; }
+
     @media (max-width: 640px) {
       header { flex-direction: column; align-items: flex-start; gap: 8px; }
       .profile-header { flex-direction: column; align-items: flex-start; }
@@ -378,6 +427,19 @@
     </div>
   </main>
 
+  <div id="reportModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="reportTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <p id="reportTitle" class="modal-title">Table results</p>
+          <p id="reportSubtitle" class="muted" style="margin:4px 0 0;">Loading table details…</p>
+        </div>
+        <button class="btn secondary" id="reportCloseBtn" type="button">Close</button>
+      </div>
+      <div id="reportContent" class="report-list"></div>
+    </div>
+  </div>
+
   <script>
     const AUTH_KEY = "poker_token";
 
@@ -425,6 +487,11 @@
     const universityForm = document.getElementById("universityForm");
     const universitySelect = document.getElementById("universitySelect");
     const universityMessage = document.getElementById("universityMessage");
+    const reportModal = document.getElementById("reportModal");
+    const reportTitle = document.getElementById("reportTitle");
+    const reportSubtitle = document.getElementById("reportSubtitle");
+    const reportContent = document.getElementById("reportContent");
+    const reportCloseBtn = document.getElementById("reportCloseBtn");
 
     const presetAvatars = [
       { url: "/static/avatars/avatar-club.svg", label: "Club" },
@@ -687,9 +754,15 @@
       items.forEach((entry) => {
         const card = document.createElement("div");
         card.className = "history-card";
+        card.style.cursor = "pointer";
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
 
         const left = document.createElement("div");
-        left.innerHTML = `<div style="font-weight:700">Table #${entry.table_id}</div><div class=\"muted\">${new Date(entry.generated_at).toLocaleString()}</div>`;
+        const generatedLabel = entry.generated_at
+          ? new Date(entry.generated_at).toLocaleString()
+          : "Table report";
+        left.innerHTML = `<div style="font-weight:700">Table #${entry.table_id}</div><div class=\"muted\">${generatedLabel}</div>`;
 
         const right = document.createElement("div");
         right.style.textAlign = "right";
@@ -705,8 +778,73 @@
 
         card.appendChild(left);
         card.appendChild(right);
+        const openReport = () => openTableReport(entry);
+        card.addEventListener("click", openReport);
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openReport();
+          }
+        });
         gameHistoryList.appendChild(card);
       });
+    }
+
+    function setReportModalOpen(isOpen) {
+      if (!reportModal) return;
+      reportModal.classList.toggle("active", isOpen);
+    }
+
+    function showReportLoading(tableId, generatedAt) {
+      if (reportTitle) reportTitle.textContent = `Table #${tableId} results`;
+      if (reportSubtitle) {
+        const label = generatedAt ? new Date(generatedAt).toLocaleString() : "Completed table";
+        reportSubtitle.textContent = label;
+      }
+      if (reportContent) {
+        reportContent.innerHTML = '<div class="muted">Loading results...</div>';
+      }
+      setReportModalOpen(true);
+    }
+
+    function renderReportRows(entries) {
+      if (!reportContent) return;
+      reportContent.innerHTML = "";
+      if (!entries.length) {
+        reportContent.innerHTML = '<div class="empty-state">No results recorded for this table.</div>';
+        return;
+      }
+
+      entries.forEach((row) => {
+        const rowEl = document.createElement("div");
+        rowEl.className = "report-row";
+
+        const left = document.createElement("div");
+        const cashOutText =
+          row.cash_out === null || row.cash_out === undefined ? "" : ` • Cash out ${row.cash_out}`;
+        left.innerHTML = `<div style="font-weight:700">${row.username}</div><div class=\"report-meta\">Buy-in ${row.buy_in}${cashOutText}</div>`;
+
+        const result = document.createElement("div");
+        result.className = `result ${row.profit_loss >= 0 ? "win" : "loss"}`;
+        result.textContent = `${row.profit_loss >= 0 ? "+" : ""}${row.profit_loss}`;
+
+        rowEl.appendChild(left);
+        rowEl.appendChild(result);
+        reportContent.appendChild(rowEl);
+      });
+    }
+
+    async function openTableReport(entry) {
+      if (!entry?.table_report_id) return;
+      showReportLoading(entry.table_id, entry.generated_at);
+      try {
+        const data = await api(`/me/game-history/${entry.table_report_id}?email=${encodeURIComponent(authInfo.email)}`);
+        renderReportRows(data || []);
+      } catch (error) {
+        if (reportContent) {
+          reportContent.innerHTML = `<div class=\"empty-state\">${error.message || "Unable to load table results."}</div>`;
+        }
+      }
     }
 
     function renderPresetOptions(activeUrl = "") {
@@ -841,6 +979,14 @@
         gameHistoryList.innerHTML = `<div class="empty-state">${error.message || "Unable to load game history."}</div>`;
       }
     }
+
+    reportCloseBtn?.addEventListener("click", () => setReportModalOpen(false));
+    reportModal?.addEventListener("click", (event) => {
+      if (event.target === reportModal) setReportModalOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setReportModalOpen(false);
+    });
 
     avatarForm.addEventListener("submit", async (event) => {
       event.preventDefault();
