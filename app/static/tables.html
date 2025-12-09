@@ -494,6 +494,14 @@
       }
     }
 
+    function formatTableName(table) {
+      if (!table) return "Table";
+      const customName = (table.table_name || "").trim();
+      if (customName) return customName;
+      if (table.id != null) return `Table #${table.id}`;
+      return "Table";
+    }
+
     async function api(path, options = {}) {
       const headers = {
         "Content-Type": "application/json",
@@ -663,7 +671,7 @@
 
       tournamentProgressTitle.textContent = tournament?.name || "Club tournament";
       const statusText = tournament?.status ? tournament.status.toUpperCase() : "RUNNING";
-      tournamentProgressMeta.textContent = `${statusText} • Table #${table.id}`;
+      tournamentProgressMeta.textContent = `${statusText} • ${formatTableName(table)}`;
 
       tournamentProgressList.innerHTML = "";
 
@@ -843,7 +851,7 @@
 
         const title = document.createElement("div");
         title.className = "table-title";
-        title.textContent = `Table #${tbl.id}`;
+        title.textContent = formatTableName(tbl);
 
         const meta = document.createElement("div");
         meta.className = "table-meta";

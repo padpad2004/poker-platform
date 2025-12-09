@@ -324,11 +324,16 @@ def get_game_history(
         raise HTTPException(status_code=404, detail="User not found")
 
     rows = (
-        db.query(models.TableReportEntry, models.TableReport.generated_at)
+        db.query(
+            models.TableReportEntry,
+            models.TableReport.generated_at,
+            models.PokerTable.table_name,
+        )
         .join(
             models.TableReport,
             models.TableReport.id == models.TableReportEntry.table_report_id,
         )
+        .join(models.PokerTable, models.PokerTable.id == models.TableReportEntry.table_id)
         .filter(models.TableReportEntry.user_id == user.id)
         .order_by(models.TableReport.generated_at.desc())
         .all()
@@ -338,6 +343,7 @@ def get_game_history(
         schemas.TableReportEntry(
             table_report_id=entry.table_report_id,
             table_id=entry.table_id,
+            table_name=table_name,
             club_id=entry.club_id,
             user_id=entry.user_id,
             buy_in=entry.buy_in,
@@ -345,7 +351,7 @@ def get_game_history(
             profit_loss=entry.profit_loss,
             generated_at=generated_at,
         )
-        for entry, generated_at in rows
+        for entry, generated_at, table_name in rows
     ]
 
 
@@ -379,12 +385,14 @@ def get_game_history_detail(
             models.TableReportEntry,
             models.TableReport.generated_at,
             models.User.username,
+            models.PokerTable.table_name,
         )
         .join(
             models.TableReport,
             models.TableReport.id == models.TableReportEntry.table_report_id,
         )
         .join(models.User, models.User.id == models.TableReportEntry.user_id)
+        .join(models.PokerTable, models.PokerTable.id == models.TableReportEntry.table_id)
         .filter(models.TableReportEntry.table_report_id == table_report_id)
         .all()
     )
@@ -396,6 +404,7 @@ def get_game_history_detail(
         schemas.TableReportEntryWithUser(
             table_report_id=entry.table_report_id,
             table_id=entry.table_id,
+            table_name=table_name,
             club_id=entry.club_id,
             user_id=entry.user_id,
             buy_in=entry.buy_in,
@@ -404,7 +413,7 @@ def get_game_history_detail(
             generated_at=generated_at,
             username=username,
         )
-        for entry, generated_at, username in rows
+        for entry, generated_at, username, table_name in rows
     ]
 
 

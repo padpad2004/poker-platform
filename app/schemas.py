@@ -46,6 +46,7 @@ class HandHistoryRead(BaseModel):
 class TableReportEntry(BaseModel):
     table_report_id: int
     table_id: int
+    table_name: Optional[str] = None
     club_id: int
     user_id: int
     buy_in: int
@@ -121,6 +122,7 @@ class PokerTableMeta(BaseModel):
     id: int
     club_id: int
     created_by_user_id: int
+    table_name: str
     max_seats: int
     small_blind: float
     big_blind: float
@@ -214,6 +216,7 @@ class TableState(BaseModel):
 
 class CreateTableRequest(BaseModel):
     club_id: int
+    table_name: Optional[str] = None
     max_seats: int = 9
     small_blind: float = 1
     big_blind: float = 2
@@ -224,6 +227,7 @@ class CreateTableRequest(BaseModel):
 
 class CreateTableResponse(BaseModel):
     table_id: int
+    table_name: str
 
 
 class AddPlayerRequest(BaseModel):

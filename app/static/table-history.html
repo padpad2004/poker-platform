@@ -180,6 +180,14 @@
       accessToken = token;
     }
 
+    function formatTableName(entry) {
+      if (!entry) return "Table";
+      const customName = (entry.table_name || "").trim();
+      if (customName) return customName;
+      if (entry.table_id != null) return `Table #${entry.table_id}`;
+      return "Table";
+    }
+
     async function api(path, options = {}) {
       const headers = Object.assign({}, options.headers || {}, {
         Authorization: `Bearer ${accessToken}`,
@@ -209,7 +217,7 @@
 
         const info = document.createElement("div");
         info.innerHTML = `
-          <strong>Table #${entry.table_id}</strong>
+          <strong>${formatTableName(entry)}</strong>
           <div class="muted">${entry.generated_at ? new Date(entry.generated_at).toLocaleString() : "Pending"}</div>
         `;
 
