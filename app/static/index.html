@@ -2870,15 +2870,12 @@
       };
 
       const makePctHandler = fraction => () => {
-        if (pot <= 0) {
-          alert("Pot is 0; enter a custom raise amount");
-          return;
-        }
-        let amt = Math.floor(pot * fraction);
+        const basePot = pot > 0 ? pot : currentBet;
+        let amt = Math.floor(basePot * fraction);
         if (amt <= currentBet) {
           amt = currentBet + 1;
         }
-        raiseCustomInput.value = amt;
+        raiseCustomInput.value = amt.toString();
         raiseCustomInput.focus();
       };
 
