@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .deps import get_db, get_current_user, is_club_owner
-from .tables_api import TABLES, TABLE_CONNECTIONS, close_table_and_report
+from .tables_api import (
+    TABLES,
+    TABLE_CONNECTIONS,
+    close_table_and_report,
+    validate_nlh_table_rules,
+)
 from .club_cleanup import delete_club_with_relations
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
@@ -598,6 +603,7 @@ def open_table(
         raise HTTPException(status_code=400, detail="Big blind must exceed small blind")
     if payload.game_type not in {"holdem", "plo"}:
         raise HTTPException(status_code=400, detail="Unsupported game type")
+    validate_nlh_table_rules(payload.max_seats, payload.small_blind, payload.big_blind)
 
     table = models.PokerTable(
         club_id=club_id,

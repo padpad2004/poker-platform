@@ -1037,6 +1037,7 @@
 
     .seat.empty {
       cursor: pointer;
+      display: none;
     }
 
     .seat.empty .seat-inner:hover {
@@ -3189,7 +3190,6 @@
       }
 
       const seatIndex = Number(seatEl.dataset.seat);
-      const mySeat = getViewerSeat(lastState);
 
       if (!seatEl.classList.contains("empty")) {
         const player = lastState?.players?.find(p => p.seat === seatIndex);
@@ -3199,17 +3199,9 @@
         return;
       }
 
-      if (mySeat != null) {
-        attemptSeatChange(seatIndex);
-        return;
+      if (seatActionMessage) {
+        seatActionMessage.textContent = "Use Find a seat to choose an open spot.";
       }
-
-      if (currentUserBalance <= 0) {
-        alert("You need chips in your wallet to sit down. Top up first.");
-        return;
-      }
-
-      showBuyinModal(seatIndex);
     }
 
     async function submitBuyin() {
@@ -3849,6 +3841,18 @@
       return state.players?.find(p => p.user_id === currentUserId) || null;
     }
 
+    function getOpenSeats(state) {
+      if (!state) return [];
+
+      const openSeats = [];
+      for (let seatIndex = 0; seatIndex < totalSeats; seatIndex++) {
+        const occupied = state.players?.some(p => p.seat === seatIndex);
+        if (!occupied) openSeats.push(seatIndex);
+      }
+
+      return openSeats;
+    }
+
     function updateLeaveButton() {
       if (!leaveTableBtn) return;
       const mySeat = getViewerSeat(lastState);
@@ -3873,18 +3877,34 @@
       if (!seatActionMessage || !lastState) return;
       const mySeat = getViewerSeat(lastState);
       const viewer = getViewerPlayer(lastState);
+      const openSeats = getOpenSeats(lastState);
+      const hasOpenSeat = openSeats.length > 0;
+      const seatButtonLabel = mySeat == null ? "Find a seat" : "Change seat";
+
+      if (changeSeatBtn) {
+        changeSeatBtn.textContent = seatButtonLabel;
+        changeSeatBtn.disabled = !tableId || !hasOpenSeat;
+      }
+
       if (mySeat == null) {
-        seatActionMessage.textContent = "Tap an empty seat to join.";
-        if (changeSeatBtn) changeSeatBtn.disabled = true;
+        seatActionMessage.textContent = hasOpenSeat
+          ? "Use Find a seat to choose an open spot. Empty seats stay hidden until someone sits."
+          : "All seats are taken. Wait for an opening.";
         return;
       }
+
       if (viewer?.sitting_out) {
-        seatActionMessage.textContent = `You are seated at #${mySeat} and sitting out. Tap I'm back to rejoin.`;
-        if (changeSeatBtn) changeSeatBtn.disabled = false;
+        seatActionMessage.textContent = hasOpenSeat
+          ? `You are seated at #${mySeat} and sitting out. Tap I'm back or change seats when ready.`
+          : `You are seated at #${mySeat} and sitting out. No open seats to move right now.`;
+        if (changeSeatBtn) changeSeatBtn.disabled = changeSeatBtn.disabled || !hasOpenSeat;
         return;
       }
-      seatActionMessage.textContent = `You are seated at #${mySeat}. Use Change Seat to move.`;
-      if (changeSeatBtn) changeSeatBtn.disabled = false;
+
+      seatActionMessage.textContent = hasOpenSeat
+        ? `You are seated at #${mySeat}. Use Change seat to move.`
+        : `You are seated at #${mySeat}. No open seats to move right now.`;
+      if (changeSeatBtn) changeSeatBtn.disabled = changeSeatBtn.disabled || !hasOpenSeat;
     }
 
     function openSeatChangeModal() {
@@ -3899,28 +3919,47 @@
       if (seatChangeOptions) seatChangeOptions.innerHTML = "";
 
       const mySeat = getViewerSeat(lastState);
+      const openSeats = getOpenSeats(lastState);
       if (seatChangeMessage) {
         seatChangeMessage.textContent =
           mySeat == null
-            ? "Pick any open seat."
-            : `Currently seated at #${mySeat}. Choose a free seat to move.`;
+            ? openSeats.length
+              ? "Choose an open seat to join."
+              : "All seats are taken right now."
+            : openSeats.length
+              ? `Currently seated at #${mySeat}. Choose a free seat to move.`
+              : `Currently seated at #${mySeat}. No open seats to move.`;
       }
 
-      for (let seatIndex = 0; seatIndex < totalSeats; seatIndex++) {
-        const occupant = lastState.players?.find(p => p.seat === seatIndex);
-        const btn = document.createElement("button");
-        btn.textContent = occupant
-          ? occupant.user_id === currentUserId
-            ? `Seat ${seatIndex} (You)`
-            : `Seat ${seatIndex} (Taken)`
-          : `Seat ${seatIndex}`;
-        btn.style.width = "100%";
-        btn.disabled = Boolean(occupant) && occupant.user_id !== currentUserId;
-        if (!occupant || occupant.user_id === currentUserId) {
-          btn.onclick = () => attemptSeatChange(seatIndex);
+      if (!openSeats.length) {
+        if (seatChangeOptions) {
+          const msg = document.createElement("div");
+          msg.className = "seat-action-message";
+          msg.textContent = "No open seats right now.";
+          seatChangeOptions.appendChild(msg);
         }
-        seatChangeOptions.appendChild(btn);
+        seatChangeModal?.classList.remove("hidden");
+        return;
       }
+
+      openSeats.forEach(seatIndex => {
+        const btn = document.createElement("button");
+        btn.textContent = `Seat ${seatIndex}`;
+        btn.style.width = "100%";
+        btn.onclick = () => {
+          closeSeatChangeModal();
+          if (mySeat == null) {
+            if (currentUserBalance <= 0) {
+              alert("You need chips in your wallet to sit down. Top up first.");
+              return;
+            }
+            showBuyinModal(seatIndex);
+          } else {
+            attemptSeatChange(seatIndex);
+          }
+        };
+        seatChangeOptions.appendChild(btn);
+      });
 
       seatChangeModal?.classList.remove("hidden");
     }
