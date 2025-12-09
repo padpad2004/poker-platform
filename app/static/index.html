@@ -33,7 +33,7 @@
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(320px, 380px) minmax(600px, 900px);
+      grid-template-columns: 1fr;
       gap: 16px;
       width: 100%;
       max-width: 1300px;
@@ -62,16 +62,8 @@
       text-decoration: underline;
     }
 
-    body.controls-hidden .layout {
-      grid-template-columns: 1fr;
-    }
-
-    body.controls-hidden .control-panel {
+    .control-panel {
       display: none;
-    }
-
-    body.controls-hidden .table-panel {
-      grid-column: 1 / -1;
     }
 
     .panel {
@@ -1770,7 +1762,6 @@
           </div>
         </div>
         <div class="table-panel-actions">
-          <button id="toggleControlsBtn" class="btn secondary">Hide control panel</button>
           <button id="toggleChatVisibilityBtn" class="btn secondary" aria-pressed="false">Hide chat</button>
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
           <div class="seat-action-inline">
@@ -2224,7 +2215,7 @@
     let actingPlayer = null; // current acting player object from state
     let currentUserBalance = 0;
     let tableOwnerUserId = null;
-    let controlsHidden = false;
+    let controlsHidden = true;
     let pendingSeatIndex = null;
     let actingTimerInterval = null;
     let actingTimerSeat = null;
@@ -2497,7 +2488,6 @@
     const leaveTableBtn = document.getElementById("leaveTableBtn");
     const sitOutBtn = document.getElementById("sitOutBtn");
     const returnToPlayBtn = document.getElementById("returnToPlayBtn");
-    const toggleControlsBtn = document.getElementById("toggleControlsBtn");
     const handHistoryList = document.getElementById("handHistoryList");
     const handHistoryPanel = document.querySelector(".hand-history-panel");
     const handHistoryToggleBtn = document.getElementById("handHistoryToggleBtn");
@@ -2647,37 +2637,14 @@
     function setControlsHidden(hidden) {
       controlsHidden = hidden;
       document.body.classList.toggle("controls-hidden", hidden);
-
-      if (toggleControlsBtn) {
-        toggleControlsBtn.textContent = hidden ? "Show control panel" : "Hide control panel";
-        toggleControlsBtn.setAttribute("aria-pressed", hidden ? "true" : "false");
-      }
     }
 
     function updateEngineControlsVisibility() {
-      const isOwner =
-        tableOwnerUserId != null &&
-        currentUserId != null &&
-        tableOwnerUserId === currentUserId;
-
-      if (!isOwner) {
-        setControlsHidden(true);
-        if (toggleControlsBtn) toggleControlsBtn.disabled = true;
-        return;
-      }
-
-      if (toggleControlsBtn) toggleControlsBtn.disabled = false;
-      setControlsHidden(controlsHidden);
+      setControlsHidden(true);
     }
 
     if (changeSeatBtn) {
       changeSeatBtn.onclick = () => openSeatChangeModal();
-    }
-
-    if (toggleControlsBtn) {
-      toggleControlsBtn.addEventListener("click", () => {
-        setControlsHidden(!controlsHidden);
-      });
     }
 
     if (closePlayerStatsBtn) {
@@ -4514,7 +4481,7 @@
       }
     };
 
-    setControlsHidden(false);
+    setControlsHidden(true);
 
     // Attempt to rehydrate authentication when the page loads
     restoreAuth();
