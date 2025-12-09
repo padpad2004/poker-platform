@@ -1863,6 +1863,12 @@
       { top: "32%", left: "18%" },
     ];
 
+    function formatChips(value, decimals = 2) {
+      const num = Number(value ?? 0);
+      if (!Number.isFinite(num)) return (0).toFixed(decimals);
+      return num.toFixed(decimals);
+    }
+
     // DOM elements
     const usernameInput = document.getElementById("usernameInput");
     const emailInput = document.getElementById("emailInput");
@@ -2534,8 +2540,9 @@
 
     function updateBuyinDisplay(amount) {
       if (!buyinRange || !buyinRangeValue || !buyinAmountDisplay) return;
-      buyinRangeValue.textContent = amount;
-      buyinAmountDisplay.textContent = `${amount} chips`;
+      const formatted = formatChips(amount);
+      buyinRangeValue.textContent = formatted;
+      buyinAmountDisplay.textContent = `${formatted} chips`;
     }
 
     function showBuyinModal(seatIndex) {
@@ -2554,7 +2561,7 @@
       buyinRange.value = String(initialBuyIn);
 
       if (buyinSeatLabel) buyinSeatLabel.textContent = `Seat ${seatIndex}`;
-      if (buyinBalanceLabel) buyinBalanceLabel.textContent = `Wallet balance: ${currentUserBalance}`;
+      if (buyinBalanceLabel) buyinBalanceLabel.textContent = `Wallet balance: ${formatChips(currentUserBalance)}`;
 
       updateBuyinDisplay(initialBuyIn);
       buyinModal.classList.remove("hidden");
@@ -2651,7 +2658,7 @@
     function updateBalanceUI(amount) {
       currentUserBalance = amount || 0;
       if (balanceTextSpan) {
-        balanceTextSpan.textContent = currentUserBalance;
+        balanceTextSpan.textContent = formatChips(currentUserBalance);
       }
     }
 
@@ -2914,7 +2921,7 @@
         if (hand.result?.pot != null) {
           const potPill = document.createElement("div");
           potPill.className = "hand-result-pill";
-          potPill.textContent = `Pot ${hand.result.pot}`;
+          potPill.textContent = `Pot ${formatChips(hand.result.pot)}`;
           right.appendChild(potPill);
         }
         if (hand.result?.reason) {
@@ -2966,7 +2973,7 @@
 
               const amt = document.createElement("div");
               amt.className = "history-amount";
-              amt.textContent = a.amount != null ? a.amount : "";
+              amt.textContent = a.amount != null ? formatChips(a.amount) : "";
 
               row.appendChild(info);
               row.appendChild(amt);
@@ -2987,7 +2994,7 @@
           hand.result.winners.forEach(w => {
             const chip = document.createElement("div");
             chip.className = "winner-chip";
-            chip.innerHTML = `<strong>${w.player_name || "Winner"}</strong> +${w.amount}`;
+            chip.innerHTML = `<strong>${w.player_name || "Winner"}</strong> +${formatChips(w.amount)}`;
             resultCol.appendChild(chip);
           });
         } else {
@@ -3020,20 +3027,22 @@
 
       tableIdSpan.textContent = state.id;
       if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
-      if (tableBlindsBadge) tableBlindsBadge.textContent = `Blinds ${state.small_blind}/${state.big_blind}`;
+      if (tableBlindsBadge) {
+        tableBlindsBadge.textContent = `Blinds ${formatChips(state.small_blind)}/${formatChips(state.big_blind)}`;
+      }
       streetSpan.textContent = state.street;
-      potSpan.textContent = state.pot;
-      currentBetSpan.textContent = state.current_bet;
+      potSpan.textContent = formatChips(state.pot);
+      currentBetSpan.textContent = formatChips(state.current_bet);
       nextToActSpan.textContent = state.next_to_act_seat ?? "-";
-      blindsInfoSpan.textContent = `${state.small_blind}/${state.big_blind}`;
+      blindsInfoSpan.textContent = `${formatChips(state.small_blind)}/${formatChips(state.big_blind)}`;
       dealerSeatLabel.textContent = state.dealer_button_seat ?? "-";
       sbSeatLabel.textContent = state.small_blind_seat ?? "-";
       bbSeatLabel.textContent = state.big_blind_seat ?? "-";
       console.log("STATE PLAYERS:", state.players);
 
-      potCenterSpan.textContent = state.pot;
+      potCenterSpan.textContent = formatChips(state.pot);
       if (potChipAmount) {
-        potChipAmount.textContent = state.pot ?? 0;
+        potChipAmount.textContent = formatChips(state.pot ?? 0);
       }
 
       // ---- BOARD CARDS ----
@@ -3085,7 +3094,7 @@
 
         // Name + stack
         if (nameEl) nameEl.textContent = p.name || `Seat ${p.seat}`;
-        if (stackEl) stackEl.textContent = p.stack != null ? p.stack.toString() : "0";
+        if (stackEl) stackEl.textContent = formatChips(p.stack);
 
         // Avatar initial (first letter)
         if (avatarInitialEl) {
@@ -3122,7 +3131,7 @@
         // Bet
         if (betEl) {
           if (p.committed > 0) {
-            betEl.innerHTML = `<div class="chip-pile muted"><span class="chip-amount-label">Bet ${p.committed}</span></div>`;
+            betEl.innerHTML = `<div class="chip-pile muted"><span class="chip-amount-label">Bet ${formatChips(p.committed)}</span></div>`;
           } else {
             betEl.textContent = "";
           }
