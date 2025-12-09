@@ -92,6 +92,7 @@ class ClubCrestUpdate(BaseModel):
 class ClubRead(ClubBase):
     id: int
     owner_id: int
+    owner_email: Optional[EmailStr] = None
     status: str
     created_at: datetime
 
