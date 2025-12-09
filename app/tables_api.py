@@ -157,6 +157,10 @@ def _table_state_for_viewer(
     engine_table: Table,
     viewer_user_id: Optional[int],
 ) -> schemas.TableState:
+    # Hole cards are only visible to the seated player or after showdown so that
+    # spectators, admins, and club managers cannot gain an unfair advantage.
+    reveal_all = engine_table.street == "showdown"
+
     return schemas.TableState(
         id=table_id,
         hand_number=engine_table.hand_number,
@@ -186,7 +190,8 @@ def _table_state_for_viewer(
                 all_in=p.all_in,
                 hole_cards=(
                     [str(c) for c in p.hole_cards]
-                    if (p.user_id is None or p.user_id == viewer_user_id)
+                    if reveal_all
+                    or (p.user_id is not None and p.user_id == viewer_user_id)
                     else ["XX"] * len(p.hole_cards)
                 ),
                 user_id=p.user_id,
