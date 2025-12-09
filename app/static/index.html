@@ -1967,46 +1967,44 @@
     const WS_RECONNECT_MS = 3000;
     const TABLE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
-    const SEAT_LAYOUTS = {
-      6: {
-        viewerSeat: 3,
-        positions: [
-          { top: "16%", left: "50%" },
-          { top: "32%", left: "85%" },
-          { top: "70%", left: "85%" },
-          { top: "86%", left: "50%" },
-          { top: "70%", left: "15%" },
-          { top: "32%", left: "15%" },
-        ],
-      },
-      8: {
-        viewerSeat: 4,
-        positions: [
-          { top: "12%", left: "50%" },
-          { top: "24%", left: "78%" },
-          { top: "46%", left: "90%" },
-          { top: "72%", left: "82%" },
-          { top: "88%", left: "60%" },
-          { top: "88%", left: "40%" },
-          { top: "72%", left: "18%" },
-          { top: "46%", left: "10%" },
-        ],
-      },
-      9: {
-        viewerSeat: 5,
-        positions: [
-          { top: "10%", left: "50%" },
-          { top: "22%", left: "76%" },
-          { top: "42%", left: "90%" },
-          { top: "64%", left: "82%" },
-          { top: "82%", left: "66%" },
-          { top: "92%", left: "50%" },
-          { top: "82%", left: "34%" },
-          { top: "64%", left: "18%" },
-          { top: "42%", left: "10%" },
-        ],
-      },
+    const DEFAULT_SEAT_RADIUS = { x: 46, y: 34 };
+
+    function generateSeatPositions(totalSeats, viewerSeat = Math.floor(totalSeats / 2), radius = DEFAULT_SEAT_RADIUS) {
+      const seatCount = Math.max(2, totalSeats);
+      const anchorSeat = Math.min(Math.max(viewerSeat, 0), seatCount - 1);
+      const angleStep = 360 / seatCount;
+      const angleOffset = 90 - angleStep * anchorSeat; // place anchor seat at bottom center
+
+      return Array.from({ length: seatCount }, (_, idx) => {
+        const angleRad = ((angleOffset + angleStep * idx) * Math.PI) / 180;
+        return {
+          top: `${50 + radius.y * Math.sin(angleRad)}%`,
+          left: `${50 + radius.x * Math.cos(angleRad)}%`,
+        };
+      });
+    }
+
+    const RAW_SEAT_LAYOUTS = {
+      6: { viewerSeat: 3, radius: { x: 42, y: 30 } },
+      8: { viewerSeat: 4, radius: { x: 44, y: 32 } },
+      9: { viewerSeat: 5, radius: { x: 46, y: 34 } },
     };
+
+    const SEAT_LAYOUTS = Object.fromEntries(
+      Object.entries(RAW_SEAT_LAYOUTS).map(([count, config]) => {
+        const seatCount = Number(count);
+        const radius = { ...DEFAULT_SEAT_RADIUS, ...config.radius };
+        const viewerSeat = config.viewerSeat ?? Math.floor(seatCount / 2);
+
+        return [
+          seatCount,
+          {
+            viewerSeat,
+            positions: generateSeatPositions(seatCount, viewerSeat, radius),
+          },
+        ];
+      })
+    );
 
     function formatChips(value, decimals = 2) {
       const num = Number(value ?? 0);
