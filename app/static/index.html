@@ -2899,6 +2899,111 @@
       };
     }
 
+    function computePlayerStatsFromHistory(state) {
+      const statsBySeat = {};
+      const hands = Array.isArray(state?.recent_hands) ? state.recent_hands : [];
+
+      hands.forEach(hand => {
+        const actions = Array.isArray(hand?.actions) ? hand.actions : [];
+        const seatsInHand = new Set(actions.map(a => a?.seat).filter(seat => seat !== null && seat !== undefined));
+
+        seatsInHand.forEach(seat => {
+          statsBySeat[seat] ||= {
+            hands: 0,
+            vpip: 0,
+            pfr: 0,
+            threeBet: 0,
+            aggressionActs: 0,
+            aggressionCalls: 0,
+            cbet: 0,
+            cbetOpportunities: 0,
+            foldToCbet: 0,
+            wtsd: 0,
+            wsd: 0,
+            steal: 0,
+          };
+          statsBySeat[seat].hands += 1;
+        });
+
+        const preflopActions = actions.filter(a => a?.type === "action" && a.street === "preflop");
+        let preflopRaiseCount = 0;
+
+        preflopActions.forEach(a => {
+          const seat = a.seat;
+          if (seat === null || seat === undefined || !statsBySeat[seat]) return;
+
+          const action = a.action;
+          const isBlind = action === "small_blind" || action === "big_blind" || action === "bomb_pot";
+
+          if (!isBlind && (action === "call" || action === "raise_to" || action === "bet")) {
+            statsBySeat[seat].vpip += 1;
+          }
+
+          if (action === "raise_to") {
+            statsBySeat[seat].pfr += 1;
+            if (preflopRaiseCount >= 1) statsBySeat[seat].threeBet += 1;
+            preflopRaiseCount += 1;
+          }
+        });
+
+        const preflopAggressorSeat = preflopActions.find(a => a.action === "raise_to")?.seat ?? null;
+        let cbetRecorded = false;
+
+        const postflopActions = actions.filter(
+          a => a?.type === "action" && (a.street === "flop" || a.street === "turn" || a.street === "river")
+        );
+
+        postflopActions.forEach(a => {
+          const seat = a.seat;
+          if (seat === null || seat === undefined || !statsBySeat[seat]) return;
+
+          const action = a.action;
+          if (action === "bet" || action === "raise_to") {
+            statsBySeat[seat].aggressionActs += 1;
+
+            if (!cbetRecorded && preflopAggressorSeat != null && a.street === "flop" && seat === preflopAggressorSeat) {
+              statsBySeat[seat].cbet += 1;
+              cbetRecorded = true;
+              seatsInHand.forEach(otherSeat => {
+                if (otherSeat !== seat) statsBySeat[otherSeat].cbetOpportunities += 1;
+              });
+            }
+          } else if (action === "call") {
+            statsBySeat[seat].aggressionCalls += 1;
+          } else if (action === "fold" && cbetRecorded) {
+            statsBySeat[seat].foldToCbet += 1;
+          }
+        });
+      });
+
+      const finalStats = {};
+      Object.entries(statsBySeat).forEach(([seat, data]) => {
+        const handsCount = data.hands || 0;
+        const aggressionDenom = data.aggressionCalls || 0;
+        const aggressionRatio =
+          aggressionDenom > 0
+            ? data.aggressionActs / aggressionDenom
+            : data.aggressionActs > 0
+              ? data.aggressionActs
+              : 0;
+
+        finalStats[seat] = {
+          hands: handsCount,
+          vpip: handsCount ? Math.round((data.vpip / handsCount) * 100) : 0,
+          pfr: handsCount ? Math.round((data.pfr / handsCount) * 100) : 0,
+          threeBet: handsCount ? Math.round((data.threeBet / handsCount) * 100) : 0,
+          aggression: Number.isFinite(aggressionRatio) ? Number(aggressionRatio.toFixed(1)) : 0,
+          cbet: handsCount ? Math.round((data.cbet / handsCount) * 100) : 0,
+          foldToCbet: data.cbetOpportunities ? Math.round((data.foldToCbet / data.cbetOpportunities) * 100) : 0,
+          wtsd: 0,
+          wsd: 0,
+          steal: 0,
+        };
+      });
+
+      return finalStats;
+    }
+
     function hidePlayerStats() {
       if (playerStatsCard) playerStatsCard.classList.add("hidden");
       if (playerStatsGrid) playerStatsGrid.innerHTML = "";
@@ -3677,6 +3782,14 @@
     function renderState(state) {
       const prevState = lastState;
       lastState = state;
+
+      const computedStatsBySeat = computePlayerStatsFromHistory(state);
+      if (Array.isArray(state.players)) {
+        state.players = state.players.map(player => ({
+          ...player,
+          stats: computedStatsBySeat[player.seat] || player.stats || derivePlayerStats(player),
+        }));
+      }
 
       updateSeatLayoutForTable(state);
 
