@@ -238,6 +238,7 @@ class Table:
         if len(active_players) < 2:
             raise ValueError("Need at least 2 players for blinds")
 
+        occupied_seats = [p.seat for p in active_players]
         sb_player = next(p for p in active_players if p.seat == self.dealer_seat)
         bb_index = (occupied_seats.index(sb_player.seat) + 1) % len(active_players)
         bb_player = active_players[bb_index]
