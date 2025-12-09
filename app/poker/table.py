@@ -13,6 +13,7 @@ class Player:
     seat: int
     hole_cards: List[Card] = field(default_factory=list)
     in_hand: bool = True        # still in the current hand
+    sitting_out: bool = False   # player has opted out of upcoming hands
     has_folded: bool = False
     stack: float = 100          # starting chips
     committed: float = 0        # chips committed this betting round
@@ -168,8 +169,9 @@ class Table:
 
     def start_new_hand(self) -> None:
         """Reset deck, board, player state, post blinds, deal cards."""
-        if len(self.players) < 2:
-            raise ValueError("Need at least 2 players to start a hand")
+        active_players = [p for p in self.players if not p.sitting_out]
+        if len(active_players) < 2:
+            raise ValueError("Need at least 2 active players to start a hand")
 
         self.hand_number += 1
         self.deck.reset()
@@ -190,18 +192,19 @@ class Table:
         # If the previous dealer seat is now empty (e.g., player moved seats),
         # fall back to the lowest occupied seat to avoid errors when
         # advancing the button.
-        occupied_seats = sorted(p.seat for p in self.players)
+        occupied_seats = [p.seat for p in active_players]
         if self.hand_number == 1 or self.dealer_seat not in occupied_seats:
             self.dealer_seat = occupied_seats[0]
         else:
-            self.dealer_seat = self._next_seat(self.dealer_seat)
+            dealer_index = occupied_seats.index(self.dealer_seat)
+            self.dealer_seat = occupied_seats[(dealer_index + 1) % len(occupied_seats)]
 
         self.dealer_button_seat = self.dealer_seat
 
         # Reset players
         for p in self.players:
             p.hole_cards = []
-            p.in_hand = True
+            p.in_hand = not p.sitting_out
             p.has_folded = False
             p.committed = 0
             p.all_in = False
@@ -222,6 +225,8 @@ class Table:
         # Deal 2 cards to each player
         for _ in range(2):
             for p in self.players:
+                if not p.in_hand:
+                    continue
                 p.hole_cards.append(self.deck.deal_one())
 
         # Post blinds
@@ -229,12 +234,13 @@ class Table:
 
     def post_blinds(self) -> None:
         """Post small and big blinds and set next_to_act."""
-        active_players = sorted(self.players, key=lambda p: p.seat)
+        active_players = sorted([p for p in self.players if p.in_hand], key=lambda p: p.seat)
         if len(active_players) < 2:
             raise ValueError("Need at least 2 players for blinds")
 
-        sb_player = self._player_by_seat(self.dealer_seat)
-        bb_player = self._player_by_seat(self._next_seat(self.dealer_seat))
+        sb_player = next(p for p in active_players if p.seat == self.dealer_seat)
+        bb_index = (occupied_seats.index(sb_player.seat) + 1) % len(active_players)
+        bb_player = active_players[bb_index]
 
         sb_amount = self._post_blind(sb_player, self.small_blind)
         self._log_action("preflop", sb_player, "small_blind", sb_amount)
@@ -261,6 +267,8 @@ class Table:
             return
 
         for p in self.players:
+            if not p.in_hand:
+                continue
             contribution = min(p.stack, self.bomb_pot_amount)
             p.stack -= contribution
             p.committed += contribution
@@ -453,16 +461,54 @@ class Table:
             self.next_to_act_seat = None
             self.action_deadline = None
             return None
-        action = "fold"
         try:
-            self._apply_action(player.id, action, auto=True)
+            self.sit_out_player(player, auto=True, reason="timeout")
         except Exception:
             # If the auto action fails, give up and clear the deadline to avoid loops
             self.next_to_act_seat = None
             self.action_deadline = None
             return None
 
-        return action
+        return "sit_out"
+
+    def sit_out_player(self, player: Player, auto: bool = False, reason: str | None = None) -> None:
+        """Mark a player as sitting out and remove them from the current hand."""
+
+        if player.sitting_out and not player.in_hand:
+            return
+
+        player.sitting_out = True
+
+        if player.in_hand and not player.has_folded:
+            player.has_folded = True
+            player.in_hand = False
+            player.all_in = False
+            self._log_action(
+                self.street,
+                player,
+                "sit_out",
+                auto=auto,
+                extra={"reason": reason} if reason else None,
+            )
+
+            if self.action_closing_seat == player.seat:
+                self.action_closing_seat = self._previous_active_seat(player.seat)
+
+            if self.next_to_act_seat == player.seat:
+                self._advance_turn()
+                return
+
+        if self.next_to_act_seat is None:
+            self.action_deadline = None
+
+    def return_player_to_game(self, player: Player) -> None:
+        """Allow a sitting-out player to join the next hand."""
+
+        player.sitting_out = False
+        if self.street in {"prehand", "showdown"}:
+            player.in_hand = False
+            player.has_folded = False
+            player.all_in = False
 
     # ---------- Betting logic ----------
 
