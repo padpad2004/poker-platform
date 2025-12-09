@@ -318,7 +318,7 @@
           <label class="checkbox-row">
             <input type="checkbox" id="hideFullTables" /> Hide full tables
           </label>
-          <button class="btn secondary" id="refreshBtn">Refresh</button>
+          <span class="subtext" id="liveStatus">Live updates</span>
         </div>
       </div>
 
@@ -361,11 +361,14 @@
     const dataOverviewBtn = document.getElementById("dataOverviewBtn");
     const tableList = document.getElementById("tableList");
     const hideFullCheckbox = document.getElementById("hideFullTables");
-    const refreshBtn = document.getElementById("refreshBtn");
+    const liveStatus = document.getElementById("liveStatus");
     const errorBox = document.getElementById("errorBox");
     const logoutBtn = document.getElementById("logoutBtn");
     const tournamentListEl = document.getElementById("tournamentList");
     const tournamentEmptyEl = document.getElementById("tournamentEmpty");
+    const TABLE_REFRESH_MS = 10000;
+    let tableRefreshTimer = null;
+    let isTablesLoading = false;
 
     function restoreAuthMetadata() {
       try {
@@ -686,6 +689,8 @@
     }
 
     async function loadTables() {
+      if (isTablesLoading) return;
+      isTablesLoading = true;
       tableList.innerHTML = '<div class="empty-state">Loading tables...</div>';
       errorBox.style.display = "none";
       try {
@@ -714,13 +719,31 @@
         errorBox.textContent = err.message || "Unable to load tables";
         errorBox.style.display = "block";
         tableList.innerHTML = "";
+      } finally {
+        isTablesLoading = false;
       }
     }
 
-    refreshBtn.addEventListener("click", () => {
-      loadTables();
-      renderTournaments(loadStoredTournaments());
-    });
+    function startAutoRefresh() {
+      if (tableRefreshTimer) clearInterval(tableRefreshTimer);
+      tableRefreshTimer = setInterval(() => {
+        if (!document.hidden) {
+          loadTables();
+          renderTournaments(loadStoredTournaments());
+        }
+      }, TABLE_REFRESH_MS);
+
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          loadTables();
+          renderTournaments(loadStoredTournaments());
+        }
+      });
+
+      if (liveStatus) {
+        liveStatus.textContent = "Live updates every 10 seconds";
+      }
+    }
     hideFullCheckbox.addEventListener("change", loadTables);
 
     logoutBtn.addEventListener("click", () => {
@@ -736,6 +759,7 @@
       if (ok) {
         loadTables();
         renderTournaments(loadStoredTournaments());
+        startAutoRefresh();
       }
     });
   </script>
