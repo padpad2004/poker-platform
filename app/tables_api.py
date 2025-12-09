@@ -157,6 +157,13 @@ def _table_state_for_viewer(
     engine_table: Table,
     viewer_user_id: Optional[int],
 ) -> schemas.TableState:
+    now = time.time()
+    reveal_until = engine_table.showdown_reveal_until
+    reveal_showdown = engine_table.street == "showdown" and (
+        reveal_until is None or now < reveal_until
+    )
+    showdown_reveal_until = reveal_until if reveal_showdown else None
+
     return schemas.TableState(
         id=table_id,
         hand_number=engine_table.hand_number,
@@ -171,6 +178,7 @@ def _table_state_for_viewer(
         big_blind_seat=engine_table.big_blind_seat,
         small_blind=engine_table.small_blind,
         big_blind=engine_table.big_blind,
+        showdown_reveal_until=showdown_reveal_until,
         game_type=getattr(engine_table, "game_type", "holdem"),
         hole_cards_per_player=getattr(engine_table, "hole_cards_per_player", 2),
         players=[
@@ -186,7 +194,11 @@ def _table_state_for_viewer(
                 all_in=p.all_in,
                 hole_cards=(
                     [str(c) for c in p.hole_cards]
-                    if (p.user_id is None or p.user_id == viewer_user_id)
+                    if (
+                        p.user_id is None
+                        or p.user_id == viewer_user_id
+                        or (reveal_showdown and p.in_hand and not p.has_folded)
+                    )
                     else ["XX"] * len(p.hole_cards)
                 ),
                 user_id=p.user_id,
@@ -531,6 +543,13 @@ def _auto_start_hand_if_ready(engine_table: Table) -> bool:
         return False
 
     if engine_table.street not in {"prehand", "showdown"}:
+        return False
+
+    if (
+        engine_table.street == "showdown"
+        and engine_table.showdown_reveal_until is not None
+        and time.time() < engine_table.showdown_reveal_until
+    ):
         return False
 
     engine_table.start_new_hand()

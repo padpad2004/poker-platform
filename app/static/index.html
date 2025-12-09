@@ -641,9 +641,29 @@
       }
     }
 
+    @keyframes showdown-flip {
+      from {
+        transform: rotateY(90deg);
+        opacity: 0;
+      }
+      to {
+        transform: rotateY(0deg);
+        opacity: 1;
+      }
+    }
+
     .card.dealt,
     .seat-card.dealt {
       animation: deal-card 0.3s ease-out;
+    }
+
+    .seat.showdown-reveal .seat-cards {
+      perspective: 900px;
+    }
+
+    .seat.showdown-reveal .seat-card {
+      animation: showdown-flip 0.35s ease-out;
+      transform-style: preserve-3d;
     }
 
     .card {
@@ -717,6 +737,10 @@
     .seat.opponent-view .seat-cards,
     .seat.opponent-view .seat-timer {
       display: none;
+    }
+
+    .seat.opponent-view.showdown-reveal .seat-cards {
+      display: flex;
     }
 
     .seat-main {
@@ -3608,6 +3632,9 @@
       const prevState = lastState;
       lastState = state;
 
+      const showdownRevealActive =
+        state.street === "showdown" &&
+        (!state.showdown_reveal_until || Date.now() / 1000 < state.showdown_reveal_until);
       const gameType = state.game_type || "holdem";
       const holeCardsPerPlayer = state.hole_cards_per_player || 2;
       document.body?.setAttribute("data-game-type", gameType);
@@ -3749,10 +3776,12 @@
         const isDealer = state.dealer_button_seat === p.seat;
         const isSB = state.small_blind_seat === p.seat;
         const isBB = state.big_blind_seat === p.seat;
+        const isShowdownReveal = showdownRevealActive && p.in_hand && !p.has_folded;
 
         if (dealerChip) dealerChip.classList.toggle("hidden", !isDealer);
         if (sbChip) sbChip.classList.toggle("hidden", !isSB);
         if (bbChip) bbChip.classList.toggle("hidden", !isBB);
+        seatDiv.classList.toggle("showdown-reveal", isShowdownReveal);
 
         // Cards
         if (cardsEl) {
@@ -3761,10 +3790,15 @@
           cardsEl.innerHTML = "";
           cardsEl.classList.toggle("four-card-hand", holeCardsPerPlayer > 2);
 
-          if (isViewer) {
+          const shouldShowCards = isViewer || isShowdownReveal;
+
+          if (shouldShowCards) {
             p.hole_cards.forEach((c, idx) => {
               const span = document.createElement("span");
               span.className = "seat-card";
+              if (isShowdownReveal && !isViewer) {
+                span.classList.add("showdown-card");
+              }
               const imgSrc = getCardImageSrc(c);
               if (imgSrc) {
                 span.innerHTML = `<img class="card-img" src="${imgSrc}" alt="${c}">`;

@@ -206,6 +206,7 @@ class TableState(BaseModel):
     big_blind_seat: Optional[int]
     small_blind: float
     big_blind: float
+    showdown_reveal_until: Optional[float] = None
     game_type: str = "holdem"
     hole_cards_per_player: int = 2
     players: List[PlayerState]

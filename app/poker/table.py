@@ -39,6 +39,8 @@ class Table:
     - VERY basic betting (blinds, fold/call/raise_to)
     """
 
+    SHOWDOWN_REVEAL_SECONDS = 8
+
     def __init__(
         self,
         max_seats: int = 9,
@@ -87,6 +89,9 @@ class Table:
         # Simple in-memory history of recent hands (action-only, non-persisted)
         self.recent_hands: List[Dict[str, Any]] = []
         self.current_hand_log: Optional[Dict[str, Any]] = None
+
+        # Grace period to display showdown hole cards before the next hand
+        self.showdown_reveal_until: Optional[float] = None
 
         # Track players who requested to leave during a hand so they can
         # automatically stand up once the hand finishes.
@@ -199,6 +204,7 @@ class Table:
         self.big_blind_seat = None
         self.dealer_button_seat = None
         self.action_closing_seat = None
+        self.showdown_reveal_until = None
 
         # Remember each player's stack before blinds or bomb pots are taken so
         # net changes can be calculated when the hand finishes.
@@ -870,6 +876,11 @@ class Table:
         self.pot = 0
         self.board = runout_boards[0]
         self.street = "showdown"
+        self.next_to_act_seat = None
+        self.action_deadline = None
+        self.showdown_reveal_until = time.time() + self.SHOWDOWN_REVEAL_SECONDS
+        self._finalize_hand(winners, payouts, pot_before, reason="showdown")
+        return winners, best_rank, results, payouts
         self.runout_results = runout_results
 
         winning_players = [self.get_player_by_id(pid) for pid in total_payouts.keys()]
