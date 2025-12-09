@@ -318,7 +318,10 @@
 
     <div style="margin-top: 16px;">
       <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Members</h3>
-      <a id="manageMembersLink" class="button-link" style="margin-bottom: 8px; display: inline-flex;" href="#">Open Member Controls</a>
+      <div style="display: inline-flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+        <a id="manageMembersLink" class="button-link" style="display: inline-flex;" href="#">Open Member Controls</a>
+        <a id="balanceControlLink" class="button-link ghost-button" style="display: inline-flex;" href="#">New Balance</a>
+      </div>
       <div id="membersEmpty" class="muted">No members yet.</div>
       <div id="membersTableWrap" style="display:none;">
         <table>
@@ -475,6 +478,7 @@
     const tournamentsList = document.getElementById("tournamentsList");
     const tournamentsEmpty = document.getElementById("tournamentsEmpty");
     const manageMembersLink = document.getElementById("manageMembersLink");
+    const balanceControlLink = document.getElementById("balanceControlLink");
     const quickCreateTableBtn = document.getElementById("quickCreateTableBtn");
     const createTournamentBtn = document.getElementById("createTournamentBtn");
     const createTableModal = document.getElementById("createTableModal");
@@ -982,6 +986,10 @@
         clubStatus.textContent = detail.status;
         if (manageMembersLink) {
           manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;
+        }
+        if (balanceControlLink) {
+          balanceControlLink.href = `/club-members.html?club_id=${detail.id}`;
+          balanceControlLink.title = "Add or deduct member balances";
         }
         setCrestAvatar(clubCrest, detail.crest_url, detail.name || "Club");
         selectedCrestUrl = detail.crest_url || crestOptions[0]?.url || "";
