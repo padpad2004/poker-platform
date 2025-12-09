@@ -385,6 +385,14 @@
 
     const ADMIN_EMAILS = ["paddywarren99@gmail.com", "padpadpoker@gmail.com"];
 
+    // Legacy handler: some table entry points still call `tableShop(...)` inline.
+    // Define a safe fallback that simply routes players to the table view so a
+    // missing global does not crash the page with a reference error.
+    window.tableShop = function(tableId) {
+      if (!tableId) return;
+      window.location.href = `/poker?tableId=${tableId}`;
+    };
+
     const navAvatar = document.getElementById("navAvatar");
     const clubManagerBtn = document.getElementById("clubManagerBtn");
     const dataOverviewBtn = document.getElementById("dataOverviewBtn");
