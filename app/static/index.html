@@ -506,12 +506,9 @@
     }
 
     .table-controls-toggle {
-      position: absolute;
-      right: 12px;
-      bottom: 12px;
-      z-index: 6;
       display: flex;
       justify-content: flex-end;
+      width: 100%;
     }
 
     .table-controls-toggle .table-controls-toggle-btn {
@@ -522,8 +519,29 @@
       font-weight: 700;
     }
 
-    .table-panel.controls-hidden button:not(.table-controls-toggle-btn) {
-      display: none;
+    .table-controls-collapsible {
+      width: 100%;
+      display: flex;
+      justify-content: flex-end;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: max-height 240ms ease, opacity 200ms ease, transform 200ms ease;
+    }
+
+    .table-controls-collapsible.open {
+      max-height: 500px;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .table-controls-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
     }
 
     .felt {
@@ -545,10 +563,10 @@
 
     .table-panel-actions {
       display: flex;
+      flex-direction: column;
       gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: flex-end;
+      align-items: flex-end;
+      justify-content: flex-start;
     }
 
     .center-area {
@@ -1794,15 +1812,22 @@
           </div>
         </div>
         <div class="table-panel-actions">
-          <button id="toggleChatVisibilityBtn" class="btn secondary" aria-pressed="false">Hide chat</button>
-          <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
-          <div class="seat-action-inline">
-            <button id="changeSeatBtn" class="btn secondary" disabled>Change seat</button>
-            <span id="seatActionMessage" class="seat-action-message"></span>
+          <div class="table-controls-toggle">
+            <button id="controlsToggleBtn" class="table-controls-toggle-btn" aria-expanded="false">Show controls</button>
           </div>
-          <button id="sitOutBtn" class="btn secondary" disabled>Sit out</button>
-          <button id="returnToPlayBtn" class="btn secondary" disabled>I'm back</button>
-          <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
+          <div id="tableControlsPanel" class="table-controls-collapsible">
+            <div class="table-controls-group">
+              <button id="toggleChatVisibilityBtn" class="btn secondary" aria-pressed="false">Hide chat</button>
+              <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
+              <div class="seat-action-inline">
+                <button id="changeSeatBtn" class="btn secondary" disabled>Change seat</button>
+                <span id="seatActionMessage" class="seat-action-message"></span>
+              </div>
+              <button id="sitOutBtn" class="btn secondary" disabled>Sit out</button>
+              <button id="returnToPlayBtn" class="btn secondary" disabled>I'm back</button>
+              <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
+            </div>
+          </div>
         </div>
       </div>
       <div id="playerStatsCard" class="player-stats hidden">
@@ -1833,10 +1858,7 @@
           </form>
         </aside>
 
-        <div class="table-wrapper">
-          <div class="table-controls-toggle">
-            <button id="controlsToggleBtn" class="table-controls-toggle-btn" aria-expanded="false">Show controls</button>
-          </div>
+          <div class="table-wrapper">
           <div id="chipAnimationLayer" class="chip-animation-layer"></div>
           <div class="felt">
           <div class="center-area">
@@ -2522,6 +2544,7 @@
     const tableClosingTimer = document.getElementById("tableClosingTimer");
     const tablePanel = document.querySelector(".table-panel");
     const controlsToggleBtn = document.getElementById("controlsToggleBtn");
+    const tableControlsPanel = document.getElementById("tableControlsPanel");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
     const sitOutBtn = document.getElementById("sitOutBtn");
     const returnToPlayBtn = document.getElementById("returnToPlayBtn");
@@ -2555,18 +2578,9 @@
     const seatChangeCancelBtn = document.getElementById("seatChangeCancelBtn");
     const seatChangeError = document.getElementById("seatChangeError");
 
-    if (tablePanel && controlsToggleBtn) {
-      const setControlsVisible = (visible) => {
-        tablePanel.classList.toggle("controls-hidden", !visible);
-        controlsToggleBtn.textContent = visible ? "Hide controls" : "Show controls";
-        controlsToggleBtn.setAttribute("aria-expanded", visible ? "true" : "false");
-      };
-
-      setControlsVisible(false);
-
+    if (controlsToggleBtn && tableControlsPanel) {
       controlsToggleBtn.addEventListener("click", () => {
-        const show = tablePanel.classList.contains("controls-hidden");
-        setControlsVisible(show);
+        setControlsHidden(!controlsHidden);
       });
     }
 
@@ -2689,6 +2703,11 @@
     function setControlsHidden(hidden) {
       controlsHidden = hidden;
       document.body.classList.toggle("controls-hidden", hidden);
+      if (tableControlsPanel && controlsToggleBtn) {
+        tableControlsPanel.classList.toggle("open", !hidden);
+        controlsToggleBtn.textContent = hidden ? "Show controls" : "Hide controls";
+        controlsToggleBtn.setAttribute("aria-expanded", hidden ? "false" : "true");
+      }
     }
 
     function updateEngineControlsVisibility() {
