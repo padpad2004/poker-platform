@@ -679,6 +679,38 @@
       border-color: rgba(156, 163, 175, 0.4);
     }
 
+    .seat.opponent-view .seat-inner {
+      padding: 8px;
+      gap: 6px;
+      border-radius: 14px;
+    }
+
+    .seat.opponent-view .seat-main {
+      grid-template-columns: 48px 1fr;
+      gap: 6px 8px;
+    }
+
+    .seat.opponent-view .seat-avatar {
+      width: 48px;
+      height: 48px;
+    }
+
+    .seat.opponent-view .seat-name {
+      font-size: 13px;
+    }
+
+    .seat.opponent-view .seat-stack {
+      font-size: 11px;
+      padding: 4px 6px;
+    }
+
+    .seat.opponent-view .seat-meta-row,
+    .seat.opponent-view .seat-buttons,
+    .seat.opponent-view .seat-cards,
+    .seat.opponent-view .seat-timer {
+      display: none;
+    }
+
     .seat-main {
       display: grid;
       grid-template-columns: 64px 1fr;
@@ -3057,7 +3089,7 @@
       const seats = document.querySelectorAll(".seat");
       seats.forEach(seat => {
         seat.classList.add("empty");
-        seat.classList.remove("highlight", "sitting-out", "timer-warning");
+        seat.classList.remove("highlight", "sitting-out", "timer-warning", "opponent-view");
 
         const nameEl = seat.querySelector(".seat-name");
         const stackEl = seat.querySelector(".seat-stack");
@@ -3622,6 +3654,8 @@
 
         seatDiv.classList.remove("empty");
         seatDiv.classList.toggle("sitting-out", Boolean(p.sitting_out));
+        const isViewer = currentUserId != null && p.user_id === currentUserId;
+        seatDiv.classList.toggle("opponent-view", !isViewer);
 
         const nameEl = seatDiv.querySelector(".seat-name");
         const stackEl = seatDiv.querySelector(".seat-stack");
@@ -3695,23 +3729,26 @@
           const prevPlayer = prevState?.players?.find(pp => pp.seat === p.seat);
           const prevCards = prevPlayer?.hole_cards || [];
           cardsEl.innerHTML = "";
-          p.hole_cards.forEach((c, idx) => {
-            const span = document.createElement("span");
-            span.className = "seat-card";
-            const imgSrc = getCardImageSrc(c);
-            if (imgSrc) {
-              span.innerHTML = `<img class="card-img" src="${imgSrc}" alt="${c}">`;
-            } else {
-              span.textContent = c;
-            }
-            cardsEl.appendChild(span);
 
-            const isNewCard = idx >= prevCards.length || prevCards[idx] !== p.hole_cards[idx];
-            if (isNewCard && imgSrc) {
-              span.classList.add("dealt");
-              animateDealtCardToSeat(imgSrc, span.querySelector("img") || span);
-            }
-          });
+          if (isViewer) {
+            p.hole_cards.forEach((c, idx) => {
+              const span = document.createElement("span");
+              span.className = "seat-card";
+              const imgSrc = getCardImageSrc(c);
+              if (imgSrc) {
+                span.innerHTML = `<img class="card-img" src="${imgSrc}" alt="${c}">`;
+              } else {
+                span.textContent = c;
+              }
+              cardsEl.appendChild(span);
+
+              const isNewCard = idx >= prevCards.length || prevCards[idx] !== p.hole_cards[idx];
+              if (isNewCard && imgSrc) {
+                span.classList.add("dealt");
+                animateDealtCardToSeat(imgSrc, span.querySelector("img") || span);
+              }
+            });
+          }
         }
 
         const timerBar = seatDiv.querySelector(".seat-timer");
