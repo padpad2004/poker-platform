@@ -176,7 +176,6 @@ def _table_state_for_viewer(
     )
     game_type = (getattr(table_meta, "game_type", None) or "NLH").upper()
 
-    state = schemas.TableState(
     now = time.time()
     reveal_until = engine_table.showdown_reveal_until
     reveal_showdown = engine_table.street == "showdown" and (
@@ -184,7 +183,7 @@ def _table_state_for_viewer(
     )
     showdown_reveal_until = reveal_until if reveal_showdown else None
 
-    return schemas.TableState(
+    state = schemas.TableState(
         id=table_id,
         table_name=table_name,
         game_type=game_type,
@@ -201,7 +200,6 @@ def _table_state_for_viewer(
         small_blind=engine_table.small_blind,
         big_blind=engine_table.big_blind,
         showdown_reveal_until=showdown_reveal_until,
-        game_type=getattr(engine_table, "game_type", "holdem"),
         hole_cards_per_player=getattr(engine_table, "hole_cards_per_player", 2),
         players=[
             schemas.PlayerState(
@@ -713,7 +711,6 @@ def create_table(
         bomb_pot_amount=req.bomb_pot_amount,
         game_type=game_type,
         table_name=table_name,
-        game_type=req.game_type,
         status="active",
     )
     db.add(table_meta)
