@@ -500,13 +500,13 @@
 
     .table-wrapper {
       position: relative;
-      width: 100%;
-      height: clamp(360px, 60vh, calc(100vh - 160px));
+      width: min(100%, var(--table-max-width, 1200px));
+      height: var(--table-height, clamp(360px, 60vh, calc(100vh - 160px)));
       aspect-ratio: 16 / 10;
       background: radial-gradient(circle at top, #0b1120 0, #020617 60%);
       border-radius: 16px;
       overflow: visible;
-      margin-bottom: 16px;
+      margin: 0 auto 16px;
     }
 
     .felt {
@@ -2316,6 +2316,26 @@
       tableArea.classList.toggle("chat-hidden", !isVisible);
       chatVisibilityToggle.textContent = isVisible ? "Hide chat" : "Show chat";
       chatVisibilityToggle.setAttribute("aria-pressed", (!isVisible).toString());
+
+      fitTableToViewport();
+    }
+
+    function fitTableToViewport() {
+      if (!tableWrapper) return;
+
+      const parentWidth = Math.max(tableWrapper.parentElement?.clientWidth ?? 0, 320);
+      const tableTop = tableWrapper.getBoundingClientRect().top;
+      const availableHeight = Math.max(
+        MIN_TABLE_HEIGHT,
+        window.innerHeight - tableTop - 140
+      );
+
+      const maxHeightFromWidth = parentWidth / TABLE_ASPECT_RATIO;
+      const targetHeight = Math.min(availableHeight, maxHeightFromWidth);
+      const targetWidth = Math.min(parentWidth, targetHeight * TABLE_ASPECT_RATIO);
+
+      tableWrapper.style.setProperty("--table-height", `${targetHeight}px`);
+      tableWrapper.style.setProperty("--table-max-width", `${targetWidth}px`);
     }
 
     function renderChatMessages() {
@@ -2433,6 +2453,10 @@
     const chatSendBtn = document.getElementById("chatSendBtn");
     const chatVisibilityToggle = document.getElementById("toggleChatVisibilityBtn");
     const tableArea = document.querySelector(".table-area");
+    const tableWrapper = document.querySelector(".table-wrapper");
+
+    const TABLE_ASPECT_RATIO = 16 / 10;
+    const MIN_TABLE_HEIGHT = 360;
 
     const seatElements = document.querySelectorAll(".seat");
     let totalSeats = Math.min(seatElements.length, 9);
@@ -2621,6 +2645,8 @@
         toggleControlsBtn.textContent = hidden ? "Show control panel" : "Hide control panel";
         toggleControlsBtn.setAttribute("aria-pressed", hidden ? "true" : "false");
       }
+
+      fitTableToViewport();
     }
 
     function updateEngineControlsVisibility() {
@@ -4225,6 +4251,13 @@
         const isCurrentlyHidden = tableArea.classList.contains("chat-hidden");
         setChatVisibility(isCurrentlyHidden);
       });
+    }
+
+    fitTableToViewport();
+    window.addEventListener("resize", fitTableToViewport);
+    if (tableArea && window.ResizeObserver) {
+      const tableAreaObserver = new ResizeObserver(fitTableToViewport);
+      tableAreaObserver.observe(tableArea);
     }
 
     // -------- Wallet actions --------
