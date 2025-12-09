@@ -147,6 +147,7 @@ class ClubTableCreate(BaseModel):
     big_blind: float = 2
     bomb_pot_every_n_hands: Optional[int] = None
     bomb_pot_amount: Optional[float] = None
+    table_name: Optional[str] = None
     game_type: Literal["holdem", "plo"] = "holdem"
 
 
