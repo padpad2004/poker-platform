@@ -867,21 +867,19 @@
           window.location.href = `/poker?tableId=${tbl.id}`;
         };
 
-        const progressBtn = document.createElement("button");
-        progressBtn.className = "btn secondary";
-        progressBtn.textContent = "Tournament progress";
-        progressBtn.onclick = () => renderTournamentProgress(tbl);
-        const hasTournament = Boolean(findActiveTournamentForClub(tbl.club_id));
-        progressBtn.disabled = !hasTournament;
-        if (!hasTournament) {
-          progressBtn.title = "No active tournament for this club";
-        }
-
         const seatWrap = document.createElement("div");
         seatWrap.className = "table-seats";
         seatWrap.appendChild(seats);
         seatWrap.appendChild(joinBtn);
-        seatWrap.appendChild(progressBtn);
+
+        const hasTournament = Boolean(findActiveTournamentForClub(tbl.club_id));
+        if (hasTournament) {
+          const progressBtn = document.createElement("button");
+          progressBtn.className = "btn secondary";
+          progressBtn.textContent = "Tournament progress";
+          progressBtn.onclick = () => renderTournamentProgress(tbl);
+          seatWrap.appendChild(progressBtn);
+        }
 
         const mainRow = document.createElement("div");
         mainRow.className = "table-card-main";
