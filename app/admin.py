@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.deps import get_db, get_current_user
 from app.tables_api import TABLES, TABLE_CONNECTIONS
+from app.club_cleanup import delete_club_with_relations
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -14,24 +15,6 @@ def require_site_admin(current_user: models.User = Depends(get_current_user)) ->
     if current_user.email.lower() not in {email.lower() for email in SITE_ADMIN_EMAILS}:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
-
-
-def _delete_club_with_relations(club: models.Club, db: Session) -> None:
-    tables = db.query(models.PokerTable).filter(models.PokerTable.club_id == club.id).all()
-    for table in tables:
-        TABLES.pop(table.id, None)
-        TABLE_CONNECTIONS.pop(table.id, None)
-        db.delete(table)
-
-    db.query(models.ClubMember).filter(models.ClubMember.club_id == club.id).delete(
-        synchronize_session=False
-    )
-
-    db.query(models.User).filter(models.User.current_club_id == club.id).update(
-        {"current_club_id": None}, synchronize_session=False
-    )
-
-    db.delete(club)
 
 
 @router.get("/overview", response_model=schemas.AdminOverview)
@@ -54,7 +37,7 @@ def delete_club(
     if not club:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Club not found")
 
-    _delete_club_with_relations(club, db)
+    delete_club_with_relations(club, db)
     db.commit()
 
 
@@ -73,7 +56,7 @@ def delete_user(
 
     owned_clubs = db.query(models.Club).filter(models.Club.owner_id == user.id).all()
     for club in owned_clubs:
-        _delete_club_with_relations(club, db)
+        delete_club_with_relations(club, db)
 
     tables_created = (
         db.query(models.PokerTable)
