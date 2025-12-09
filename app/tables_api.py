@@ -23,6 +23,26 @@ TABLE_CONNECTIONS: Dict[int, Dict[WebSocket, Optional[int]]] = {}
 USER_CONNECTIONS: Dict[int, Set[WebSocket]] = {}
 
 
+def validate_nlh_table_rules(max_seats: int, small_blind: float, big_blind: float) -> None:
+    """Enforce basic No-Limit Hold'em table constraints.
+
+    - Tables must seat at least 2 and at most 9 players (standard NLH ring game).
+    - Blinds must be positive, with the big blind exactly twice the small blind.
+    """
+
+    if max_seats < 2 or max_seats > 9:
+        raise HTTPException(status_code=400, detail="NLH tables must have between 2 and 9 seats")
+
+    if small_blind <= 0 or big_blind <= 0:
+        raise HTTPException(status_code=400, detail="Blinds must be positive for NLH tables")
+
+    if big_blind != small_blind * 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Big blind must be exactly twice the small blind for NLH tables",
+        )
+
+
 @router.get("/online-count")
 def get_online_player_count(current_user: models.User = Depends(get_current_user)):
     """Return the number of distinct authenticated users considered online.
@@ -59,6 +79,8 @@ def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
         big_blind=table_meta.big_blind,
         bomb_pot_every_n_hands=table_meta.bomb_pot_every_n_hands,
         bomb_pot_amount=table_meta.bomb_pot_amount,
+        game_type=table_meta.game_type or "holdem",
+        hole_cards_per_player=4 if (table_meta.game_type or "holdem") == "plo" else 2,
     )
     TABLES[table_id] = table
     _restore_persisted_stacks(table_id, table, db)
@@ -149,6 +171,8 @@ def _table_state_for_viewer(
         big_blind_seat=engine_table.big_blind_seat,
         small_blind=engine_table.small_blind,
         big_blind=engine_table.big_blind,
+        game_type=getattr(engine_table, "game_type", "holdem"),
+        hole_cards_per_player=getattr(engine_table, "hole_cards_per_player", 2),
         players=[
             schemas.PlayerState(
                 id=p.id,
@@ -599,6 +623,10 @@ def create_table(
             detail="Only club owners can create tables",
         )
 
+    if req.game_type not in {"holdem", "plo"}:
+        raise HTTPException(status_code=400, detail="Unsupported game type")
+    validate_nlh_table_rules(req.max_seats, req.small_blind, req.big_blind)
+
     table_meta = models.PokerTable(
         club_id=req.club_id,
         created_by_user_id=current_user.id,
@@ -607,6 +635,7 @@ def create_table(
         big_blind=req.big_blind,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
+        game_type=req.game_type,
         status="active",
     )
     db.add(table_meta)
@@ -619,6 +648,8 @@ def create_table(
         big_blind=req.big_blind,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
+        game_type=req.game_type,
+        hole_cards_per_player=4 if req.game_type == "plo" else 2,
     )
     TABLES[table_meta.id] = engine_table
 
