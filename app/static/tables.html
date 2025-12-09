@@ -217,6 +217,38 @@
       flex-wrap: wrap;
     }
 
+    .table-filter {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .filter-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    .filter-btn.active {
+      background: linear-gradient(135deg, var(--btn), var(--btn-hover));
+      color: #fff;
+      border-color: var(--btn-hover);
+      box-shadow: 0 8px 30px rgba(37, 99, 235, 0.3);
+    }
+
     .status-pill {
       display: inline-flex;
       align-items: center;
@@ -413,6 +445,12 @@
         </div>
       </div>
 
+      <div class="table-filter" aria-label="Table type filter">
+        <button class="filter-btn active" type="button" data-table-filter="all">All tables</button>
+        <button class="filter-btn" type="button" data-table-filter="plo">PLO only</button>
+        <button class="filter-btn" type="button" data-table-filter="nlh">NLH only</button>
+      </div>
+
       <div id="tableList" class="table-list"></div>
       <div id="errorBox" class="error" style="display:none"></div>
     </div>
@@ -468,6 +506,7 @@
     const liveStatus = document.getElementById("liveStatus");
     const onlineCount = document.getElementById("onlineCount");
     const errorBox = document.getElementById("errorBox");
+    const tableFilterButtons = Array.from(document.querySelectorAll("[data-table-filter]"));
     const logoutBtn = document.getElementById("logoutBtn");
     const tournamentListEl = document.getElementById("tournamentList");
     const tournamentEmptyEl = document.getElementById("tournamentEmpty");
@@ -480,6 +519,7 @@
     let tableRefreshTimer = null;
     let isTablesLoading = false;
     const tableStates = {};
+    let currentTableFilter = "all";
 
     function restoreAuthMetadata() {
       try {
@@ -935,8 +975,13 @@
 
           enriched.push({ ...tbl, playersCount });
         }
+        const filtered = enriched.filter((tbl) => {
+          if (currentTableFilter === "all") return true;
+          const gameType = (tbl.game_type || "nlh").toLowerCase();
+          return gameType === currentTableFilter;
+        });
 
-        renderTables(enriched);
+        renderTables(filtered);
       } catch (err) {
         errorBox.textContent = err.message || "Unable to load tables";
         errorBox.style.display = "block";
@@ -944,6 +989,15 @@
       } finally {
         isTablesLoading = false;
       }
+    }
+
+    function setTableFilter(filter) {
+      currentTableFilter = filter;
+      tableFilterButtons.forEach((btn) => {
+        const isActive = btn.dataset.tableFilter === filter;
+        btn.classList.toggle("active", isActive);
+      });
+      loadTables();
     }
 
     function startAutoRefresh() {
@@ -969,6 +1023,12 @@
       }
     }
     hideFullCheckbox.addEventListener("change", loadTables);
+
+    tableFilterButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setTableFilter(btn.dataset.tableFilter || "all");
+      });
+    });
 
     closeTournamentProgressBtn?.addEventListener("click", closeTournamentProgress);
     tournamentProgressModal?.addEventListener("click", (event) => {
