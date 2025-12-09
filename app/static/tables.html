@@ -847,7 +847,8 @@
 
         const meta = document.createElement("div");
         meta.className = "table-meta";
-        meta.textContent = `Blinds ${tbl.small_blind}/${tbl.big_blind} • Club ${tbl.club_id}`;
+        const gameType = (tbl.game_type || "nlh").toUpperCase();
+        meta.textContent = `${gameType} • Blinds ${tbl.small_blind}/${tbl.big_blind} • Club ${tbl.club_id}`;
 
         const left = document.createElement("div");
         left.appendChild(title);
@@ -894,8 +895,12 @@
         const seatsTag = document.createElement("span");
         seatsTag.className = "tag-chip";
         seatsTag.textContent = `${tbl.max_seats}-max table`;
+        const gameTag = document.createElement("span");
+        gameTag.className = "tag-chip";
+        gameTag.textContent = (tbl.game_type || "nlh").toUpperCase();
         tags.appendChild(statusTag);
         tags.appendChild(seatsTag);
+        tags.appendChild(gameTag);
 
         card.appendChild(mainRow);
         card.appendChild(tags);

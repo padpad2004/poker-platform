@@ -980,6 +980,15 @@
       box-shadow: 0 6px 14px rgba(0,0,0,0.8);
     }
 
+    .table-panel.plo .seat-cards {
+      gap: 4px;
+    }
+
+    .table-panel.plo .seat-card img {
+      width: 64px;
+      height: 92px;
+    }
+
     /* Floating deal animation card */
     .deal-fly-card {
       position: fixed;
@@ -1741,6 +1750,7 @@
           <h2>Table <span id="tableHeadingLabel">-</span></h2>
           <div class="table-subtitle">Focused table view</div>
           <div class="table-meta-row">
+            <span class="table-blinds-pill" id="tableGameTypeBadge">NLH</span>
             <span class="table-blinds-pill" id="tableBlindsBadge">Blinds -/-</span>
             <span class="table-countdown" id="tableClosingTimer">Closing timer unavailable</span>
           </div>
@@ -2462,7 +2472,9 @@
     const chipAnimationLayer = document.getElementById("chipAnimationLayer");
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
+    const tableGameTypeBadge = document.getElementById("tableGameTypeBadge");
     const tableClosingTimer = document.getElementById("tableClosingTimer");
+    const tablePanel = document.querySelector(".table-panel");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
     const sitOutBtn = document.getElementById("sitOutBtn");
     const returnToPlayBtn = document.getElementById("returnToPlayBtn");
@@ -3623,6 +3635,12 @@
       if (tableBlindsBadge) {
         tableBlindsBadge.textContent = `Blinds ${formatChips(state.small_blind)}/${formatChips(state.big_blind)}`;
       }
+      if (tableGameTypeBadge) {
+        tableGameTypeBadge.textContent = (state.game_type || "NLH").toUpperCase();
+      }
+      if (tablePanel) {
+        tablePanel.classList.toggle("plo", state.game_type === "plo");
+      }
       streetSpan.textContent = state.street;
       potSpan.textContent = formatChips(state.pot);
       currentBetSpan.textContent = formatChips(state.current_bet);
@@ -4167,6 +4185,8 @@
         tableId = null;
         if (tableHeadingLabel) tableHeadingLabel.textContent = "-";
         if (tableIdSpan) tableIdSpan.textContent = "None";
+        if (tableGameTypeBadge) tableGameTypeBadge.textContent = "NLH";
+        if (tablePanel) tablePanel.classList.remove("plo");
         clearTableCountdown();
         if (tableSocket) {
           wsShouldReconnect = false;

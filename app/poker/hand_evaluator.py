@@ -113,21 +113,33 @@ def evaluate_5(cards: List[Card]) -> Tuple:
 
 
 def best_hand(seven_cards: List[Card]) -> Tuple[Tuple, List[Card]]:
-    """
-    Given 7 cards (2 hole + 5 board), return the best 5-card hand's ranking tuple
-    **and** the actual five cards that make up that hand.
+    """Legacy helper for NLH hands (choose any 5 of 7)."""
+    return best_hand_for_game([], seven_cards, game_type="nlh")
 
-    Higher tuple = better.
-    """
+
+def best_hand_for_game(
+    hole_cards: List[Card], board: List[Card], game_type: str = "nlh"
+) -> Tuple[Tuple, List[Card]]:
+    """Return best hand for Hold'em or PLO."""
+
     best_rank: Tuple | None = None
     best_combo: List[Card] | None = None
 
-    for combo in combinations(seven_cards, 5):
-        five_cards = list(combo)
-        rank = evaluate_5(five_cards)
-        if best_rank is None or rank > best_rank:
-            best_rank = rank
-            best_combo = five_cards
+    if game_type == "plo":
+        for hole_combo in combinations(hole_cards, 2):
+            for board_combo in combinations(board, 3):
+                five_cards = list(hole_combo + board_combo)
+                rank = evaluate_5(five_cards)
+                if best_rank is None or rank > best_rank:
+                    best_rank = rank
+                    best_combo = five_cards
+    else:
+        for combo in combinations(hole_cards + board, 5):
+            five_cards = list(combo)
+            rank = evaluate_5(five_cards)
+            if best_rank is None or rank > best_rank:
+                best_rank = rank
+                best_combo = five_cards
 
     if best_rank is None or best_combo is None:
         raise ValueError("Unable to determine best hand from the provided cards")

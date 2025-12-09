@@ -407,6 +407,14 @@
 
         <div class="modal-row">
           <div>
+            <label for="gameTypeInput">Game type</label>
+            <select id="gameTypeInput" name="game_type">
+              <option value="nlh">No Limit Hold'em</option>
+              <option value="plo">Pot Limit Omaha</option>
+            </select>
+            <div class="muted">Choose between NLH or PLO.</div>
+          </div>
+          <div>
             <label for="maxSeatsInput">Max seats</label>
             <input id="maxSeatsInput" name="max_seats" type="number" min="2" step="1" value="9" />
             <div class="muted">Choose how many players can join.</div>
@@ -488,6 +496,7 @@
     const maxSeatsInput = document.getElementById("maxSeatsInput");
     const tableNoteInput = document.getElementById("tableNote");
     const createTableError = document.getElementById("createTableError");
+    const gameTypeInput = document.getElementById("gameTypeInput");
     const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
     const cancelCreateTableBtnFooter = document.getElementById("cancelCreateTableBtnFooter");
     const submitCreateTableBtn = document.getElementById("submitCreateTableBtn");
@@ -778,7 +787,7 @@
         const info = document.createElement("div");
         info.innerHTML = `
           <strong>Table #${t.id}</strong>
-          <div class="muted">Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
+          <div class="muted">${(t.game_type || 'nlh').toUpperCase()} • Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
         `;
 
         const actions = document.createElement("div");
@@ -1057,6 +1066,7 @@
       const sbVal = Number(smallBlindInput?.value || 0);
       const bbVal = Number(bigBlindInput?.value || 0);
       const seatsVal = Number(maxSeatsInput?.value || 6);
+      const gameType = (gameTypeInput?.value || "nlh").toLowerCase();
 
       createTableError.textContent = "";
       if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
@@ -1079,7 +1089,7 @@
         }
         const data = await api("/tables/", {
           method: "POST",
-          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal }),
+          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal, game_type: gameType }),
         });
         await loadClubDetail();
         hideCreateTableModal();

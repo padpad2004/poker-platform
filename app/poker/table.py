@@ -45,9 +45,11 @@ class Table:
         big_blind: float = 2,
         bomb_pot_every_n_hands: Optional[int] = None,
         bomb_pot_amount: Optional[float] = None,
+        game_type: str = "nlh",
         action_time_limit: float = 30,
     ):
         self.max_seats = max_seats
+        self.game_type = game_type
         self.players: List[Player] = []
         self.deck: Deck = Deck()
         self.board: List[Card] = []
@@ -226,7 +228,12 @@ class Table:
         # Note: blinds are logged inside post_blinds
 
         # Deal 2 cards to each player
-        for _ in range(2):
+        for p in self.players:
+            p.hole_cards = []
+
+        hole_cards_to_deal = 4 if self.game_type == "plo" else 2
+
+        for _ in range(hole_cards_to_deal):
             for p in self.players:
                 if not p.in_hand:
                     continue
@@ -704,7 +711,7 @@ class Table:
 
     def determine_winner(self):
         """Return winner(s), their best-hand rank, and the best five cards for each player."""
-        from .hand_evaluator import best_hand
+        from .hand_evaluator import best_hand_for_game
 
         best_rank = None
         winners: List[Player] = []
@@ -713,8 +720,9 @@ class Table:
         active_players = [p for p in self.players if p.in_hand and not p.has_folded]
 
         for p in active_players:
-            seven = p.hole_cards + self.board
-            rank, best_five_cards = best_hand(seven)
+            rank, best_five_cards = best_hand_for_game(
+                p.hole_cards, self.board, game_type=self.game_type
+            )
             results[p.id] = {"hand_rank": rank, "best_five": best_five_cards}
 
             if best_rank is None or rank > best_rank:
