@@ -97,6 +97,8 @@ def ensure_schema():
                         "UPDATE poker_tables SET table_name = :name, game_type = :game_type WHERE id = :id"
                     ),
                     {"name": name, "game_type": game_type, "id": row["id"]},
+                conn.execute(
+                    text("ALTER TABLE poker_tables ADD COLUMN game_type TEXT DEFAULT 'holdem'")
                 )
 
         if "users" in existing_tables:

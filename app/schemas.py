@@ -129,6 +129,7 @@ class PokerTableMeta(BaseModel):
     bomb_pot_amount: Optional[float]
     game_type: str
     table_name: str
+    game_type: str = "holdem"
     status: str
     created_at: datetime
 
@@ -146,6 +147,7 @@ class ClubTableCreate(BaseModel):
     big_blind: float = 2
     bomb_pot_every_n_hands: Optional[int] = None
     bomb_pot_amount: Optional[float] = None
+    game_type: Literal["holdem", "plo"] = "holdem"
 
 
 # ---------- Poker Engine ----------
@@ -209,8 +211,16 @@ class TableState(BaseModel):
     big_blind_seat: Optional[int]
     small_blind: float
     big_blind: float
+    showdown_reveal_until: Optional[float] = None
+    game_type: str = "holdem"
+    hole_cards_per_player: int = 2
     players: List[PlayerState]
     recent_hands: List[TableHandHistory] = []
+    awaiting_runout_decision: bool = False
+    runout_requested_by: Optional[int] = None
+    runout_requested_count: Optional[int] = None
+    runout_confirmed_count: int = 1
+    runout_results: List[dict] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -224,6 +234,7 @@ class CreateTableRequest(BaseModel):
     bomb_pot_amount: Optional[float] = None
     table_name: Optional[str] = None
     game_type: Literal["NLH", "PLO"] = "NLH"
+    game_type: Literal["holdem", "plo"] = "holdem"
 
 
 class CreateTableResponse(BaseModel):
@@ -263,6 +274,16 @@ class ActionRequest(BaseModel):
     player_id: int
     action: Literal["fold", "check", "call", "raise_to"]
     amount: Optional[int] = None
+
+
+class RunoutRequest(BaseModel):
+    player_id: int
+    runouts: Literal[1, 2, 3]
+
+
+class RunoutResponse(BaseModel):
+    player_id: int
+    accept: bool
 
 
 class BalanceUpdateRequest(BaseModel):

@@ -24,6 +24,26 @@ TABLE_CONNECTIONS: Dict[int, Dict[WebSocket, Optional[int]]] = {}
 USER_CONNECTIONS: Dict[int, Set[WebSocket]] = {}
 
 
+def validate_nlh_table_rules(max_seats: int, small_blind: float, big_blind: float) -> None:
+    """Enforce basic No-Limit Hold'em table constraints.
+
+    - Tables must seat at least 2 and at most 9 players (standard NLH ring game).
+    - Blinds must be positive, with the big blind exactly twice the small blind.
+    """
+
+    if max_seats < 2 or max_seats > 9:
+        raise HTTPException(status_code=400, detail="NLH tables must have between 2 and 9 seats")
+
+    if small_blind <= 0 or big_blind <= 0:
+        raise HTTPException(status_code=400, detail="Blinds must be positive for NLH tables")
+
+    if big_blind != small_blind * 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Big blind must be exactly twice the small blind for NLH tables",
+        )
+
+
 @router.get("/online-count")
 def get_online_player_count(current_user: models.User = Depends(get_current_user)):
     """Return the number of distinct authenticated users considered online.
@@ -60,6 +80,8 @@ def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
         big_blind=table_meta.big_blind,
         bomb_pot_every_n_hands=table_meta.bomb_pot_every_n_hands,
         bomb_pot_amount=table_meta.bomb_pot_amount,
+        game_type=table_meta.game_type or "holdem",
+        hole_cards_per_player=4 if (table_meta.game_type or "holdem") == "plo" else 2,
     )
     TABLES[table_id] = table
     _restore_persisted_stacks(table_id, table, db)
@@ -155,6 +177,14 @@ def _table_state_for_viewer(
     game_type = (getattr(table_meta, "game_type", None) or "NLH").upper()
 
     state = schemas.TableState(
+    now = time.time()
+    reveal_until = engine_table.showdown_reveal_until
+    reveal_showdown = engine_table.street == "showdown" and (
+        reveal_until is None or now < reveal_until
+    )
+    showdown_reveal_until = reveal_until if reveal_showdown else None
+
+    return schemas.TableState(
         id=table_id,
         table_name=table_name,
         game_type=game_type,
@@ -170,6 +200,9 @@ def _table_state_for_viewer(
         big_blind_seat=engine_table.big_blind_seat,
         small_blind=engine_table.small_blind,
         big_blind=engine_table.big_blind,
+        showdown_reveal_until=showdown_reveal_until,
+        game_type=getattr(engine_table, "game_type", "holdem"),
+        hole_cards_per_player=getattr(engine_table, "hole_cards_per_player", 2),
         players=[
             schemas.PlayerState(
                 id=p.id,
@@ -183,7 +216,11 @@ def _table_state_for_viewer(
                 all_in=p.all_in,
                 hole_cards=(
                     [str(c) for c in p.hole_cards]
-                    if (p.user_id is None or p.user_id == viewer_user_id)
+                    if (
+                        p.user_id is None
+                        or p.user_id == viewer_user_id
+                        or (reveal_showdown and p.in_hand and not p.has_folded)
+                    )
                     else ["XX"] * len(p.hole_cards)
                 ),
                 user_id=p.user_id,
@@ -192,6 +229,11 @@ def _table_state_for_viewer(
             for p in engine_table.players
         ],
         recent_hands=engine_table.recent_hands,
+        awaiting_runout_decision=engine_table.awaiting_runout_decision,
+        runout_requested_by=engine_table.runout_requested_by,
+        runout_requested_count=engine_table.runout_requested_count,
+        runout_confirmed_count=engine_table.runout_confirmed_count,
+        runout_results=engine_table.runout_results,
     )
 
     if close_db:
@@ -394,20 +436,20 @@ def _auto_progress_hand(engine_table: Table) -> bool:
     if engine_table.street == "showdown":
         return True
 
+    if engine_table.awaiting_runout_decision:
+        return False
+
     if engine_table.next_to_act_seat is None and engine_table.betting_round_complete():
         try:
             if remaining and all(p.all_in for p in remaining):
-                if engine_table.street == "preflop":
-                    engine_table.deal_flop()
-                    engine_table.deal_turn()
-                    engine_table.deal_river()
-                elif engine_table.street == "flop":
-                    engine_table.deal_turn()
-                    engine_table.deal_river()
-                elif engine_table.street == "turn":
-                    engine_table.deal_river()
-                engine_table.showdown()
-                return True
+                if engine_table.street in {"preflop", "flop", "turn"}:
+                    engine_table.awaiting_runout_decision = True
+                    engine_table.next_to_act_seat = None
+                    engine_table.action_deadline = None
+                    return False
+                if engine_table.street == "river":
+                    engine_table.showdown()
+                    return True
 
             if engine_table.street == "preflop":
                 engine_table.deal_flop()
@@ -546,6 +588,13 @@ def _auto_start_hand_if_ready(engine_table: Table) -> bool:
     if engine_table.street not in {"prehand", "showdown"}:
         return False
 
+    if (
+        engine_table.street == "showdown"
+        and engine_table.showdown_reveal_until is not None
+        and time.time() < engine_table.showdown_reveal_until
+    ):
+        return False
+
     engine_table.start_new_hand()
     return True
 
@@ -650,6 +699,9 @@ def create_table(
 
     game_type = (req.game_type or "NLH").upper()
     table_name = resolve_table_name(req.table_name, req.small_blind, req.big_blind, game_type)
+    if req.game_type not in {"holdem", "plo"}:
+        raise HTTPException(status_code=400, detail="Unsupported game type")
+    validate_nlh_table_rules(req.max_seats, req.small_blind, req.big_blind)
 
     table_meta = models.PokerTable(
         club_id=req.club_id,
@@ -661,6 +713,7 @@ def create_table(
         bomb_pot_amount=req.bomb_pot_amount,
         game_type=game_type,
         table_name=table_name,
+        game_type=req.game_type,
         status="active",
     )
     db.add(table_meta)
@@ -673,6 +726,8 @@ def create_table(
         big_blind=req.big_blind,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
+        game_type=req.game_type,
+        hole_cards_per_player=4 if req.game_type == "plo" else 2,
     )
     TABLES[table_meta.id] = engine_table
 
@@ -911,6 +966,76 @@ async def player_action(
     return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
+@router.post("/{table_id}/runouts/request", response_model=schemas.TableState)
+async def request_runouts(
+    table_id: int,
+    req: schemas.RunoutRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+    try:
+        engine_table.request_runouts(req.player_id, req.runouts)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    await broadcast_table_state(table_id)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
+
+
+@router.post("/{table_id}/runouts/respond", response_model=schemas.TableState)
+async def respond_runouts(
+    table_id: int,
+    req: schemas.RunoutResponse,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    table_meta = _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+    try:
+        engine_table.respond_runouts(req.player_id, req.accept)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    hand_finished = False
+    if engine_table.awaiting_runout_decision and engine_table.runout_requested_by is None:
+        try:
+            engine_table.resolve_all_in_showdown()
+            hand_finished = True
+        except ValueError:
+            pass
+
+    if hand_finished:
+        _record_hand_history(table_meta, engine_table, db)
+        _process_pending_leavers(table_id, engine_table, db)
+        _auto_start_hand_if_ready(engine_table)
+
+    await broadcast_table_state(table_id)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
+
+
+@router.post("/{table_id}/runouts/resolve", response_model=schemas.TableState)
+async def resolve_runouts(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    table_meta = _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+    try:
+        engine_table.resolve_all_in_showdown()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    _record_hand_history(table_meta, engine_table, db)
+    _process_pending_leavers(table_id, engine_table, db)
+    _auto_start_hand_if_ready(engine_table)
+
+    await broadcast_table_state(table_id)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
+
+
 @router.post("/{table_id}/deal_flop", response_model=schemas.TableState)
 async def deal_flop(
     table_id: int,
@@ -980,7 +1105,7 @@ async def showdown(
 ):
     table_meta = _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _get_engine_table(table_id, db)
-    winners, best_rank, results, payouts = engine_table.showdown()
+    winners, best_rank, results, payouts, runout_details = engine_table.showdown()
 
     # Wallet balances are reconciled when players leave the table. Avoid
     # crediting winners here to prevent double-counting when they cash out.
@@ -1000,6 +1125,7 @@ async def showdown(
             for p in winners
         ],
         "best_rank": best_rank,
+        "runouts": runout_details,
         "table": _table_state(table_id, engine_table, viewer_user_id=current_user.id),
         "auto_started": started,
     }

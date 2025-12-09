@@ -1,5 +1,6 @@
 import time
 from dataclasses import dataclass, field
+from itertools import combinations, product
 from typing import Any, Dict, List, Optional, Set
 
 from .deck import Deck
@@ -38,6 +39,8 @@ class Table:
     - VERY basic betting (blinds, fold/call/raise_to)
     """
 
+    SHOWDOWN_REVEAL_SECONDS = 8
+
     def __init__(
         self,
         max_seats: int = 9,
@@ -46,6 +49,8 @@ class Table:
         bomb_pot_every_n_hands: Optional[int] = None,
         bomb_pot_amount: Optional[float] = None,
         action_time_limit: float = 30,
+        game_type: str = "holdem",
+        hole_cards_per_player: int = 2,
     ):
         self.max_seats = max_seats
         self.players: List[Player] = []
@@ -74,6 +79,10 @@ class Table:
         self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
         self.bomb_pot_amount: Optional[float] = bomb_pot_amount
 
+        # Game configuration
+        self.game_type = game_type
+        self.hole_cards_per_player = max(2, hole_cards_per_player)
+
         # Internal id counter to ensure player ids remain unique even after seats are vacated
         self._next_player_id: int = 1
 
@@ -81,9 +90,19 @@ class Table:
         self.recent_hands: List[Dict[str, Any]] = []
         self.current_hand_log: Optional[Dict[str, Any]] = None
 
+        # Grace period to display showdown hole cards before the next hand
+        self.showdown_reveal_until: Optional[float] = None
+
         # Track players who requested to leave during a hand so they can
         # automatically stand up once the hand finishes.
         self.pending_leave_user_ids: Set[int] = set()
+
+        # Run-out negotiation (run it once / twice / three times)
+        self.awaiting_runout_decision: bool = False
+        self.runout_requested_by: Optional[int] = None
+        self.runout_requested_count: Optional[int] = None
+        self.runout_confirmed_count: int = 1
+        self.runout_results: List[Dict[str, Any]] = []
 
     # ---------- Player & seating ----------
 
@@ -177,6 +196,7 @@ class Table:
         self.hand_number += 1
         self.deck.reset()
         self.board = []
+        self.runout_results = []
         self.pot = 0
         self.current_bet = 0
         self.street = "preflop"
@@ -184,10 +204,15 @@ class Table:
         self.big_blind_seat = None
         self.dealer_button_seat = None
         self.action_closing_seat = None
+        self.showdown_reveal_until = None
 
         # Remember each player's stack before blinds or bomb pots are taken so
         # net changes can be calculated when the hand finishes.
         self.hand_start_stacks = {p.id: p.stack for p in self.players}
+        self.awaiting_runout_decision = False
+        self.runout_requested_by = None
+        self.runout_requested_count = None
+        self.runout_confirmed_count = 1
 
         # Choose a valid dealer button seat and rotate when possible.
         # If the previous dealer seat is now empty (e.g., player moved seats),
@@ -223,8 +248,8 @@ class Table:
 
         # Note: blinds are logged inside post_blinds
 
-        # Deal 2 cards to each player
-        for _ in range(2):
+        # Deal hole cards to each player
+        for _ in range(self.hole_cards_per_player):
             for p in self.players:
                 if not p.in_hand:
                     continue
@@ -357,6 +382,7 @@ class Table:
         payouts: Dict[int, float],
         pot_amount: float,
         reason: str,
+        runout_results: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Push the current hand log into the rolling history buffer."""
 
@@ -376,6 +402,9 @@ class Table:
             ],
             "board": [str(c) for c in self.board],
         }
+
+        if runout_results:
+            result_payload["runouts"] = runout_results
 
         self.current_hand_log["result"] = result_payload
         self.current_hand_log["board"] = [str(c) for c in self.board]
@@ -634,6 +663,95 @@ class Table:
         """Public helper used by API to decide if we can auto-advance the street."""
         return self._betting_round_complete()
 
+    # ---------- Run-out negotiation ----------
+
+    def _all_in_remaining_players(self) -> List[Player]:
+        remaining = [p for p in self.players if p.in_hand and not p.has_folded]
+        if remaining and all(p.all_in for p in remaining):
+            return remaining
+        return []
+
+    def request_runouts(self, player_id: int, runouts: int) -> None:
+        if runouts not in (1, 2, 3):
+            raise ValueError("Run-outs must be 1, 2, or 3")
+
+        if self.street not in {"preflop", "flop", "turn"}:
+            raise ValueError("Run-outs are only available before the river")
+
+        if not self.awaiting_runout_decision:
+            raise ValueError("Run-outs can only be requested after all players are all-in")
+
+        if self.runout_requested_by is not None:
+            raise ValueError("A run-out request is already pending")
+
+        remaining = self._all_in_remaining_players()
+        if not remaining:
+            raise ValueError("Run-outs are only available when everyone is all-in")
+
+        starting_stacks = self.hand_start_stacks or {p.id: p.stack for p in remaining}
+        min_stack = min(starting_stacks.get(p.id, p.stack) for p in remaining)
+        eligible = [p.id for p in remaining if starting_stacks.get(p.id, p.stack) == min_stack]
+
+        if player_id not in eligible:
+            raise ValueError("Only the short stack can choose the number of run-outs")
+
+        self.runout_requested_by = player_id
+        self.runout_requested_count = runouts
+
+    def respond_runouts(self, player_id: int, accept: bool) -> None:
+        if self.runout_requested_by is None or self.runout_requested_count is None:
+            raise ValueError("No pending run-out request to respond to")
+
+        if player_id == self.runout_requested_by:
+            raise ValueError("Requesting player cannot respond to their own run-out")
+
+        remaining = self._all_in_remaining_players()
+        if not remaining:
+            raise ValueError("Run-out responses are only available when everyone is all-in")
+
+        if player_id not in [p.id for p in remaining]:
+            raise ValueError("Only active players can respond to run-out requests")
+
+        if not accept:
+            self.runout_requested_by = None
+            self.runout_requested_count = None
+            return
+
+        self.runout_confirmed_count = self.runout_requested_count
+        self.runout_requested_by = None
+        self.runout_requested_count = None
+
+    def _generate_runout_boards(self) -> List[List[Card]]:
+        base_board = list(self.board)
+        cards_needed = 5 - len(base_board)
+        if cards_needed < 0:
+            raise ValueError("Board already has more than 5 cards")
+
+        boards: List[List[Card]] = []
+        for _ in range(self.runout_confirmed_count or 1):
+            board = list(base_board)
+            board.extend(self.deck.deal_one() for _ in range(cards_needed))
+            boards.append(board)
+
+        return boards
+
+    def resolve_all_in_showdown(self):
+        remaining = self._all_in_remaining_players()
+        if not remaining:
+            raise ValueError("Run-outs are only available when everyone is all-in")
+
+        if self.street == "river":
+            return self.showdown()
+
+        if self.runout_requested_by is not None:
+            raise ValueError("Awaiting response to the run-out request")
+
+        runout_boards = self._generate_runout_boards()
+        self.awaiting_runout_decision = False
+        result = self.showdown(runout_boards=runout_boards)
+        self.runout_confirmed_count = 1
+        return result
+
     def _betting_round_settled(self) -> bool:
         for p in self.players:
             if not p.in_hand or p.has_folded or p.all_in:
@@ -679,19 +797,33 @@ class Table:
 
     # ---------- Showdown ----------
 
-    def determine_winner(self):
-        """Return winner(s), their best-hand rank, and the best five cards for each player."""
+    def _determine_winner_for_board(self, board: List[Card]):
         from .hand_evaluator import best_hand
 
         best_rank = None
         winners: List[Player] = []
-        results = {}
+        results: Dict[int, Dict[str, Any]] = {}
 
         active_players = [p for p in self.players if p.in_hand and not p.has_folded]
 
         for p in active_players:
-            seven = p.hole_cards + self.board
+            seven = p.hole_cards + board
             rank, best_five_cards = best_hand(seven)
+            if self.game_type == "plo" and len(p.hole_cards) >= 4 and len(self.board) >= 3:
+                # Omaha requires exactly 2 hole cards and 3 board cards
+                best_rank = None
+                best_five_cards = []
+                for hole_combo, board_combo in product(
+                    combinations(p.hole_cards, 2), combinations(self.board, 3)
+                ):
+                    rank, candidate = best_hand(list(hole_combo + board_combo))
+                    if best_rank is None or rank > best_rank:
+                        best_rank = rank
+                        best_five_cards = candidate
+                rank = best_rank if best_rank is not None else 0
+            else:
+                seven = p.hole_cards + self.board
+                rank, best_five_cards = best_hand(seven)
             results[p.id] = {"hand_rank": rank, "best_five": best_five_cards}
 
             if best_rank is None or rank > best_rank:
@@ -702,25 +834,71 @@ class Table:
 
         return winners, best_rank, results
 
-    def showdown(self):
-        """Evaluate the board, pay out the pot to winner(s), and return result details."""
-        winners, best_rank, results = self.determine_winner()
+    def showdown(self, runout_boards: Optional[List[List[Card]]] = None):
+        """Evaluate one or more boards, pay out the pot to winner(s), and return result details."""
 
-        payouts: dict[int, float] = {}
+        if runout_boards is None or len(runout_boards) == 0:
+            runout_boards = [self.board]
+
         pot_before = self.pot
+        total_payouts: Dict[int, float] = {}
+        runout_results: List[Dict[str, Any]] = []
 
-        if winners and self.pot > 0:
-            share = self.pot / len(winners)
+        per_run_pot = self.pot / len(runout_boards) if runout_boards else self.pot
 
-            for w in winners:
-                w.stack += share
-                payouts[w.id] = share
+        for board in runout_boards:
+            winners, best_rank, results = self._determine_winner_for_board(board)
+            payouts: Dict[int, float] = {}
 
-            self.pot = 0
+            if winners and per_run_pot > 0:
+                share = per_run_pot / len(winners)
+                for w in winners:
+                    w.stack += share
+                    payouts[w.id] = payouts.get(w.id, 0) + share
+                    total_payouts[w.id] = total_payouts.get(w.id, 0) + share
 
+            runout_results.append(
+                {
+                    "board": [str(c) for c in board],
+                    "winners": [w.id for w in winners],
+                    "best_rank": best_rank,
+                    "results": {
+                        pid: {
+                            "hand_rank": info["hand_rank"],
+                            "best_five": [str(c) for c in info["best_five"]],
+                        }
+                        for pid, info in results.items()
+                    },
+                    "payouts": payouts,
+                }
+            )
+
+        self.pot = 0
+        self.board = runout_boards[0]
         self.street = "showdown"
+        self.next_to_act_seat = None
+        self.action_deadline = None
+        self.showdown_reveal_until = time.time() + self.SHOWDOWN_REVEAL_SECONDS
         self._finalize_hand(winners, payouts, pot_before, reason="showdown")
         return winners, best_rank, results, payouts
+        self.runout_results = runout_results
+
+        winning_players = [self.get_player_by_id(pid) for pid in total_payouts.keys()]
+
+        self._finalize_hand(
+            winning_players,
+            total_payouts,
+            pot_before,
+            reason="showdown",
+            runout_results=runout_results,
+        )
+        return (
+            winning_players,
+            runout_results[0]["best_rank"],
+            runout_results[0]["results"],
+            total_payouts,
+            runout_results,
+        )
 
     def __repr__(self) -> str:
         players = ", ".join(repr(p) for p in self.players)

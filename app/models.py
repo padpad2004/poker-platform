@@ -115,6 +115,7 @@ class PokerTable(Base):
     bomb_pot_amount = Column(Float, nullable=True)
     game_type = Column(String, default="NLH")
     table_name = Column(String, nullable=False)
+    game_type = Column(String, default="holdem")  # holdem | plo
     status = Column(String, default="active")  # active | closed
     created_at = Column(DateTime, default=datetime.utcnow)
 
