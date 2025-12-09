@@ -113,7 +113,6 @@ class PokerTable(Base):
     big_blind = Column(Float, default=2.0)
     bomb_pot_every_n_hands = Column(Integer, nullable=True)
     bomb_pot_amount = Column(Float, nullable=True)
-    game_type = Column(String, default="NLH")
     table_name = Column(String, nullable=False)
     game_type = Column(String, default="holdem")  # holdem | plo
     status = Column(String, default="active")  # active | closed
