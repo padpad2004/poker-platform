@@ -511,12 +511,12 @@ def list_my_tables(
         .filter(
             models.ClubMember.user_id == current_user.id,
             models.ClubMember.status == "approved",
+            models.PokerTable.status == "active",
         )
         .all()
     )
 
-    for table in tables:
-        _close_table_if_expired(table, db)
+    tables = [table for table in tables if _close_table_if_expired(table, db).status == "active"]
 
     return tables
 
