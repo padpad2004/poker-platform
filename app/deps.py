@@ -43,3 +43,18 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+def is_club_owner(db: Session, club_id: int, user_id: int) -> bool:
+    membership = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.user_id == user_id,
+            models.ClubMember.status == "approved",
+            models.ClubMember.role == "owner",
+        )
+        .first()
+    )
+
+    return membership is not None

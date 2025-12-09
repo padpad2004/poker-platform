@@ -188,6 +188,8 @@
     const feedback = document.getElementById("feedback");
     const backLink = document.getElementById("backLink");
     const approveLink = document.getElementById("approveLink");
+    let currentClubDetail = null;
+    let canEditRoles = false;
 
     let accessToken = "";
     let currentUserEmail = "";
@@ -257,6 +259,16 @@
       approveLink.href = `/club-approvals.html?club_id=${clubId}`;
     }
 
+    function userIsOwner(detail) {
+      if (!detail || !currentUserId) return false;
+      if (detail.owner_id === currentUserId) return true;
+      return Array.isArray(detail.members)
+        ? detail.members.some(
+            (member) => member.user_id === currentUserId && member.role === "owner"
+          )
+        : false;
+    }
+
     function renderMembers(members) {
       membersBody.innerHTML = "";
       if (!members.length) {
@@ -270,6 +282,14 @@
       members.forEach((m) => {
         const tr = document.createElement("tr");
         tr.dataset.userId = m.user_id;
+        const isPrimaryOwner = currentClubDetail?.owner_id === m.user_id;
+        const nextRole = m.role === "owner" ? "member" : "owner";
+        const roleToggle =
+          canEditRoles && !isPrimaryOwner
+            ? `<button class="small" data-action="toggle-role" data-user-id="${m.user_id}" data-next-role="${nextRole}">${
+                m.role === "owner" ? "Remove Owner" : "Make Owner"
+              }</button>`
+            : "";
         tr.innerHTML = `
           <td>${m.user_email}</td>
           <td><span class="badge">${m.role}</span></td>
@@ -280,7 +300,10 @@
               <input type="number" placeholder="Amount" class="balanceInput" data-user-id="${m.user_id}" />
               <button class="small" data-action="add" data-user-id="${m.user_id}">Add Balance</button>
               <button class="btn-danger small" data-action="deduct" data-user-id="${m.user_id}">Remove Balance</button>
-              <button class="btn-danger small" data-action="remove" data-user-id="${m.user_id}" ${m.role === "owner" ? "disabled" : ""}>Remove Member</button>
+              ${roleToggle}
+              <button class="btn-danger small" data-action="remove" data-user-id="${m.user_id}" ${
+                isPrimaryOwner ? "disabled" : ""
+              }>Remove Member</button>
             </div>
           </td>
         `;
@@ -291,13 +314,15 @@
     async function loadClubDetail() {
       try {
         const detail = await api(`/clubs/${clubId}`);
+        currentClubDetail = detail;
+        canEditRoles = currentUserId === detail.owner_id;
         if (!currentUserId) {
           setFeedback("Could not verify your account. Please login again.", true);
           alert("Please login first.");
           window.location.href = "/";
           return;
         }
-        if (currentUserId && detail.owner_id !== currentUserId) {
+        if (!userIsOwner(detail)) {
           setFeedback("Only the club owner can manage members.", true);
           alert("Only the club owner can manage members of this club.");
           window.location.href = "/club-management";
@@ -334,6 +359,22 @@
       }
     }
 
+    async function updateRole(userId, nextRole) {
+      try {
+        setFeedback("Updating member role...");
+        await api(`/clubs/${clubId}/members/${userId}/role`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: nextRole }),
+        });
+        setFeedback("Member role updated.");
+        await loadClubDetail();
+      } catch (err) {
+        console.error(err);
+        setFeedback(err.message || "Failed to update member role", true);
+      }
+    }
+
     async function removeMember(userId) {
       const confirmed = window.confirm("Remove this member from the club?");
       if (!confirmed) return;
@@ -366,6 +407,10 @@
       }
       if (target.dataset.action === "remove") {
         removeMember(userId);
+      }
+      if (target.dataset.action === "toggle-role") {
+        const nextRole = target.dataset.nextRole;
+        updateRole(userId, nextRole);
       }
     });
 

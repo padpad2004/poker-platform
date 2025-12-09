@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app import models, schemas
-from app.deps import get_db, get_current_user
+from app.deps import get_db, get_current_user, is_club_owner
 
 router = APIRouter(tags=["users"])
 
@@ -214,12 +214,7 @@ def wallet_topup(
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
-    owner_membership = (
-        db.query(models.ClubMember)
-        .filter(models.ClubMember.user_id == current_user.id, models.ClubMember.role == "owner")
-        .first()
-    )
-    if not owner_membership:
+    if not is_club_owner(db, current_user.current_club_id or 0, current_user.id):
         raise HTTPException(
             status_code=403, detail="Only club owners can adjust wallet balances"
         )
@@ -258,7 +253,8 @@ def set_current_club(
         )
         .first()
     )
-    if not membership and club.owner_id != user.id:
+    is_owner = is_club_owner(db, club.id, user.id)
+    if not membership and not is_owner:
         raise HTTPException(status_code=403, detail="User is not approved for this club")
 
     user.current_club_id = club.id
