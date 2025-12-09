@@ -543,7 +543,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 16px;
     }
 
     .chip-animation-layer {
@@ -632,6 +632,11 @@
       gap: 12px;
       justify-content: center;
       align-items: center;
+      padding: 8px 10px 2px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.18));
+      position: relative;
+      z-index: 1;
     }
 
     @keyframes deal-card {
@@ -941,12 +946,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
+      gap: 10px;
+      padding: 12px 14px;
       background: rgba(0,0,0,0.25);
       border-radius: 16px;
       border: 1px solid rgba(255,255,255,0.12);
       box-shadow: 0 12px 24px rgba(0,0,0,0.45);
+      position: relative;
+      z-index: 2;
     }
 
     /* Bigger GG-style hole cards */
