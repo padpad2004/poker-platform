@@ -1133,15 +1133,14 @@
             small_blind: sbVal,
             big_blind: bbVal,
             table_name: tableNameInput?.value?.trim() || null,
-            game_type: (gameTypeSelect?.value || "NLH").toUpperCase(),
+            game_type: gameTypeVal,
           }),
-          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal, game_type: gameTypeVal }),
         });
         await loadClubDetail(currentClubId);
         hideCreateTableModal();
         if (tableNoteInput) tableNoteInput.value = "";
         if (tableNameInput) tableNameInput.value = "";
-        if (gameTypeSelect) gameTypeSelect.value = "NLH";
+        if (gameTypeSelect) gameTypeSelect.value = "holdem";
         alert(`Created table ${data.table_name}`);
       } catch (err) {
         createTableError.textContent = err.message || "Unable to create table.";
