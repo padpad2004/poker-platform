@@ -268,6 +268,19 @@
       gap: 12px;
       align-items: center;
       flex-wrap: wrap;
+      cursor: default;
+    }
+
+    .history-card.interactive {
+      cursor: pointer;
+      transition: transform 0.08s ease, border-color 0.12s ease;
+    }
+
+    .history-card.interactive:focus,
+    .history-card.interactive:hover {
+      outline: none;
+      border-color: rgba(34, 197, 94, 0.4);
+      transform: translateY(-1px);
     }
 
     .result { font-weight: 700; }
@@ -308,6 +321,7 @@
     }
 
     .modal-title { font-size: 18px; margin: 0; }
+    .modal-subtext { margin: 4px 0 0; color: var(--text-muted); }
 
     .report-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -324,6 +338,20 @@
     }
 
     .report-meta { color: var(--text-muted); font-size: 13px; }
+
+    .hand-replay-timeline { display: grid; gap: 10px; margin-top: 12px; }
+    .street-row { border: 1px solid var(--panel-border); border-radius: 12px; padding: 12px; background: linear-gradient(135deg, rgba(34,197,94,0.07), rgba(15,23,42,0.9)); position: relative; overflow: hidden; }
+    .street-row::before { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(37, 99, 235, 0.08)); opacity: 0; transition: opacity 0.2s ease; pointer-events: none; }
+    .street-row.active::before { opacity: 1; }
+    .street-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .street-label { font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: #9ca3af; }
+    .street-meta { color: var(--text-muted); font-size: 13px; }
+    .street-board { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .street-actions { color: var(--text-muted); font-size: 13px; margin: 0; }
+    .hand-hero { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+    .hand-hero strong { font-size: 18px; }
+    .hand-hero .pill { background: rgba(37, 99, 235, 0.2); border: 1px solid rgba(37, 99, 235, 0.4); color: #bfdbfe; }
+    .hand-hero .result { margin-left: auto; }
 
     @media (max-width: 640px) {
       header { flex-direction: column; align-items: flex-start; gap: 8px; }
@@ -440,6 +468,28 @@
     </div>
   </div>
 
+  <div id="handModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="handModalTitle">
+    <div class="modal-card" style="width:min(820px, 100%);">
+      <div class="modal-header">
+        <div>
+          <p id="handModalTitle" class="modal-title">Hand detail</p>
+          <p id="handModalSubtitle" class="modal-subtext">Replay the streets from preflop to river.</p>
+        </div>
+        <button class="btn secondary" id="handModalCloseBtn" type="button">Close</button>
+      </div>
+      <div id="handModalBody">
+        <div class="hand-hero">
+          <div>
+            <div id="handModalTable" style="font-weight:800; font-size:16px;"></div>
+            <div id="handModalMeta" class="muted"></div>
+          </div>
+          <div class="pill" id="handModalResult"></div>
+        </div>
+        <div class="hand-replay-timeline" id="handTimeline"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const AUTH_KEY = "poker_token";
 
@@ -500,6 +550,15 @@
     const reportSubtitle = document.getElementById("reportSubtitle");
     const reportContent = document.getElementById("reportContent");
     const reportCloseBtn = document.getElementById("reportCloseBtn");
+    const handModal = document.getElementById("handModal");
+    const handModalTitle = document.getElementById("handModalTitle");
+    const handModalSubtitle = document.getElementById("handModalSubtitle");
+    const handModalTable = document.getElementById("handModalTable");
+    const handModalMeta = document.getElementById("handModalMeta");
+    const handModalResult = document.getElementById("handModalResult");
+    const handModalCloseBtn = document.getElementById("handModalCloseBtn");
+    const handTimeline = document.getElementById("handTimeline");
+    let handReplayTimer = null;
 
     const presetAvatars = [
       { url: "/static/avatars/avatar-club.svg", label: "Club" },
@@ -719,6 +778,137 @@
       }
     }
 
+    function extractBoardCards(summary = "") {
+      const boardMatch = summary.match(/Board:\s*([A2-9TJQK][shdc](?:\s+[A2-9TJQK][shdc]){0,4})/i);
+      if (!boardMatch) return [];
+      return boardMatch[1]
+        .split(/\s+/)
+        .map((c) => c.trim())
+        .filter(Boolean);
+    }
+
+    function extractHandNumber(summary = "") {
+      const match = summary.match(/Hand\s*#(\d+)/i);
+      return match ? match[1] : null;
+    }
+
+    function buildStreetFrames(boardCards = []) {
+      const frames = [{ label: "Preflop", cards: [] }];
+      if (boardCards.length >= 3) frames.push({ label: "Flop", cards: boardCards.slice(0, 3) });
+      if (boardCards.length >= 4) frames.push({ label: "Turn", cards: boardCards.slice(0, 4) });
+      if (boardCards.length >= 5) frames.push({ label: "River", cards: boardCards.slice(0, 5) });
+      return frames;
+    }
+
+    function createCardPill(card) {
+      const pill = document.createElement("span");
+      pill.className = "pill";
+      pill.textContent = card;
+      return pill;
+    }
+
+    function stopHandReplay() {
+      if (handReplayTimer) {
+        clearTimeout(handReplayTimer);
+        handReplayTimer = null;
+      }
+    }
+
+    function setHandModalOpen(isOpen) {
+      if (!handModal) return;
+      handModal.classList.toggle("active", isOpen);
+      if (!isOpen) stopHandReplay();
+    }
+
+    function renderStreetTimeline(frames = []) {
+      if (!handTimeline) return;
+      handTimeline.innerHTML = "";
+
+      if (!frames.length) {
+        handTimeline.innerHTML = '<div class="muted">No board cards were recorded for this hand.</div>';
+        return;
+      }
+
+      frames.forEach((frame, idx) => {
+        const row = document.createElement("div");
+        row.className = "street-row";
+        if (idx === 0) row.classList.add("active");
+
+        const header = document.createElement("div");
+        header.className = "street-header";
+        const label = document.createElement("div");
+        label.className = "street-label";
+        label.textContent = frame.label;
+        const meta = document.createElement("div");
+        meta.className = "street-meta";
+        meta.textContent = frame.cards.length ? `${frame.cards.length} cards on board` : "Preflop action";
+        header.appendChild(label);
+        header.appendChild(meta);
+        row.appendChild(header);
+
+        const board = document.createElement("div");
+        board.className = "street-board";
+        if (frame.cards.length) {
+          frame.cards.forEach((card) => board.appendChild(createCardPill(card)));
+        } else {
+          const text = document.createElement("div");
+          text.className = "street-actions";
+          text.textContent = "Players act preflop.";
+          board.appendChild(text);
+        }
+        row.appendChild(board);
+
+        const actions = document.createElement("p");
+        actions.className = "street-actions";
+        actions.textContent = frame.label === "Preflop"
+          ? "Blinds posted and cards dealt."
+          : "Board revealed in true ClubGG fashion.";
+        row.appendChild(actions);
+
+        handTimeline.appendChild(row);
+      });
+
+      const rows = Array.from(handTimeline.querySelectorAll(".street-row"));
+      let idx = 0;
+      const revealNext = () => {
+        rows.forEach((row, i) => row.classList.toggle("active", i <= idx));
+        if (idx < rows.length - 1) {
+          handReplayTimer = setTimeout(() => {
+            idx += 1;
+            revealNext();
+          }, 1100);
+        }
+      };
+
+      stopHandReplay();
+      handReplayTimer = setTimeout(revealNext, 350);
+    }
+
+    function openHandModal(hand) {
+      if (!hand) return;
+      const handNumber = extractHandNumber(hand.summary) || hand.id;
+      const boardCards = extractBoardCards(hand.summary);
+      const frames = buildStreetFrames(boardCards);
+
+      if (handModalTitle) handModalTitle.textContent = handNumber ? `Hand #${handNumber}` : "Hand detail";
+      if (handModalSubtitle) handModalSubtitle.textContent = "Relive the street-by-street reveal.";
+      if (handModalTable) handModalTable.textContent = hand.table_name || "Table";
+      if (handModalMeta) {
+        const timestamp = hand.created_at ? new Date(hand.created_at).toLocaleString() : "";
+        handModalMeta.textContent = [timestamp, hand.summary].filter(Boolean).join(" • ");
+      }
+
+      if (handModalResult) {
+        const net = Number(hand.net_change);
+        const sign = Number.isFinite(net) && net >= 0 ? "+" : "";
+        handModalResult.textContent = `${hand.result || "Result"}${Number.isFinite(net) ? ` (${sign}${net})` : ""}`;
+        handModalResult.className = `pill result ${Number.isFinite(net) && net < 0 ? "loss" : "win"}`;
+      }
+
+      renderStreetTimeline(frames);
+      setHandModalOpen(true);
+    }
+
     function renderHistory(items) {
       historyList.innerHTML = "";
       if (!items.length) {
@@ -728,7 +918,8 @@
 
       items.forEach((hand) => {
         const card = document.createElement("div");
-        card.className = "history-card";
+        card.className = "history-card interactive";
+        card.tabIndex = 0;
 
         const left = document.createElement("div");
         left.innerHTML = `<div style="font-weight:700">${hand.table_name}</div><div class="muted">${new Date(hand.created_at).toLocaleString()}</div>`;
@@ -748,6 +939,14 @@
 
         card.appendChild(left);
         card.appendChild(right);
+        const openHand = () => openHandModal(hand);
+        card.addEventListener("click", openHand);
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openHand();
+          }
+        });
         historyList.appendChild(card);
       });
     }
@@ -996,8 +1195,15 @@
     reportModal?.addEventListener("click", (event) => {
       if (event.target === reportModal) setReportModalOpen(false);
     });
+    handModalCloseBtn?.addEventListener("click", () => setHandModalOpen(false));
+    handModal?.addEventListener("click", (event) => {
+      if (event.target === handModal) setHandModalOpen(false);
+    });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") setReportModalOpen(false);
+      if (event.key === "Escape") {
+        setReportModalOpen(false);
+        setHandModalOpen(false);
+      }
     });
 
     avatarForm.addEventListener("submit", async (event) => {
