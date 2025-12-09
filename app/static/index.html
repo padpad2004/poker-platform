@@ -2855,7 +2855,8 @@
         if (amt <= currentBet) {
           amt = currentBet + 1;
         }
-        sendAction(actingPlayer.id, "raise_to", amt);
+        raiseCustomInput.value = amt;
+        raiseCustomInput.focus();
       };
 
       raise30Btn.onclick = makePctHandler(0.3);
