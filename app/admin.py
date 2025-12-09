@@ -24,7 +24,31 @@ def get_admin_overview(
 ):
     users = db.query(models.User).order_by(models.User.created_at.desc()).all()
     clubs = db.query(models.Club).order_by(models.Club.created_at.desc()).all()
-    return schemas.AdminOverview(users=users, clubs=clubs)
+
+    owner_ids = {club.owner_id for club in clubs}
+    owners = (
+        db.query(models.User)
+        .filter(models.User.id.in_(owner_ids))
+        .all()
+        if owner_ids
+        else []
+    )
+    owner_lookup = {owner.id: owner.email for owner in owners}
+
+    serialized_clubs = [
+        schemas.ClubRead(
+            id=club.id,
+            name=club.name,
+            crest_url=club.crest_url,
+            owner_id=club.owner_id,
+            owner_email=owner_lookup.get(club.owner_id),
+            status=club.status,
+            created_at=club.created_at,
+        )
+        for club in clubs
+    ]
+
+    return schemas.AdminOverview(users=users, clubs=serialized_clubs)
 
 
 @router.delete("/clubs/{club_id}", status_code=status.HTTP_204_NO_CONTENT)

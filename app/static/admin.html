@@ -342,7 +342,8 @@
 
         const ownerRow = document.createElement("div");
         ownerRow.className = "meta";
-        ownerRow.textContent = `Owner ID: ${club.owner_id}`;
+        const ownerDisplay = club.owner_email || club.owner_id;
+        ownerRow.textContent = `Owner: ${ownerDisplay}`;
 
         const statusRow = document.createElement("div");
         statusRow.className = "meta";

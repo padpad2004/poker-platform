@@ -11,6 +11,23 @@ from .club_cleanup import delete_club_with_relations
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
 
+def get_owner_email(db: Session, owner_id: int) -> str | None:
+    owner = db.query(models.User).filter(models.User.id == owner_id).first()
+    return owner.email if owner else None
+
+
+def build_club_read(club: models.Club, db: Session) -> schemas.ClubRead:
+    return schemas.ClubRead(
+        id=club.id,
+        name=club.name,
+        crest_url=club.crest_url,
+        owner_id=club.owner_id,
+        owner_email=get_owner_email(db, club.owner_id),
+        status=club.status,
+        created_at=club.created_at,
+    )
+
+
 @router.post("/", response_model=schemas.ClubRead)
 def create_club(
     club_in: schemas.ClubCreate,
@@ -32,7 +49,7 @@ def create_club(
     db.add(member)
     db.commit()
 
-    return club
+    return build_club_read(club, db)
 
 
 @router.patch("/{club_id}/crest", response_model=schemas.ClubRead)
@@ -53,7 +70,7 @@ def update_club_crest(
     db.add(club)
     db.commit()
     db.refresh(club)
-    return club
+    return build_club_read(club, db)
 
 
 @router.get("/", response_model=list[schemas.ClubRead])
@@ -70,7 +87,7 @@ def list_my_clubs(
         )
         .all()
     )
-    return clubs
+    return [build_club_read(club, db) for club in clubs]
 
 
 @router.post("/{club_id}/join", response_model=schemas.ClubRead)
@@ -92,7 +109,7 @@ def join_club(
         .first()
     )
     if existing:
-        return club
+        return build_club_read(club, db)
 
     member = models.ClubMember(
         club_id=club_id,
@@ -102,7 +119,7 @@ def join_club(
     )
     db.add(member)
     db.commit()
-    return club
+    return build_club_read(club, db)
 
 
 @router.post("/{club_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
@@ -235,6 +252,7 @@ def get_club_detail(
         name=club.name,
         crest_url=club.crest_url,
         owner_id=club.owner_id,
+        owner_email=get_owner_email(db, club.owner_id),
         status=club.status,
         created_at=club.created_at,
         members=members,

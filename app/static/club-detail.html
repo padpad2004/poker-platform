@@ -972,7 +972,8 @@
         }
 
         clubTitle.textContent = detail.name;
-        clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+        const ownerDisplay = detail.owner_email || detail.owner_id;
+        clubMeta.textContent = `Club ID #${detail.id} • Owner ${ownerDisplay}`;
         clubStatus.textContent = detail.status;
         if (manageMembersLink) {
           manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;

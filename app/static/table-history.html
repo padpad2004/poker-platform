@@ -234,7 +234,8 @@
 
       const detail = await api(`/clubs/${currentClubId}`);
       title.textContent = detail.name;
-      meta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+      const ownerDisplay = detail.owner_email || detail.owner_id;
+      meta.textContent = `Club ID #${detail.id} • Owner ${ownerDisplay}`;
       status.textContent = detail.status;
       if (backLink) backLink.href = `/club-detail.html?club_id=${detail.id}`;
     }
