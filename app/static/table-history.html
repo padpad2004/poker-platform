@@ -172,11 +172,12 @@
 
     function requireAuth() {
       const auth = loadAuth();
-      if (!auth?.access_token) {
+      const token = auth?.token || auth?.access_token;
+      if (!token) {
         window.location.href = "/login.html";
         throw new Error("Login required");
       }
-      accessToken = auth.access_token;
+      accessToken = token;
     }
 
     async function api(path, options = {}) {
