@@ -436,17 +436,6 @@
       border-style: dashed;
     }
 
-    /* Seat positions (9-max) */
-    .seat[data-seat="0"] { top: 12%; left: 50%; }
-    .seat[data-seat="1"] { top: 22%; left: 78%; }
-    .seat[data-seat="2"] { top: 38%; left: 87%; }
-    .seat[data-seat="3"] { top: 58%; left: 87%; }
-    .seat[data-seat="4"] { top: 74%; left: 78%; }
-    .seat[data-seat="5"] { top: 88%; left: 50%; }
-    .seat[data-seat="6"] { top: 74%; left: 22%; }
-    .seat[data-seat="7"] { top: 58%; left: 13%; }
-    .seat[data-seat="8"] { top: 38%; left: 13%; }
-
     .seat.highlight .seat-inner {
       border-color: var(--accent);
       box-shadow: 0 0 0 1px rgba(34,197,94,0.6), 0 8px 16px rgba(0,0,0,0.8);
@@ -1017,6 +1006,23 @@
     let bigBlind = 2; // default; update if you change createTable values
     let currentUserBalance = 0;
 
+    const DEFAULT_SEAT_RADIUS = { x: 42, y: 34 };
+
+    function generateSeatPositions(totalSeats, viewerSeat = Math.floor(totalSeats / 2), radius = DEFAULT_SEAT_RADIUS) {
+      const seatCount = Math.max(2, totalSeats);
+      const anchorSeat = Math.min(Math.max(viewerSeat, 0), seatCount - 1);
+      const angleStep = 360 / seatCount;
+      const angleOffset = 90 - angleStep * anchorSeat; // place anchor seat at bottom center
+
+      return Array.from({ length: seatCount }, (_, idx) => {
+        const angleRad = ((angleOffset + angleStep * idx) * Math.PI) / 180;
+        return {
+          top: `${50 + radius.y * Math.sin(angleRad)}%`,
+          left: `${50 + radius.x * Math.cos(angleRad)}%`,
+        };
+      });
+    }
+
     // DOM elements
     const emailInput = document.getElementById("emailInput");
     const passwordInput = document.getElementById("passwordInput");
@@ -1058,6 +1064,19 @@
     const currentBetSpan = document.getElementById("currentBet");
     const nextToActSpan = document.getElementById("nextToAct");
     const rawStatePre = document.getElementById("rawState");
+
+    const seatElements = Array.from(document.querySelectorAll(".seat"));
+    const defaultSeatPositions = generateSeatPositions(seatElements.length, 5);
+
+    function applySeatPositions(positions = defaultSeatPositions) {
+      seatElements.forEach((seatEl, idx) => {
+        const pos = positions[idx] || positions[positions.length - 1] || { top: "50%", left: "50%" };
+        seatEl.style.top = pos.top;
+        seatEl.style.left = pos.left;
+      });
+    }
+
+    applySeatPositions();
 
     const boardCardsSpan = document.getElementById("boardCards");
     const potCenterSpan = document.getElementById("potCenter");
