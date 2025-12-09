@@ -512,6 +512,12 @@
       transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
     }
 
+    .seat.sitting-out .seat-inner {
+      opacity: 0.65;
+      filter: grayscale(0.5);
+      border-color: rgba(156, 163, 175, 0.4);
+    }
+
     .seat-main {
       display: grid;
       grid-template-columns: 76px 1fr;
@@ -1505,6 +1511,8 @@
         <div class="table-panel-actions">
           <button id="toggleControlsBtn" class="btn secondary">Hide control panel</button>
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
+          <button id="sitOutBtn" class="btn secondary" disabled>Sit out</button>
+          <button id="returnToPlayBtn" class="btn secondary" disabled>I'm back</button>
           <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
         </div>
       </div>
@@ -1855,22 +1863,18 @@
     const TOTAL_SEATS = 6;
     const VIEWER_DISPLAY_SEAT = 3; // bottom center anchor
     const SEAT_DISPLAY_POSITIONS = [
-      { top: "20%", left: "50%" },
-      { top: "32%", left: "82%" },
-      { top: "68%", left: "82%" },
-      { top: "82%", left: "50%" },
-      { top: "68%", left: "18%" },
-      { top: "32%", left: "18%" },
+      { top: "16%", left: "50%" },
+      { top: "32%", left: "85%" },
+      { top: "70%", left: "85%" },
+      { top: "86%", left: "50%" },
+      { top: "70%", left: "15%" },
+      { top: "32%", left: "15%" },
     ];
 
     function formatChips(value, decimals = 2) {
       const num = Number(value ?? 0);
-      if (!Number.isFinite(num)) return "0";
-      return num.toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: decimals,
-        useGrouping: false,
-      });
+      if (!Number.isFinite(num)) return (0).toFixed(decimals);
+      return num.toFixed(decimals);
     }
 
     // DOM elements
@@ -1941,6 +1945,8 @@
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
+    const sitOutBtn = document.getElementById("sitOutBtn");
+    const returnToPlayBtn = document.getElementById("returnToPlayBtn");
     const toggleControlsBtn = document.getElementById("toggleControlsBtn");
     const handHistoryList = document.getElementById("handHistoryList");
     const handHistoryPanel = document.querySelector(".hand-history-panel");
@@ -2004,7 +2010,7 @@
       document.querySelectorAll(".seat.timer-warning").forEach(seat => seat.classList.remove("timer-warning"));
     }
 
-    function startActingTimer(seatNumber) {
+    function startActingTimer(seatNumber, actionDeadlineSeconds) {
       clearActingTimer();
       if (seatNumber == null) return;
 
@@ -2018,9 +2024,12 @@
       actingTimerSeat = seatNumber;
       timerWarningFired = false;
 
-      const deadline = Date.now() + ACTING_TIME_MS;
+      const now = Date.now();
+      const deadline = actionDeadlineSeconds
+        ? actionDeadlineSeconds * 1000
+        : now + ACTING_TIME_MS;
 
-      actingTimerInterval = setInterval(() => {
+      const updateTimer = () => {
         const remaining = Math.max(0, deadline - Date.now());
         const pct = Math.max(0, Math.min(1, remaining / ACTING_TIME_MS));
         fill.style.width = `${pct * 100}%`;
@@ -2037,7 +2046,10 @@
         if (remaining <= 0) {
           clearActingTimer();
         }
-      }, 200);
+      };
+
+      updateTimer();
+      actingTimerInterval = setInterval(updateTimer, 200);
     }
 
     // Big card popup elements
@@ -2520,7 +2532,7 @@
       const seats = document.querySelectorAll(".seat");
       seats.forEach(seat => {
         seat.classList.add("empty");
-        seat.classList.remove("highlight");
+        seat.classList.remove("highlight", "sitting-out", "timer-warning");
 
         const nameEl = seat.querySelector(".seat-name");
         const stackEl = seat.querySelector(".seat-stack");
@@ -2829,7 +2841,7 @@
       const viewerSeat = getViewerSeat(state);
       const isViewerTurn = viewerSeat != null && actingPlayer.user_id === currentUserId;
       const shouldShowDock =
-        isViewerTurn && !actingPlayer.has_folded && actingPlayer.in_hand !== false;
+        isViewerTurn && !actingPlayer.has_folded && actingPlayer.in_hand !== false && !actingPlayer.sitting_out;
 
       if (actionDock) {
         actionDock.classList.toggle("visible", shouldShowDock);
@@ -2866,7 +2878,8 @@
         if (amt <= currentBet) {
           amt = currentBet + 1;
         }
-        sendAction(actingPlayer.id, "raise_to", amt);
+        raiseCustomInput.value = amt;
+        raiseCustomInput.focus();
       };
 
       raise30Btn.onclick = makePctHandler(0.3);
@@ -3019,11 +3032,12 @@
       lastState = state;
 
       const nextSeatChanged = prevState?.next_to_act_seat !== state.next_to_act_seat;
-      if (nextSeatChanged) {
+      const deadlineChanged = prevState?.action_deadline !== state.action_deadline;
+      if (nextSeatChanged || deadlineChanged) {
         if (state.next_to_act_seat == null) {
           clearActingTimer();
         } else {
-          startActingTimer(state.next_to_act_seat);
+          startActingTimer(state.next_to_act_seat, state.action_deadline);
         }
       }
 
@@ -3083,6 +3097,7 @@
         }
 
         seatDiv.classList.remove("empty");
+        seatDiv.classList.toggle("sitting-out", Boolean(p.sitting_out));
 
         const nameEl = seatDiv.querySelector(".seat-name");
         const stackEl = seatDiv.querySelector(".seat-stack");
@@ -3121,7 +3136,9 @@
 
         // Status
         if (statusEl) {
-          if (p.has_folded) {
+          if (p.sitting_out) {
+            statusEl.textContent = "Sitting out";
+          } else if (p.has_folded) {
             statusEl.textContent = "Folded";
           } else if (p.all_in) {
             statusEl.textContent = "All-in";
@@ -3178,14 +3195,15 @@
         const isActingSeat = state.next_to_act_seat === p.seat;
 
         if (timerBar) {
-          timerBar.classList.toggle("active", isActingSeat || actingTimerSeat === p.seat);
+          const timerShouldShow = !p.sitting_out && (isActingSeat || actingTimerSeat === p.seat);
+          timerBar.classList.toggle("active", timerShouldShow);
         }
 
-        if (!isActingSeat && timerFill && actingTimerSeat !== p.seat) {
+        if ((!isActingSeat || p.sitting_out) && timerFill && actingTimerSeat !== p.seat) {
           timerFill.style.width = "0%";
         }
 
-        if (isActingSeat) {
+        if (isActingSeat && !p.sitting_out) {
           seatDiv.classList.add("highlight");
         } else {
           seatDiv.classList.remove("highlight", "timer-warning");
@@ -3226,21 +3244,43 @@
       return mine ? mine.seat : null;
     }
 
+    function getViewerPlayer(state) {
+      if (!state || currentUserId == null) return null;
+      return state.players?.find(p => p.user_id === currentUserId) || null;
+    }
+
     function updateLeaveButton() {
       if (!leaveTableBtn) return;
       const mySeat = getViewerSeat(lastState);
+      const viewer = getViewerPlayer(lastState);
+      const sittingOut = viewer?.sitting_out;
+
       leaveTableBtn.disabled = !tableId || mySeat == null;
       leaveTableBtn.textContent = mySeat == null
         ? "Leave table"
         : `Leave table (seat ${mySeat})`;
+
+      if (sitOutBtn) {
+        sitOutBtn.disabled = !tableId || mySeat == null || Boolean(sittingOut);
+      }
+
+      if (returnToPlayBtn) {
+        returnToPlayBtn.disabled = !tableId || mySeat == null || !Boolean(sittingOut);
+      }
     }
 
     function updateSeatChangeUI() {
       if (!seatActionMessage || !lastState) return;
       const mySeat = getViewerSeat(lastState);
+      const viewer = getViewerPlayer(lastState);
       if (mySeat == null) {
         seatActionMessage.textContent = "Tap an empty seat to join.";
         if (changeSeatBtn) changeSeatBtn.disabled = true;
+        return;
+      }
+      if (viewer?.sitting_out) {
+        seatActionMessage.textContent = `You are seated at #${mySeat} and sitting out. Tap I'm back to rejoin.`;
+        if (changeSeatBtn) changeSeatBtn.disabled = false;
         return;
       }
       seatActionMessage.textContent = `You are seated at #${mySeat}. Use Change Seat to move.`;
@@ -3324,6 +3364,13 @@
         await fetchMe();
         const refreshedState = await api(`/tables/${tableId}`, { method: "GET" });
         renderState(refreshedState);
+        const leaveNotice =
+          "You'll leave the table after the current hand finishes. You can still play this hand.";
+        if (typeof window.showCustomAlert === "function") {
+          window.showCustomAlert(leaveNotice);
+        } else if (typeof window.alert === "function") {
+          window.alert(leaveNotice);
+        }
       } catch (err) {
         alert(err.message);
       } finally {
@@ -3334,6 +3381,45 @@
     if (leaveTableBtn) {
       leaveTableBtn.onclick = handleLeaveTable;
     }
+
+    async function handleSitOut() {
+      if (!sitOutBtn || !tableId) return;
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+
+      try {
+        sitOutBtn.disabled = true;
+        const state = await api(`/tables/${tableId}/sit_out`, { method: "POST" });
+        renderState(state);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        updateLeaveButton();
+      }
+    }
+
+    async function handleReturnToPlay() {
+      if (!returnToPlayBtn || !tableId) return;
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+
+      try {
+        returnToPlayBtn.disabled = true;
+        const state = await api(`/tables/${tableId}/return`, { method: "POST" });
+        renderState(state);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        updateLeaveButton();
+      }
+    }
+
+    if (sitOutBtn) sitOutBtn.onclick = handleSitOut;
+    if (returnToPlayBtn) returnToPlayBtn.onclick = handleReturnToPlay;
 
     function clearWebSocketTimers() {
       if (wsReconnectTimer) {

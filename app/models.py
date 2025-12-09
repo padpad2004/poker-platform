@@ -93,6 +93,8 @@ class TableReportEntry(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     table_report_id = Column(Integer, ForeignKey("table_reports.id"), nullable=False)
+    table_id = Column(Integer, ForeignKey("poker_tables.id"), nullable=False)
+    club_id = Column(Integer, ForeignKey("clubs.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     buy_in = Column(Integer, nullable=False)
     cash_out = Column(Integer, nullable=True)
