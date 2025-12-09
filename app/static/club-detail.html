@@ -988,8 +988,8 @@
           manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;
         }
         if (balanceControlLink) {
-          balanceControlLink.href = `/club-members.html?club_id=${detail.id}`;
-          balanceControlLink.title = "Add or deduct member balances";
+          balanceControlLink.href = `/club-balances.html?club_id=${detail.id}`;
+          balanceControlLink.title = "Adjust member balances";
         }
         setCrestAvatar(clubCrest, detail.crest_url, detail.name || "Club");
         selectedCrestUrl = detail.crest_url || crestOptions[0]?.url || "";

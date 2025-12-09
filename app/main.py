@@ -101,6 +101,12 @@ def read_club_members_page():
     return _serve_html("club-members.html")
 
 
+@app.get("/club-balances")
+@app.get("/club-balances.html")
+def read_club_balances_page():
+    return _serve_html("club-balances.html")
+
+
 @app.get("/club-approvals")
 @app.get("/club-approvals.html")
 def read_club_approvals_page():
