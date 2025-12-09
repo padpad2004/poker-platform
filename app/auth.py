@@ -17,6 +17,8 @@ from .deps import SECRET_KEY, ALGORITHM, get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+AUTO_APPROVED_EMAILS = {"paddywarren99@gmail.com"}
+
 # Use pbkdf2_sha256 to avoid bcrypt issues
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -43,6 +45,10 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=1
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def is_auto_approved(email: str) -> bool:
+    return email.lower() in AUTO_APPROVED_EMAILS
+
+
 @router.post("/register", response_model=schemas.UserRead)
 def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
@@ -59,7 +65,7 @@ def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
         username=user_in.username,
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
-        is_active=False,
+        is_active=is_auto_approved(user_in.email),
     )
     db.add(user)
     db.commit()
@@ -128,11 +134,17 @@ def login_for_access_token(
             detail="Incorrect email or password",
         )
 
-    if not user.is_active:
+    if not user.is_active and not is_auto_approved(user.email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account pending approval by an administrator",
         )
+
+    if is_auto_approved(user.email) and not user.is_active:
+        user.is_active = True
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     token = create_access_token({"sub": str(user.id)})
     return TokenResponse(access_token=token)
