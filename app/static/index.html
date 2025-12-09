@@ -353,6 +353,14 @@
       align-items: start;
     }
 
+    .table-area.chat-hidden {
+      grid-template-columns: 1fr;
+    }
+
+    .table-area.chat-hidden .chat-panel {
+      display: none;
+    }
+
     .chat-panel {
       background: radial-gradient(circle at top, rgba(59,130,246,0.08) 0, #0b1120 70%);
       border: 1px solid var(--panel-border);
@@ -1739,6 +1747,7 @@
         </div>
         <div class="table-panel-actions">
           <button id="toggleControlsBtn" class="btn secondary">Hide control panel</button>
+          <button id="toggleChatVisibilityBtn" class="btn secondary" aria-pressed="false">Hide chat</button>
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
           <button id="sitOutBtn" class="btn secondary" disabled>Sit out</button>
           <button id="returnToPlayBtn" class="btn secondary" disabled>I'm back</button>
@@ -2301,6 +2310,14 @@
       if (chatSendBtn) chatSendBtn.disabled = !isConnected || !tableId;
     }
 
+    function setChatVisibility(isVisible) {
+      if (!tableArea || !chatVisibilityToggle) return;
+
+      tableArea.classList.toggle("chat-hidden", !isVisible);
+      chatVisibilityToggle.textContent = isVisible ? "Hide chat" : "Show chat";
+      chatVisibilityToggle.setAttribute("aria-pressed", (!isVisible).toString());
+    }
+
     function renderChatMessages() {
       if (!chatMessagesEl) return;
       chatMessagesEl.innerHTML = "";
@@ -2414,6 +2431,8 @@
     const chatForm = document.getElementById("chatForm");
     const chatInput = document.getElementById("chatInput");
     const chatSendBtn = document.getElementById("chatSendBtn");
+    const chatVisibilityToggle = document.getElementById("toggleChatVisibilityBtn");
+    const tableArea = document.querySelector(".table-area");
 
     const seatElements = document.querySelectorAll(".seat");
     let totalSeats = Math.min(seatElements.length, 9);
@@ -4196,6 +4215,15 @@
         } else {
           alert("Chat connection is not ready yet. Trying to reconnect...");
         }
+      });
+    }
+
+    if (chatVisibilityToggle && tableArea) {
+      setChatVisibility(true);
+
+      chatVisibilityToggle.addEventListener("click", () => {
+        const isCurrentlyHidden = tableArea.classList.contains("chat-hidden");
+        setChatVisibility(isCurrentlyHidden);
       });
     }
 
