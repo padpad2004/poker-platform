@@ -372,8 +372,10 @@
 
       try {
         const club = await api(`/clubs/${clubId}/join`, { method: "POST" });
-        showSuccess(`Joined ${club.name || "club"}! Redirecting...`);
-        setTimeout(() => (window.location.href = "/available-tables"), 800);
+        showSuccess(
+          `Joined ${club.name || "club"}! You need approval from the club owner before you can play. Redirecting...`
+        );
+        setTimeout(() => (window.location.href = "/available-tables"), 1200);
       } catch (err) {
         showError(err.message || "Unable to join club. Please try again.");
       }
