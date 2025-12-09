@@ -265,7 +265,6 @@
       <form id="joinForm" class="section-card">
         <div class="section-header">
           <div>
-            <div class="pill">Step 1</div>
             <h2>Join with a code</h2>
           </div>
           <span class="section-hint">Provided by your host</span>
@@ -284,27 +283,20 @@
         <div class="success" id="successBox"></div>
       </form>
 
-      <form id="createForm" class="section-card create-card">
+      <div class="section-card create-card">
         <div class="section-header">
           <div>
-            <div class="pill accent">New</div>
             <h2>Create a club</h2>
           </div>
           <span class="section-hint">Host your own tables</span>
         </div>
 
-        <label for="clubName">Club name</label>
-        <input type="text" id="clubName" name="clubName" placeholder="e.g. High Rollers" required />
-        <p class="tip">A default crest will be applied. You can update it later.</p>
+        <p class="tip">Go to the create club page to set up your own club and generate an invite code.</p>
 
         <div class="actions">
-          <button type="submit">Create club</button>
-          <span class="helper-text">Instantly generate a shareable code</span>
+          <a class="button-link" href="/create-club.html">Create your own club</a>
         </div>
-
-        <div class="error" id="createError"></div>
-        <div class="success" id="createSuccess"></div>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -320,9 +312,6 @@
     const joinForm = document.getElementById("joinForm");
     const errorBox = document.getElementById("errorBox");
     const successBox = document.getElementById("successBox");
-    const createForm = document.getElementById("createForm");
-    const createError = document.getElementById("createError");
-    const createSuccess = document.getElementById("createSuccess");
     const logoutBtn = document.getElementById("logoutBtn");
 
     function showError(message) {
@@ -387,35 +376,6 @@
         setTimeout(() => (window.location.href = "/available-tables"), 800);
       } catch (err) {
         showError(err.message || "Unable to join club. Please try again.");
-      }
-    });
-
-    createForm.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      createError.style.display = "none";
-      createSuccess.style.display = "none";
-
-      const clubNameInput = document.getElementById("clubName");
-      const clubName = clubNameInput.value.trim();
-
-      if (!clubName) {
-        createError.textContent = "Please enter a club name.";
-        createError.style.display = "block";
-        return;
-      }
-
-      try {
-        const club = await api("/clubs/", {
-          method: "POST",
-          body: JSON.stringify({ name: clubName }),
-        });
-
-        clubNameInput.value = "";
-        createSuccess.innerHTML = `Created <strong>${club.name}</strong>. Share code <strong>${club.id}</strong> to invite members.`;
-        createSuccess.style.display = "block";
-      } catch (err) {
-        createError.textContent = err.message || "Unable to create club. Please try again.";
-        createError.style.display = "block";
       }
     });
 
