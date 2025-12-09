@@ -125,11 +125,15 @@ def join_club(
         club_id=club_id,
         user_id=current_user.id,
         role="member",
-        status="pending",
+        status="approved",
     )
-    db.add(member)
+    current_user.current_club_id = club_id
+    db.add_all([member, current_user])
     db.commit()
-    return build_club_read(club, db, is_owner=is_club_owner(db, club.id, current_user.id))
+
+    return build_club_read(
+        club, db, is_owner=is_club_owner(db, club.id, current_user.id)
+    )
 
 
 @router.post("/{club_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
