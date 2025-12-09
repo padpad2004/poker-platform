@@ -266,6 +266,47 @@
       border-radius: 999px;
     }
 
+    .link-button {
+      background: none;
+      border: none;
+      color: var(--accent);
+      padding: 0;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .link-button:hover {
+      text-decoration: underline;
+    }
+
+    .helper-card {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      background: #0b1224;
+    }
+
+    .helper-card h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+    }
+
+    .helper-card p {
+      margin: 0 0 12px;
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .actions-inline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
     .section-title {
       font-size: 14px;
       font-weight: 700;
@@ -339,7 +380,22 @@
         <div class="error" id="error-box"></div>
       </form>
 
-      <p class="helper">Use your PadPad Poker credentials or create a new account below.</p>
+      <div class="actions-inline">
+        <p class="helper" style="margin: 0;">Use your PadPad Poker credentials.</p>
+        <button type="button" class="link-button" id="forgot-toggle">Forgot password?</button>
+      </div>
+
+      <div class="helper-card" id="forgot-panel" style="display: none;">
+        <h2>Reset your password</h2>
+        <p>Enter the email associated with your account and we’ll send a link to choose a new password.</p>
+        <form id="forgot-form">
+          <label for="forgot-email">Account email</label>
+          <input type="email" id="forgot-email" name="forgot-email" placeholder="you@example.com" required />
+          <button type="submit">Send reset link</button>
+          <div class="error" id="forgot-error"></div>
+          <div class="success" id="forgot-success"></div>
+        </form>
+      </div>
 
       <div class="divider"></div>
 
@@ -370,6 +426,12 @@
     const registerEmailInput = document.getElementById("register-email");
     const registerPasswordInput = document.getElementById("register-password");
     const registerUsernameInput = document.getElementById("register-username");
+    const forgotToggle = document.getElementById("forgot-toggle");
+    const forgotPanel = document.getElementById("forgot-panel");
+    const forgotForm = document.getElementById("forgot-form");
+    const forgotEmailInput = document.getElementById("forgot-email");
+    const forgotErrorBox = document.getElementById("forgot-error");
+    const forgotSuccessBox = document.getElementById("forgot-success");
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -419,6 +481,45 @@
       } catch (error) {
         errorBox.textContent = error.message || "Unable to log in. Please try again.";
         errorBox.style.display = "block";
+      }
+    });
+
+    forgotToggle?.addEventListener("click", () => {
+      const isVisible = forgotPanel.style.display === "block";
+      forgotPanel.style.display = isVisible ? "none" : "block";
+      forgotErrorBox.style.display = "none";
+      forgotSuccessBox.style.display = "none";
+    });
+
+    forgotForm?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      forgotErrorBox.style.display = "none";
+      forgotSuccessBox.style.display = "none";
+
+      const email = forgotEmailInput.value.trim();
+      if (!email) {
+        forgotErrorBox.textContent = "Please enter the email linked to your account.";
+        forgotErrorBox.style.display = "block";
+        return;
+      }
+
+      try {
+        const response = await fetch("/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || "Unable to send reset link");
+        }
+
+        forgotSuccessBox.textContent = "If an account exists for that email, a reset link is on the way.";
+        forgotSuccessBox.style.display = "block";
+      } catch (error) {
+        forgotErrorBox.textContent = error.message || "Unable to send reset link.";
+        forgotErrorBox.style.display = "block";
       }
     });
 
