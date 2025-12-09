@@ -278,8 +278,23 @@ def get_profile(
         raise HTTPException(status_code=404, detail="User not found")
 
     club_name = None
-    if user.current_club_id:
-        club = db.query(models.Club).filter(models.Club.id == user.current_club_id).first()
+    club_id = user.current_club_id
+
+    if not club_id:
+        membership = (
+            db.query(models.ClubMember)
+            .filter(
+                models.ClubMember.user_id == user.id,
+                models.ClubMember.status == "approved",
+            )
+            .order_by(models.ClubMember.created_at.desc())
+            .first()
+        )
+        if membership:
+            club_id = membership.club_id
+
+    if club_id:
+        club = db.query(models.Club).filter(models.Club.id == club_id).first()
         club_name = club.name if club else None
 
     hand_rows = (
@@ -295,7 +310,7 @@ def get_profile(
         username=user.username,
         email=user.email,
         balance=user.balance,
-        current_club_id=user.current_club_id,
+        current_club_id=club_id,
         profile_picture_url=user.profile_picture_url,
         university=user.university,
         current_club_name=club_name,
