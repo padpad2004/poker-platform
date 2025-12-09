@@ -387,7 +387,7 @@
       <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px;">
         <div>
           <h3 style="margin: 0;">Create a new table</h3>
-          <p class="muted" style="margin: 2px 0 0;">Set up blinds and seats before opening the table to members.</p>
+          <p class="muted" style="margin: 2px 0 0;">Tables stay open for 24 hours. Set up blinds and seats before opening the table to members.</p>
         </div>
         <button type="button" class="ghost-button" id="cancelCreateTableBtn" aria-label="Close">✕</button>
       </div>
@@ -410,6 +410,14 @@
             <label for="maxSeatsInput">Max seats</label>
             <input id="maxSeatsInput" name="max_seats" type="number" min="2" step="1" value="9" />
             <div class="muted">Choose how many players can join.</div>
+          </div>
+          <div>
+            <label for="gameTypeSelect">Game type</label>
+            <select id="gameTypeSelect" name="game_type">
+              <option value="holdem">No-Limit Hold'em</option>
+              <option value="plo">Pot-Limit Omaha</option>
+            </select>
+            <div class="muted">Omaha deals four hole cards to each player.</div>
           </div>
           <div>
             <label for="tableNote">Notes (optional)</label>
@@ -486,6 +494,7 @@
     const smallBlindInput = document.getElementById("smallBlindInput");
     const bigBlindInput = document.getElementById("bigBlindInput");
     const maxSeatsInput = document.getElementById("maxSeatsInput");
+    const gameTypeSelect = document.getElementById("gameTypeSelect");
     const tableNoteInput = document.getElementById("tableNote");
     const createTableError = document.getElementById("createTableError");
     const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
@@ -778,6 +787,7 @@
         const info = document.createElement("div");
         info.innerHTML = `
           <strong>Table #${t.id}</strong>
+          <div class="muted">${t.game_type === "plo" ? "Pot-Limit Omaha" : "No-Limit Hold'em"}</div>
           <div class="muted">Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
         `;
 
@@ -1057,6 +1067,7 @@
       const sbVal = Number(smallBlindInput?.value || 0);
       const bbVal = Number(bigBlindInput?.value || 0);
       const seatsVal = Number(maxSeatsInput?.value || 6);
+      const gameTypeVal = gameTypeSelect?.value || "holdem";
 
       createTableError.textContent = "";
       if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
@@ -1079,7 +1090,7 @@
         }
         const data = await api("/tables/", {
           method: "POST",
-          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal }),
+          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal, game_type: gameTypeVal }),
         });
         await loadClubDetail();
         hideCreateTableModal();
