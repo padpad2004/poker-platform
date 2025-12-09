@@ -776,18 +776,22 @@
       min-width: 0;
     }
 
-    .seat-buttons {
+    .seat-marker-layer {
+      position: absolute;
+      top: -10px;
+      left: 50%;
       display: flex;
       gap: 6px;
-      margin-top: 2px;
-      flex-wrap: wrap;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      z-index: 3;
     }
 
     .button-chip {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 2px 8px;
+      padding: 4px 10px;
       border-radius: 999px;
       font-size: 10px;
       font-weight: 800;
@@ -795,9 +799,15 @@
       color: #0b1224;
       background: #e5e7eb;
       border: 1px solid rgba(255,255,255,0.6);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.45);
-      min-width: 36px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.55);
+      min-width: 32px;
       white-space: nowrap;
+      opacity: 0.95;
+    }
+
+    .table-chip {
+      background: rgba(229, 231, 235, 0.92);
+      color: #0b1224;
     }
 
     .dealer-chip { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
@@ -1745,6 +1755,11 @@
           </div>
           <!-- 6 seat slots -->
           <div class="seat" data-seat="0">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1762,11 +1777,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1775,6 +1785,11 @@
           </div>
 
           <div class="seat" data-seat="1">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1792,11 +1807,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1805,6 +1815,11 @@
           </div>
 
           <div class="seat" data-seat="2">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1822,11 +1837,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1835,6 +1845,11 @@
           </div>
 
           <div class="seat" data-seat="3">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1852,11 +1867,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1865,6 +1875,11 @@
           </div>
 
           <div class="seat" data-seat="4">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1882,11 +1897,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1895,6 +1905,11 @@
           </div>
 
           <div class="seat" data-seat="5">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1912,11 +1927,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1925,6 +1935,11 @@
           </div>
 
           <div class="seat" data-seat="6">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1942,11 +1957,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1955,6 +1965,11 @@
           </div>
 
           <div class="seat" data-seat="7">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -1972,11 +1987,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
@@ -1985,6 +1995,11 @@
           </div>
 
           <div class="seat" data-seat="8">
+            <div class="seat-marker-layer">
+              <span class="button-chip table-chip dealer-chip hidden" aria-label="Dealer button">D</span>
+              <span class="button-chip table-chip sb-chip hidden" aria-label="Small blind">SB</span>
+              <span class="button-chip table-chip bb-chip hidden" aria-label="Big blind">BB</span>
+            </div>
             <div class="seat-inner">
               <div class="seat-main">
                 <div class="seat-avatar">
@@ -2002,11 +2017,6 @@
                   </div>
                   <div class="seat-timer">
                     <div class="seat-timer-fill"></div>
-                  </div>
-                  <div class="seat-buttons">
-                    <span class="button-chip dealer-chip hidden">DEALER</span>
-                    <span class="button-chip sb-chip hidden">SB</span>
-                    <span class="button-chip bb-chip hidden">BB</span>
                   </div>
                 </div>
               </div>
