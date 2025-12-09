@@ -195,6 +195,11 @@ def _table_state_for_viewer(
             for p in engine_table.players
         ],
         recent_hands=engine_table.recent_hands,
+        awaiting_runout_decision=engine_table.awaiting_runout_decision,
+        runout_requested_by=engine_table.runout_requested_by,
+        runout_requested_count=engine_table.runout_requested_count,
+        runout_confirmed_count=engine_table.runout_confirmed_count,
+        runout_results=engine_table.runout_results,
     )
 
 
@@ -381,20 +386,20 @@ def _auto_progress_hand(engine_table: Table) -> bool:
     if engine_table.street == "showdown":
         return True
 
+    if engine_table.awaiting_runout_decision:
+        return False
+
     if engine_table.next_to_act_seat is None and engine_table.betting_round_complete():
         try:
             if remaining and all(p.all_in for p in remaining):
-                if engine_table.street == "preflop":
-                    engine_table.deal_flop()
-                    engine_table.deal_turn()
-                    engine_table.deal_river()
-                elif engine_table.street == "flop":
-                    engine_table.deal_turn()
-                    engine_table.deal_river()
-                elif engine_table.street == "turn":
-                    engine_table.deal_river()
-                engine_table.showdown()
-                return True
+                if engine_table.street in {"preflop", "flop", "turn"}:
+                    engine_table.awaiting_runout_decision = True
+                    engine_table.next_to_act_seat = None
+                    engine_table.action_deadline = None
+                    return False
+                if engine_table.street == "river":
+                    engine_table.showdown()
+                    return True
 
             if engine_table.street == "preflop":
                 engine_table.deal_flop()
@@ -883,6 +888,76 @@ async def player_action(
     return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
 
 
+@router.post("/{table_id}/runouts/request", response_model=schemas.TableState)
+async def request_runouts(
+    table_id: int,
+    req: schemas.RunoutRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+    try:
+        engine_table.request_runouts(req.player_id, req.runouts)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    await broadcast_table_state(table_id)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
+
+
+@router.post("/{table_id}/runouts/respond", response_model=schemas.TableState)
+async def respond_runouts(
+    table_id: int,
+    req: schemas.RunoutResponse,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    table_meta = _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+    try:
+        engine_table.respond_runouts(req.player_id, req.accept)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    hand_finished = False
+    if engine_table.awaiting_runout_decision and engine_table.runout_requested_by is None:
+        try:
+            engine_table.resolve_all_in_showdown()
+            hand_finished = True
+        except ValueError:
+            pass
+
+    if hand_finished:
+        _record_hand_history(table_meta, engine_table, db)
+        _process_pending_leavers(table_id, engine_table, db)
+        _auto_start_hand_if_ready(engine_table)
+
+    await broadcast_table_state(table_id)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
+
+
+@router.post("/{table_id}/runouts/resolve", response_model=schemas.TableState)
+async def resolve_runouts(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    table_meta = _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+    try:
+        engine_table.resolve_all_in_showdown()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    _record_hand_history(table_meta, engine_table, db)
+    _process_pending_leavers(table_id, engine_table, db)
+    _auto_start_hand_if_ready(engine_table)
+
+    await broadcast_table_state(table_id)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
+
+
 @router.post("/{table_id}/deal_flop", response_model=schemas.TableState)
 async def deal_flop(
     table_id: int,
@@ -952,7 +1027,7 @@ async def showdown(
 ):
     table_meta = _ensure_user_in_table_club(table_id, db, current_user)
     engine_table = _get_engine_table(table_id, db)
-    winners, best_rank, results, payouts = engine_table.showdown()
+    winners, best_rank, results, payouts, runout_details = engine_table.showdown()
 
     # Wallet balances are reconciled when players leave the table. Avoid
     # crediting winners here to prevent double-counting when they cash out.
@@ -972,6 +1047,7 @@ async def showdown(
             for p in winners
         ],
         "best_rank": best_rank,
+        "runouts": runout_details,
         "table": _table_state(table_id, engine_table, viewer_user_id=current_user.id),
         "auto_started": started,
     }

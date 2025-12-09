@@ -210,6 +210,11 @@ class TableState(BaseModel):
     hole_cards_per_player: int = 2
     players: List[PlayerState]
     recent_hands: List[TableHandHistory] = []
+    awaiting_runout_decision: bool = False
+    runout_requested_by: Optional[int] = None
+    runout_requested_count: Optional[int] = None
+    runout_confirmed_count: int = 1
+    runout_results: List[dict] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -260,6 +265,16 @@ class ActionRequest(BaseModel):
     player_id: int
     action: Literal["fold", "check", "call", "raise_to"]
     amount: Optional[int] = None
+
+
+class RunoutRequest(BaseModel):
+    player_id: int
+    runouts: Literal[1, 2, 3]
+
+
+class RunoutResponse(BaseModel):
+    player_id: int
+    accept: bool
 
 
 class BalanceUpdateRequest(BaseModel):
