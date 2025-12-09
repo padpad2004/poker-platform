@@ -1760,7 +1760,7 @@
     <div class="panel table-panel">
       <div class="table-panel-header">
         <div>
-          <h2>Table <span id="tableHeadingLabel">-</span></h2>
+          <h2 id="tableHeadingLabel">Table -</h2>
           <div class="table-subtitle">Focused table view</div>
           <div class="table-meta-row">
             <span class="table-blinds-pill" id="tableGameTypeBadge">NLH</span>
@@ -2202,6 +2202,7 @@
     const STATE_RENDER_BASE_DELAY_MS = 200;
     const HAND_START_EXTRA_DELAY_MS = 600;
     let tableId = null;
+    let currentTableName = null;
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedTableId = urlParams.get("tableId");
     let lastState = null;
@@ -3781,7 +3782,12 @@
       updateEmptySeatVisibility(state);
 
       tableIdSpan.textContent = state.id;
-      if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
+      const headingText = formatTableName({
+        id: state.id,
+        table_name: state.table_name || currentTableName,
+      });
+      if (tableHeadingLabel) tableHeadingLabel.textContent = headingText;
+      currentTableName = state.table_name || currentTableName;
       if (tableBlindsBadge) {
         tableBlindsBadge.textContent = `Blinds ${formatChips(state.small_blind)}/${formatChips(state.big_blind)}`;
       }
@@ -4333,7 +4339,8 @@
         currentUserEmail = null;
         currentUsername = null;
         tableId = null;
-        if (tableHeadingLabel) tableHeadingLabel.textContent = "-";
+        currentTableName = null;
+        if (tableHeadingLabel) tableHeadingLabel.textContent = "Table -";
         if (tableIdSpan) tableIdSpan.textContent = "None";
         if (tableGameTypeBadge) tableGameTypeBadge.textContent = "NLH";
         if (tablePanel) tablePanel.classList.remove("plo");
@@ -4531,6 +4538,7 @@
           api(`/tables/${numericId}`, { method: "GET" }),
         ]);
         tableOwnerUserId = meta?.created_by_user_id ?? null;
+        currentTableName = (meta?.table_name || "").trim() || null;
         const createdAt = parseServerDatetime(meta?.created_at);
         if (createdAt != null) {
           startTableCountdown(createdAt + TABLE_EXPIRY_MS);
@@ -4539,7 +4547,11 @@
         }
         tableId = numericId;
         tableIdSpan.textContent = String(numericId);
-        if (tableHeadingLabel) tableHeadingLabel.textContent = `#${numericId}`;
+        const headingName = formatTableName({
+          id: numericId,
+          table_name: currentTableName,
+        });
+        if (tableHeadingLabel) tableHeadingLabel.textContent = headingName;
         updateEngineControlsVisibility();
         clearChatMessages();
         setChatConnected(false);
@@ -4548,7 +4560,9 @@
         setControlsHidden(true);
       } catch (e) {
         tableOwnerUserId = null;
+        currentTableName = null;
         clearTableCountdown();
+        if (tableHeadingLabel) tableHeadingLabel.textContent = "Table -";
         updateEngineControlsVisibility();
         alert(e.message);
       }
