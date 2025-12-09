@@ -863,19 +863,9 @@
       }
     }
 
-    async function loadTableHistory() {
+    function openTableHistoryPage() {
       if (!currentClubId) return;
-      if (tableHistoryWrap) tableHistoryWrap.style.display = "block";
-      if (tableHistoryEmpty) tableHistoryEmpty.style.display = "none";
-      if (tableHistoryList) tableHistoryList.innerHTML = '<div class="muted">Loading table history...</div>';
-      try {
-        const entries = await api(`/clubs/${currentClubId}/game-history`);
-        renderTableHistory(entries || []);
-      } catch (e) {
-        if (tableHistoryList) {
-          tableHistoryList.innerHTML = `<div class="muted">${e.message || "Unable to load table history."}</div>`;
-        }
-      }
+      window.location.href = `/table-history.html?club_id=${currentClubId}`;
     }
 
     async function loadClubDetail() {
@@ -1025,7 +1015,7 @@
       };
     }
 
-    tableHistoryBtn?.addEventListener("click", loadTableHistory);
+    tableHistoryBtn?.addEventListener("click", openTableHistoryPage);
 
     async function init() {
       restoreAuth();
