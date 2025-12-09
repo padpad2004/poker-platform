@@ -277,9 +277,10 @@
           <td>${new Date(m.created_at).toLocaleString()}</td>
           <td>
             <div class="actions">
-              <input type="number" placeholder="Add amount" class="balanceInput" data-user-id="${m.user_id}" />
+              <input type="number" placeholder="Amount" class="balanceInput" data-user-id="${m.user_id}" />
               <button class="small" data-action="add" data-user-id="${m.user_id}">Add Balance</button>
-              <button class="btn-danger small" data-action="remove" data-user-id="${m.user_id}" ${m.role === "owner" ? "disabled" : ""}>Remove</button>
+              <button class="btn-danger small" data-action="deduct" data-user-id="${m.user_id}">Remove Balance</button>
+              <button class="btn-danger small" data-action="remove" data-user-id="${m.user_id}" ${m.role === "owner" ? "disabled" : ""}>Remove Member</button>
             </div>
           </td>
         `;
@@ -312,9 +313,9 @@
       }
     }
 
-    async function addBalance(userId, amount) {
-      if (!amount || isNaN(amount)) {
-        alert("Enter a valid amount to add.");
+    async function updateBalance(userId, amountDelta, messageLabel) {
+      if (!amountDelta || isNaN(amountDelta)) {
+        alert("Enter a valid amount.");
         return;
       }
       try {
@@ -322,9 +323,9 @@
         await api(`/clubs/${clubId}/members/${userId}/balance`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount_delta: Number(amount) }),
+          body: JSON.stringify({ amount_delta: Number(amountDelta) }),
         });
-        setFeedback("Balance updated.");
+        setFeedback(`${messageLabel} complete.`);
         await loadClubDetail();
       } catch (err) {
         console.error(err);
@@ -354,7 +355,13 @@
         const input = target.closest("tr").querySelector(".balanceInput");
         const amount = Number(input.value || 0);
         if (amount <= 0) return alert("Enter a positive amount to add.");
-        addBalance(userId, amount);
+        updateBalance(userId, amount, "Balance increase");
+      }
+      if (target.dataset.action === "deduct") {
+        const input = target.closest("tr").querySelector(".balanceInput");
+        const amount = Number(input.value || 0);
+        if (amount <= 0) return alert("Enter a positive amount to remove.");
+        updateBalance(userId, -amount, "Balance removal");
       }
       if (target.dataset.action === "remove") {
         removeMember(userId);
