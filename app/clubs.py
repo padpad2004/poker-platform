@@ -11,6 +11,56 @@ from .club_cleanup import delete_club_with_relations
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
 
+def _get_owner_ids(db: Session, club_id: int) -> list[int]:
+    return [
+        member.user_id
+        for member in db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.role == "owner",
+            models.ClubMember.status == "approved",
+        )
+        .all()
+    ]
+
+
+def _owner_count(db: Session, club_id: int) -> int:
+    return (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.role == "owner",
+            models.ClubMember.status == "approved",
+        )
+        .count()
+    )
+
+
+def _is_club_owner(db: Session, club_id: int, user_id: int) -> bool:
+    return (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.user_id == user_id,
+            models.ClubMember.role == "owner",
+            models.ClubMember.status == "approved",
+        )
+        .first()
+        is not None
+    )
+
+
+def _ensure_club_owner(db: Session, club_id: int, user_id: int) -> models.Club:
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if not _is_club_owner(db, club_id, user_id):
+        raise HTTPException(status_code=403, detail="Only club owners can perform this action")
+
+    return club
+
+
 @router.post("/", response_model=schemas.ClubRead)
 def create_club(
     club_in: schemas.ClubCreate,
@@ -32,7 +82,16 @@ def create_club(
     db.add(member)
     db.commit()
 
-    return club
+    return schemas.ClubRead(
+        id=club.id,
+        name=club.name,
+        crest_url=club.crest_url,
+        owner_id=club.owner_id,
+        status=club.status,
+        created_at=club.created_at,
+        owner_ids=[current_user.id],
+        membership_role="owner",
+    )
 
 
 @router.patch("/{club_id}/crest", response_model=schemas.ClubRead)
@@ -42,18 +101,22 @@ def update_club_crest(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the owner can change the crest")
+    club = _ensure_club_owner(db, club_id, current_user.id)
 
     club.crest_url = payload.crest_url or "/static/crests/crest-crown.svg"
     db.add(club)
     db.commit()
     db.refresh(club)
-    return club
+    return schemas.ClubRead(
+        id=club.id,
+        name=club.name,
+        crest_url=club.crest_url,
+        owner_id=club.owner_id,
+        status=club.status,
+        created_at=club.created_at,
+        owner_ids=_get_owner_ids(db, club.id),
+        membership_role="owner",
+    )
 
 
 @router.get("/", response_model=list[schemas.ClubRead])
@@ -61,8 +124,8 @@ def list_my_clubs(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    clubs = (
-        db.query(models.Club)
+    rows = (
+        db.query(models.Club, models.ClubMember.role.label("membership_role"))
         .join(models.ClubMember, models.Club.id == models.ClubMember.club_id)
         .filter(
             models.ClubMember.user_id == current_user.id,
@@ -70,7 +133,19 @@ def list_my_clubs(
         )
         .all()
     )
-    return clubs
+    return [
+        schemas.ClubRead(
+            id=club.id,
+            name=club.name,
+            crest_url=club.crest_url,
+            owner_id=club.owner_id,
+            status=club.status,
+            created_at=club.created_at,
+            owner_ids=_get_owner_ids(db, club.id),
+            membership_role=membership_role,
+        )
+        for club, membership_role in rows
+    ]
 
 
 @router.post("/{club_id}/join", response_model=schemas.ClubRead)
@@ -102,7 +177,16 @@ def join_club(
     )
     db.add(member)
     db.commit()
-    return club
+    return schemas.ClubRead(
+        id=club.id,
+        name=club.name,
+        crest_url=club.crest_url,
+        owner_id=club.owner_id,
+        status=club.status,
+        created_at=club.created_at,
+        owner_ids=_get_owner_ids(db, club.id),
+        membership_role=member.role,
+    )
 
 
 @router.post("/{club_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
@@ -145,12 +229,7 @@ def delete_club(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the club owner can delete this club")
+    club = _ensure_club_owner(db, club_id, current_user.id)
 
     delete_club_with_relations(club, db)
     db.commit()
@@ -165,7 +244,8 @@ def get_club_detail(
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
-    is_owner = club.owner_id == current_user.id
+    owner_ids = _get_owner_ids(db, club.id)
+    is_owner = _is_club_owner(db, club.id, current_user.id)
     is_member = (
         db.query(models.ClubMember)
         .filter(
@@ -235,6 +315,7 @@ def get_club_detail(
         name=club.name,
         crest_url=club.crest_url,
         owner_id=club.owner_id,
+        owner_ids=owner_ids,
         status=club.status,
         created_at=club.created_at,
         members=members,
@@ -248,12 +329,7 @@ def list_pending_members(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only owners can view pending members")
+    _ensure_club_owner(db, club_id, current_user.id)
 
     pending_rows = (
         db.query(
@@ -291,12 +367,7 @@ def approve_pending_member(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only owners can approve members")
+    _ensure_club_owner(db, club_id, current_user.id)
 
     membership = (
         db.query(models.ClubMember)
@@ -338,12 +409,7 @@ def deny_pending_member(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only owners can deny members")
+    _ensure_club_owner(db, club_id, current_user.id)
 
     membership = (
         db.query(models.ClubMember)
@@ -371,7 +437,7 @@ def get_club_game_history(
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
-    is_owner = club.owner_id == current_user.id
+    is_owner = _is_club_owner(db, club.id, current_user.id)
     is_member = (
         db.query(models.ClubMember)
         .filter(
@@ -411,6 +477,55 @@ def get_club_game_history(
     ]
 
 
+@router.patch(
+    "/{club_id}/members/{user_id}/role",
+    response_model=schemas.ClubMemberRead,
+)
+def update_member_role(
+    club_id: int,
+    user_id: int,
+    payload: schemas.ClubRoleUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_club_owner(db, club_id, current_user.id)
+
+    membership = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.user_id == user_id,
+            models.ClubMember.status == "approved",
+        )
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="User is not an approved member of this club")
+
+    if membership.role == "owner" and payload.role != "owner" and _owner_count(db, club_id) <= 1:
+        raise HTTPException(status_code=400, detail="At least one owner is required for each club")
+
+    membership.role = payload.role
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    balance = user.balance if user else 0
+    email = user.email if user else ""
+
+    return schemas.ClubMemberRead(
+        id=membership.id,
+        club_id=membership.club_id,
+        user_id=membership.user_id,
+        role=membership.role,
+        status=membership.status,
+        created_at=membership.created_at,
+        user_email=email,
+        balance=balance,
+    )
+
+
 @router.post(
     "/{club_id}/members/{user_id}/balance",
     response_model=schemas.BalanceUpdateResponse,
@@ -422,12 +537,7 @@ def adjust_member_balance(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only club owners can adjust balances")
+    club = _ensure_club_owner(db, club_id, current_user.id)
 
     membership = (
         db.query(models.ClubMember)
@@ -463,12 +573,7 @@ def remove_member(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only club owners can remove members")
+    club = _ensure_club_owner(db, club_id, current_user.id)
 
     membership = (
         db.query(models.ClubMember)
@@ -502,15 +607,7 @@ def open_table(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only club owners can open tables",
-        )
+    _ensure_club_owner(db, club_id, current_user.id)
 
     if payload.small_blind <= 0 or payload.big_blind <= 0:
         raise HTTPException(status_code=400, detail="Blinds must be positive")
@@ -545,12 +642,7 @@ def close_table(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    club = db.query(models.Club).filter(models.Club.id == club_id).first()
-    if not club:
-        raise HTTPException(status_code=404, detail="Club not found")
-
-    if club.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only club owners can close tables")
+    _ensure_club_owner(db, club_id, current_user.id)
 
     table = (
         db.query(models.PokerTable)

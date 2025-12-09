@@ -920,7 +920,12 @@
         const detail = await api(`/clubs/${clubId}`);
         currentClubId = detail.id;
         localStorage.setItem(CLUB_CONTEXT_KEY, String(detail.id));
-        isCurrentUserOwner = currentUserId === detail.owner_id;
+        const ownerIds = detail.owner_ids?.length
+          ? detail.owner_ids
+          : (detail.members || [])
+              .filter((member) => member.role === "owner")
+              .map((member) => member.user_id);
+        isCurrentUserOwner = ownerIds.includes(currentUserId);
 
         if (!isCurrentUserOwner) {
           alert("Only the club owner can use the management page for this club.");
@@ -931,7 +936,7 @@
         clubDetailEmpty.style.display = "none";
         clubDetail.style.display = "block";
         clubTitle.textContent = detail.name;
-        clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+        clubMeta.textContent = `Club ID #${detail.id} • Owners ${ownerIds.join(", ")}`;
         clubStatus.textContent = detail.status;
         if (manageMembersLink) {
       manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;
@@ -968,7 +973,11 @@
       }
       try {
         const clubs = await api("/clubs/");
-        const ownedClubs = clubs.filter((club) => club.owner_id === currentUserId);
+        const ownedClubs = clubs.filter(
+          (club) =>
+            club.membership_role === "owner" ||
+            (club.owner_ids || []).includes(currentUserId)
+        );
 
         if (!ownedClubs.length) {
           clubList.classList.add("muted");

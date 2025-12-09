@@ -236,7 +236,8 @@
       try {
         const detail = await api(`/clubs/${clubId}`);
         clubTitle.textContent = detail.name;
-        clubMeta.textContent = `Club #${detail.id} • Owner ${detail.owner_id}`;
+        const ownerList = detail.owner_ids?.length ? detail.owner_ids.join(", ") : detail.owner_id;
+        clubMeta.textContent = `Club #${detail.id} • Owners ${ownerList}`;
         clubStatus.textContent = detail.status;
       } catch (err) {
         console.error(err);

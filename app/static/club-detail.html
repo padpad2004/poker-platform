@@ -963,7 +963,12 @@
       requireAuth();
       try {
         const detail = await api(`/clubs/${currentClubId}`);
-        isCurrentUserOwner = currentUserId === detail.owner_id;
+        const ownerIds = detail.owner_ids?.length
+          ? detail.owner_ids
+          : (detail.members || [])
+              .filter((member) => member.role === "owner")
+              .map((member) => member.user_id);
+        isCurrentUserOwner = ownerIds.includes(currentUserId);
 
         if (!isCurrentUserOwner) {
           alert("Only the club owner can use this page.");
@@ -972,7 +977,7 @@
         }
 
         clubTitle.textContent = detail.name;
-        clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+        clubMeta.textContent = `Club ID #${detail.id} • Owners ${ownerIds.join(", ")}`;
         clubStatus.textContent = detail.status;
         if (manageMembersLink) {
           manageMembersLink.href = `/club-members.html?club_id=${detail.id}`;

@@ -96,7 +96,17 @@ def _ensure_user_in_table_club(
     table_meta = _close_table_if_expired(table_meta, db)
 
     club = table_meta.club
-    is_owner = club.owner_id == current_user.id
+    is_owner = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club.id,
+            models.ClubMember.user_id == current_user.id,
+            models.ClubMember.role == "owner",
+            models.ClubMember.status == "approved",
+        )
+        .first()
+        is not None
+    )
     is_member = (
         db.query(models.ClubMember)
         .filter(
@@ -531,7 +541,17 @@ def create_table(
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
-    is_owner = club.owner_id == current_user.id
+    is_owner = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club.id,
+            models.ClubMember.user_id == current_user.id,
+            models.ClubMember.role == "owner",
+            models.ClubMember.status == "approved",
+        )
+        .first()
+        is not None
+    )
     if not is_owner:
         raise HTTPException(
             status_code=403,

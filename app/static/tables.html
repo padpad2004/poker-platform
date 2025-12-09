@@ -436,7 +436,11 @@
 
         const clubs = await api("/clubs/", { method: "GET" });
         const ownsClub = Array.isArray(clubs)
-          ? clubs.some((club) => club.owner_id === currentUserId)
+          ? clubs.some(
+              (club) =>
+                club.membership_role === "owner" ||
+                (club.owner_ids || []).includes(currentUserId)
+            )
           : false;
         clubManagerBtn.style.display = ownsClub ? "inline-flex" : "none";
       } catch (err) {

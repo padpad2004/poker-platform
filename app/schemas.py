@@ -94,6 +94,8 @@ class ClubRead(ClubBase):
     owner_id: int
     status: str
     created_at: datetime
+    owner_ids: List[int] = []
+    membership_role: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -109,6 +111,10 @@ class ClubMemberRead(BaseModel):
     balance: int
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ClubRoleUpdateRequest(BaseModel):
+    role: Literal["member", "owner"]
 
 
 class PokerTableMeta(BaseModel):

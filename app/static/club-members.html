@@ -193,6 +193,7 @@
     let currentUserEmail = "";
     let currentUserId = null;
     let clubId = null;
+    let currentOwnerIds = [];
 
     function setFeedback(message, isError = false) {
       feedback.textContent = message || "";
@@ -266,13 +267,24 @@
       }
       emptyState.style.display = "none";
       membersWrap.style.display = "block";
+      currentOwnerIds = members
+        .filter((m) => m.role === "owner")
+        .map((m) => m.user_id);
 
       members.forEach((m) => {
         const tr = document.createElement("tr");
         tr.dataset.userId = m.user_id;
         tr.innerHTML = `
           <td>${m.user_email}</td>
-          <td><span class="badge">${m.role}</span></td>
+          <td>
+            <div class="role-control">
+              <label class="muted">Role</label>
+              <select class="roleSelect" data-user-id="${m.user_id}">
+                <option value="member" ${m.role === "member" ? "selected" : ""}>Member</option>
+                <option value="owner" ${m.role === "owner" ? "selected" : ""}>Owner</option>
+              </select>
+            </div>
+          </td>
           <td>$${Number(m.balance ?? 0).toLocaleString()}</td>
           <td>${new Date(m.created_at).toLocaleString()}</td>
           <td>
@@ -297,19 +309,41 @@
           window.location.href = "/";
           return;
         }
-        if (currentUserId && detail.owner_id !== currentUserId) {
+        const isOwner =
+          detail.owner_ids?.includes(currentUserId) ||
+          (detail.members || []).some(
+            (m) => m.user_id === currentUserId && m.role === "owner"
+          );
+        if (!isOwner) {
           setFeedback("Only the club owner can manage members.", true);
           alert("Only the club owner can manage members of this club.");
           window.location.href = "/club-management";
           return;
         }
         clubTitle.textContent = detail.name;
-        clubMeta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+        const ownerList = detail.owner_ids?.length ? detail.owner_ids.join(", ") : detail.owner_id;
+        clubMeta.textContent = `Club ID #${detail.id} • Owners ${ownerList}`;
         clubStatus.textContent = detail.status;
         renderMembers(detail.members || []);
       } catch (err) {
         console.error(err);
         setFeedback(err.message || "Failed to load club details.", true);
+      }
+    }
+
+    async function updateRole(userId, role) {
+      try {
+        setFeedback("Updating role...");
+        await api(`/clubs/${clubId}/members/${userId}/role`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role }),
+        });
+        setFeedback("Role updated.");
+        await loadClubDetail();
+      } catch (err) {
+        console.error(err);
+        setFeedback(err.message || "Failed to update role", true);
       }
     }
 
@@ -366,6 +400,25 @@
       if (target.dataset.action === "remove") {
         removeMember(userId);
       }
+    });
+
+    membersBody.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!target.classList.contains("roleSelect")) return;
+      const userId = Number(target.dataset.userId);
+      const newRole = target.value;
+      const demotingLastOwner =
+        newRole !== "owner" &&
+        currentOwnerIds.includes(userId) &&
+        currentOwnerIds.length <= 1;
+
+      if (demotingLastOwner) {
+        alert("At least one owner must remain for the club.");
+        target.value = "owner";
+        return;
+      }
+
+      updateRole(userId, newRole);
     });
 
     function init() {

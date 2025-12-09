@@ -258,7 +258,18 @@ def set_current_club(
         )
         .first()
     )
-    if not membership and club.owner_id != user.id:
+    is_owner = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club.id,
+            models.ClubMember.user_id == user.id,
+            models.ClubMember.role == "owner",
+            models.ClubMember.status == "approved",
+        )
+        .first()
+        is not None
+    )
+    if not membership and not is_owner:
         raise HTTPException(status_code=403, detail="User is not approved for this club")
 
     user.current_club_id = club.id
