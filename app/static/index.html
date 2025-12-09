@@ -114,6 +114,19 @@
       letter-spacing: 0.02em;
     }
 
+    .table-countdown {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(14, 165, 233, 0.12);
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      color: #bae6fd;
+      letter-spacing: 0.02em;
+    }
+
     .table-subtitle {
       margin-top: 4px;
       color: var(--text-muted);
@@ -1506,6 +1519,7 @@
           <div class="table-subtitle">Focused table view</div>
           <div class="table-meta-row">
             <span class="table-blinds-pill" id="tableBlindsBadge">Blinds -/-</span>
+            <span class="table-countdown" id="tableClosingTimer">Closing timer unavailable</span>
           </div>
         </div>
         <div class="table-panel-actions">
@@ -1854,11 +1868,14 @@
     let timerWarningFired = false;
     let openStatsSeat = null;
     let openStatsPlayerId = null;
+    let tableClosingAt = null;
+    let tableCountdownInterval = null;
 
     const ACTING_TIME_MS = 30000;
     const TIMER_WARNING_MS = 5000;
     const WS_HEARTBEAT_MS = 15000;
     const WS_RECONNECT_MS = 3000;
+    const TABLE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
     const TOTAL_SEATS = 6;
     const VIEWER_DISPLAY_SEAT = 3; // bottom center anchor
@@ -1875,6 +1892,18 @@
       const num = Number(value ?? 0);
       if (!Number.isFinite(num)) return (0).toFixed(decimals);
       return num.toFixed(decimals);
+    }
+
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const hours = Math.floor(totalSeconds / 3600)
+        .toString()
+        .padStart(2, "0");
+      const minutes = Math.floor((totalSeconds % 3600) / 60)
+        .toString()
+        .padStart(2, "0");
+      const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+      return `${hours}:${minutes}:${seconds}`;
     }
 
     // DOM elements
@@ -1944,6 +1973,7 @@
     const chipAnimationLayer = document.getElementById("chipAnimationLayer");
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
+    const tableClosingTimer = document.getElementById("tableClosingTimer");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
     const sitOutBtn = document.getElementById("sitOutBtn");
     const returnToPlayBtn = document.getElementById("returnToPlayBtn");
@@ -2050,6 +2080,40 @@
 
       updateTimer();
       actingTimerInterval = setInterval(updateTimer, 200);
+    }
+
+    function clearTableCountdown(message = "Closing timer unavailable") {
+      if (tableCountdownInterval) {
+        clearInterval(tableCountdownInterval);
+      }
+      tableCountdownInterval = null;
+      tableClosingAt = null;
+      if (tableClosingTimer) {
+        tableClosingTimer.textContent = message;
+      }
+    }
+
+    function startTableCountdown(deadlineMs) {
+      if (!tableClosingTimer || !Number.isFinite(deadlineMs)) {
+        clearTableCountdown();
+        return;
+      }
+
+      tableClosingAt = deadlineMs;
+
+      const updateCountdown = () => {
+        if (!tableClosingAt) return;
+        const remaining = tableClosingAt - Date.now();
+        if (remaining <= 0) {
+          clearTableCountdown("Table closing shortly");
+          return;
+        }
+        tableClosingTimer.textContent = `Closes in ${formatDuration(remaining)}`;
+      };
+
+      clearTableCountdown();
+      updateCountdown();
+      tableCountdownInterval = setInterval(updateCountdown, 1000);
     }
 
     // Big card popup elements
@@ -3582,6 +3646,7 @@
         tableId = null;
         if (tableHeadingLabel) tableHeadingLabel.textContent = "-";
         if (tableIdSpan) tableIdSpan.textContent = "None";
+        clearTableCountdown();
         if (tableSocket) {
           wsShouldReconnect = false;
           tableSocket.close();
@@ -3738,6 +3803,12 @@
           api(`/tables/${numericId}`, { method: "GET" }),
         ]);
         tableOwnerUserId = meta?.created_by_user_id ?? null;
+        const createdAt = meta?.created_at ? new Date(meta.created_at).getTime() : null;
+        if (createdAt) {
+          startTableCountdown(createdAt + TABLE_EXPIRY_MS);
+        } else {
+          clearTableCountdown();
+        }
         tableId = numericId;
         tableIdSpan.textContent = String(numericId);
         if (tableHeadingLabel) tableHeadingLabel.textContent = `#${numericId}`;
@@ -3747,6 +3818,7 @@
         setControlsHidden(true);
       } catch (e) {
         tableOwnerUserId = null;
+        clearTableCountdown();
         updateEngineControlsVisibility();
         alert(e.message);
       }
