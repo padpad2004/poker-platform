@@ -353,6 +353,10 @@
       display: none;
     }
 
+    .table-panel {
+      position: relative;
+    }
+
     .chat-panel {
       background: radial-gradient(circle at top, rgba(59,130,246,0.08) 0, #0b1120 70%);
       border: 1px solid var(--panel-border);
@@ -499,6 +503,27 @@
       border-radius: 16px;
       overflow: visible;
       margin-bottom: 16px;
+    }
+
+    .table-controls-toggle {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      z-index: 6;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .table-controls-toggle .table-controls-toggle-btn {
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      color: #e5e7eb;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      font-weight: 700;
+    }
+
+    .table-panel.controls-hidden button:not(.table-controls-toggle-btn) {
+      display: none;
     }
 
     .felt {
@@ -1809,6 +1834,9 @@
         </aside>
 
         <div class="table-wrapper">
+          <div class="table-controls-toggle">
+            <button id="controlsToggleBtn" class="table-controls-toggle-btn" aria-expanded="false">Show controls</button>
+          </div>
           <div id="chipAnimationLayer" class="chip-animation-layer"></div>
           <div class="felt">
           <div class="center-area">
@@ -2493,6 +2521,7 @@
     const tableGameTypeBadge = document.getElementById("tableGameTypeBadge");
     const tableClosingTimer = document.getElementById("tableClosingTimer");
     const tablePanel = document.querySelector(".table-panel");
+    const controlsToggleBtn = document.getElementById("controlsToggleBtn");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
     const sitOutBtn = document.getElementById("sitOutBtn");
     const returnToPlayBtn = document.getElementById("returnToPlayBtn");
@@ -2525,6 +2554,21 @@
     const seatChangeOptions = document.getElementById("seatChangeOptions");
     const seatChangeCancelBtn = document.getElementById("seatChangeCancelBtn");
     const seatChangeError = document.getElementById("seatChangeError");
+
+    if (tablePanel && controlsToggleBtn) {
+      const setControlsVisible = (visible) => {
+        tablePanel.classList.toggle("controls-hidden", !visible);
+        controlsToggleBtn.textContent = visible ? "Hide controls" : "Show controls";
+        controlsToggleBtn.setAttribute("aria-expanded", visible ? "true" : "false");
+      };
+
+      setControlsVisible(false);
+
+      controlsToggleBtn.addEventListener("click", () => {
+        const show = tablePanel.classList.contains("controls-hidden");
+        setControlsVisible(show);
+      });
+    }
 
     function playTimerWarningSound() {
       try {
