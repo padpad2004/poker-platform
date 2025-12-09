@@ -55,7 +55,7 @@
   }
 
     .card {
-      width: min(960px, 100%);
+      width: min(640px, 100%);
       background: var(--panel);
       border: 1px solid var(--panel-border);
       border-radius: 16px;
@@ -237,15 +237,6 @@
       flex: 1;
     }
 
-    .create-card .actions {
-      align-items: center;
-    }
-
-    @media (min-width: 820px) {
-      .section-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
   </style>
 </head>
 <body>
@@ -282,21 +273,6 @@
         <div class="error" id="errorBox"></div>
         <div class="success" id="successBox"></div>
       </form>
-
-      <div class="section-card create-card">
-        <div class="section-header">
-          <div>
-            <h2>Create a club</h2>
-          </div>
-          <span class="section-hint">Host your own tables</span>
-        </div>
-
-        <p class="tip">Go to the create club page to set up your own club and generate an invite code.</p>
-
-        <div class="actions">
-          <a class="button-link" href="/create-club.html">Create your own club</a>
-        </div>
-      </div>
     </div>
   </div>
 
