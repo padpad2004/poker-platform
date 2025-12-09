@@ -204,6 +204,7 @@ class TableState(BaseModel):
     big_blind_seat: Optional[int]
     small_blind: float
     big_blind: float
+    showdown_reveal_until: Optional[float] = None
     players: List[PlayerState]
     recent_hands: List[TableHandHistory] = []
 
