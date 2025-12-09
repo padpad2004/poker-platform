@@ -111,6 +111,18 @@ def set_current_club(
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
+    membership = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club.id,
+            models.ClubMember.user_id == user.id,
+            models.ClubMember.status == "approved",
+        )
+        .first()
+    )
+    if not membership and club.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="User is not approved for this club")
+
     user.current_club_id = club.id
     db.add(user)
     db.commit()

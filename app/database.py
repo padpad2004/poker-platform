@@ -115,3 +115,20 @@ def ensure_schema():
                     """
                 )
             )
+
+        if "club_members" in existing_tables:
+            member_columns = {
+                row[1] for row in conn.execute(text("PRAGMA table_info(club_members);"))
+            }
+
+            if "status" not in member_columns:
+                conn.execute(text("ALTER TABLE club_members ADD COLUMN status TEXT"))
+                conn.execute(
+                    text(
+                        """
+                        UPDATE club_members
+                        SET status = 'approved'
+                        WHERE status IS NULL OR status = ''
+                        """
+                    )
+                )

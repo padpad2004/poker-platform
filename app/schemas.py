@@ -97,6 +97,7 @@ class ClubMemberRead(BaseModel):
     club_id: int
     user_id: int
     role: str
+    status: str
     created_at: datetime
     user_email: EmailStr
     balance: int

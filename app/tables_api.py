@@ -102,6 +102,7 @@ def _ensure_user_in_table_club(
         .filter(
             models.ClubMember.club_id == club.id,
             models.ClubMember.user_id == current_user.id,
+            models.ClubMember.status == "approved",
         )
         .first()
         is not None
@@ -505,7 +506,10 @@ def list_my_tables(
         db.query(models.PokerTable)
         .join(models.Club, models.PokerTable.club_id == models.Club.id)
         .join(models.ClubMember, models.ClubMember.club_id == models.Club.id)
-        .filter(models.ClubMember.user_id == current_user.id)
+        .filter(
+            models.ClubMember.user_id == current_user.id,
+            models.ClubMember.status == "approved",
+        )
         .all()
     )
 
