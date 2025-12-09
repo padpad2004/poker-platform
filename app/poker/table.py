@@ -20,6 +20,7 @@ class Player:
     all_in: bool = False
     user_id: Optional[int] = None  # real user id if seated, else None (bot / generic)
     profile_picture_url: Optional[str] = None  # chosen avatar for the seated player
+    sat_out_since: Optional[float] = None  # epoch timestamp of when the player sat out
 
     def __repr__(self) -> str:
         cards = " ".join(str(c) for c in self.hole_cards) if self.hole_cards else "--"
@@ -476,9 +477,12 @@ class Table:
         """Mark a player as sitting out and remove them from the current hand."""
 
         if player.sitting_out and not player.in_hand:
+            if player.sat_out_since is None:
+                player.sat_out_since = time.time()
             return
 
         player.sitting_out = True
+        player.sat_out_since = time.time()
 
         if player.in_hand and not player.has_folded:
             player.has_folded = True
@@ -506,6 +510,7 @@ class Table:
         """Allow a sitting-out player to join the next hand."""
 
         player.sitting_out = False
+        player.sat_out_since = None
         if self.street in {"prehand", "showdown"}:
             player.in_hand = False
             player.has_folded = False
