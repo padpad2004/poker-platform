@@ -672,6 +672,10 @@ class Table:
         return []
 
     def request_runouts(self, player_id: int, runouts: int) -> None:
+        normalized_game = (self.game_type or "").lower()
+        if normalized_game not in {"nlh", "holdem"}:
+            raise ValueError("Run-outs are only supported for NLH")
+
         if runouts not in (1, 2, 3):
             raise ValueError("Run-outs must be 1, 2, or 3")
 
@@ -699,6 +703,10 @@ class Table:
         self.runout_requested_count = runouts
 
     def respond_runouts(self, player_id: int, accept: bool) -> None:
+        normalized_game = (self.game_type or "").lower()
+        if normalized_game not in {"nlh", "holdem"}:
+            raise ValueError("Run-outs are only supported for NLH")
+
         if self.runout_requested_by is None or self.runout_requested_count is None:
             raise ValueError("No pending run-out request to respond to")
 
@@ -736,6 +744,10 @@ class Table:
         return boards
 
     def resolve_all_in_showdown(self):
+        normalized_game = (self.game_type or "").lower()
+        if normalized_game not in {"nlh", "holdem"}:
+            raise ValueError("Run-outs are only supported for NLH")
+
         remaining = self._all_in_remaining_players()
         if not remaining:
             raise ValueError("Run-outs are only available when everyone is all-in")
