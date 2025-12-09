@@ -113,12 +113,6 @@ def read_club_detail_page():
     return _serve_html("club-detail.html")
 
 
-@app.get("/clubs")
-@app.get("/clubs.html")
-def read_clubs_page():
-    return _serve_html("clubs.html")
-
-
 @app.get("/join-club")
 @app.get("/join-club.html")
 def read_join_club_page():
