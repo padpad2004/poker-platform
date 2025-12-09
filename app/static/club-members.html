@@ -86,16 +86,6 @@
       flex-wrap: wrap;
     }
 
-    input[type="number"] {
-      width: 120px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid #374151;
-      background: #0b1020;
-      color: var(--text-main);
-      font-size: 13px;
-    }
-
     button, .button-link {
       padding: 8px 12px;
       border-radius: 10px;
@@ -297,9 +287,6 @@
           <td>${new Date(m.created_at).toLocaleString()}</td>
           <td>
             <div class="actions">
-              <input type="number" placeholder="Amount" class="balanceInput" data-user-id="${m.user_id}" />
-              <button class="small" data-action="add" data-user-id="${m.user_id}">Add Balance</button>
-              <button class="btn-danger small" data-action="deduct" data-user-id="${m.user_id}">Remove Balance</button>
               ${roleToggle}
               <button class="btn-danger small" data-action="remove" data-user-id="${m.user_id}" ${
                 isPrimaryOwner ? "disabled" : ""
@@ -339,26 +326,6 @@
       }
     }
 
-    async function updateBalance(userId, amountDelta, messageLabel) {
-      if (!amountDelta || isNaN(amountDelta)) {
-        alert("Enter a valid amount.");
-        return;
-      }
-      try {
-        setFeedback("Updating balance...");
-        await api(`/clubs/${clubId}/members/${userId}/balance`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount_delta: Number(amountDelta) }),
-        });
-        setFeedback(`${messageLabel} complete.`);
-        await loadClubDetail();
-      } catch (err) {
-        console.error(err);
-        setFeedback(err.message || "Failed to update balance", true);
-      }
-    }
-
     async function updateRole(userId, nextRole) {
       try {
         setFeedback("Updating member role...");
@@ -393,18 +360,6 @@
       const target = event.target;
       const userId = target.dataset.userId;
       if (!userId) return;
-      if (target.dataset.action === "add") {
-        const input = target.closest("tr").querySelector(".balanceInput");
-        const amount = Number(input.value || 0);
-        if (amount <= 0) return alert("Enter a positive amount to add.");
-        updateBalance(userId, amount, "Balance increase");
-      }
-      if (target.dataset.action === "deduct") {
-        const input = target.closest("tr").querySelector(".balanceInput");
-        const amount = Number(input.value || 0);
-        if (amount <= 0) return alert("Enter a positive amount to remove.");
-        updateBalance(userId, -amount, "Balance removal");
-      }
       if (target.dataset.action === "remove") {
         removeMember(userId);
       }
