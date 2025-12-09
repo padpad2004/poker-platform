@@ -1994,7 +1994,7 @@
       document.querySelectorAll(".seat.timer-warning").forEach(seat => seat.classList.remove("timer-warning"));
     }
 
-    function startActingTimer(seatNumber) {
+    function startActingTimer(seatNumber, actionDeadlineSeconds) {
       clearActingTimer();
       if (seatNumber == null) return;
 
@@ -2008,9 +2008,12 @@
       actingTimerSeat = seatNumber;
       timerWarningFired = false;
 
-      const deadline = Date.now() + ACTING_TIME_MS;
+      const now = Date.now();
+      const deadline = actionDeadlineSeconds
+        ? actionDeadlineSeconds * 1000
+        : now + ACTING_TIME_MS;
 
-      actingTimerInterval = setInterval(() => {
+      const updateTimer = () => {
         const remaining = Math.max(0, deadline - Date.now());
         const pct = Math.max(0, Math.min(1, remaining / ACTING_TIME_MS));
         fill.style.width = `${pct * 100}%`;
@@ -2027,7 +2030,10 @@
         if (remaining <= 0) {
           clearActingTimer();
         }
-      }, 200);
+      };
+
+      updateTimer();
+      actingTimerInterval = setInterval(updateTimer, 200);
     }
 
     // Big card popup elements
@@ -3008,11 +3014,12 @@
       lastState = state;
 
       const nextSeatChanged = prevState?.next_to_act_seat !== state.next_to_act_seat;
-      if (nextSeatChanged) {
+      const deadlineChanged = prevState?.action_deadline !== state.action_deadline;
+      if (nextSeatChanged || deadlineChanged) {
         if (state.next_to_act_seat == null) {
           clearActingTimer();
         } else {
-          startActingTimer(state.next_to_act_seat);
+          startActingTimer(state.next_to_act_seat, state.action_deadline);
         }
       }
 
