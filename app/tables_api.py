@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import time
 from typing import Dict, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket
@@ -11,6 +12,7 @@ from .database import SessionLocal
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 TABLE_EXPIRY = timedelta(hours=24)
+SIT_OUT_AUTO_LEAVE_SECONDS = 6 * 60
 
 # In-memory engine tables
 TABLES: Dict[int, Table] = {}
@@ -273,6 +275,43 @@ def _close_table_if_expired(table_meta: models.PokerTable, db: Session):
     return table_meta
 
 
+def _auto_remove_sitting_out_players(
+    table_id: int, engine_table: Table, db: Session
+) -> None:
+    """Remove players who have been sitting out longer than the grace period."""
+
+    cutoff = time.time() - SIT_OUT_AUTO_LEAVE_SECONDS
+    any_updates = False
+
+    for player in list(engine_table.players):
+        if not getattr(player, "sitting_out", False):
+            continue
+
+        sat_out_since = getattr(player, "sat_out_since", None)
+        if sat_out_since is None or sat_out_since > cutoff:
+            continue
+
+        if player.user_id is None:
+            continue
+
+        try:
+            removed = engine_table.remove_player_by_user(player.user_id)
+        except ValueError:
+            continue
+
+        user = db.query(models.User).filter(models.User.id == player.user_id).first()
+        if user:
+            user.balance += removed.stack
+            db.add(user)
+            any_updates = True
+
+        _finalize_session(table_id, player.user_id, removed.stack, db)
+        any_updates = True
+
+    if any_updates:
+        db.commit()
+
+
 def close_table_and_report(table_meta: models.PokerTable, db: Session):
     _close_table(table_meta, db)
 
@@ -283,6 +322,8 @@ def _apply_timeouts(table_id: int, db: Session | None = None) -> Table:
         result = engine_table.enforce_action_timeout()
         if result is None:
             break
+    if db is not None:
+        _auto_remove_sitting_out_players(table_id, engine_table, db)
     return engine_table
 
 
@@ -469,7 +510,7 @@ async def broadcast_table_state(table_id: int):
     sent: Set[WebSocket] = set()
     db = SessionLocal()
     try:
-        _apply_timeouts(table_id)
+        _apply_timeouts(table_id, db)
         _auto_progress_hand(engine_table)
         _auto_start_hand_if_ready(engine_table)
         _persist_table_stacks(table_id, engine_table, db)
