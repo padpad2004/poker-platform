@@ -190,8 +190,9 @@
       overflow: hidden;
       margin-bottom: 12px;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02), 0 20px 50px rgba(0,0,0,0.65);
-      perspective: 1200px;
-      perspective-origin: 50% 30%;
+      perspective: 900px;
+      perspective-origin: 50% 18%;
+      transform: rotateX(10deg);
       transition: height 0.15s ease-out;
     }
 
@@ -204,7 +205,7 @@
       justify-content: center;
       align-items: center;
       filter: drop-shadow(0 18px 30px rgba(0,0,0,0.55));
-      transform: rotateX(-26deg) translateY(-4%) scale(1.05);
+      transform: rotateX(-46deg) translateY(-14%) translateZ(30px) scale(1.08);
       transform-style: preserve-3d;
     }
 
@@ -234,7 +235,7 @@
       position: relative;
       width: 100%;
       height: 100%;
-      transform: rotate(2deg) translateY(-2%);
+      transform: rotate(2deg) translateY(-12%) translateZ(50px);
       display: flex;
       justify-content: center;
       align-items: center;
