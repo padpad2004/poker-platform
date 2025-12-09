@@ -171,3 +171,9 @@ def read_terms_page():
 @app.get("/tournament.html")
 def read_tournament_page():
     return _serve_html("tournament.html")
+
+
+@app.get("/reset-password")
+@app.get("/reset-password.html")
+def read_reset_password_page():
+    return _serve_html("reset-password.html")
