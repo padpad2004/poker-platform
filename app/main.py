@@ -171,3 +171,9 @@ def read_tournament_page():
 @app.get("/reset-password.html")
 def read_reset_password_page():
     return _serve_html("reset-password.html")
+
+
+@app.get("/table-history")
+@app.get("/table-history.html")
+def read_table_history_page():
+    return _serve_html("table-history.html")
