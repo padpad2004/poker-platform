@@ -63,7 +63,10 @@ def list_my_clubs(
     clubs = (
         db.query(models.Club)
         .join(models.ClubMember, models.Club.id == models.ClubMember.club_id)
-        .filter(models.ClubMember.user_id == current_user.id)
+        .filter(
+            models.ClubMember.user_id == current_user.id,
+            models.ClubMember.status == "approved",
+        )
         .all()
     )
     return clubs
@@ -94,6 +97,7 @@ def join_club(
         club_id=club_id,
         user_id=current_user.id,
         role="member",
+        status="pending",
     )
     db.add(member)
     db.commit()
@@ -149,6 +153,7 @@ def get_club_detail(
         .filter(
             models.ClubMember.club_id == club.id,
             models.ClubMember.user_id == current_user.id,
+            models.ClubMember.status == "approved",
         )
         .first()
         is not None
@@ -163,7 +168,10 @@ def get_club_detail(
             models.User.balance.label("balance"),
         )
         .join(models.User, models.ClubMember.user_id == models.User.id)
-        .filter(models.ClubMember.club_id == club_id)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.status == "approved",
+        )
         .all()
     )
 
@@ -173,6 +181,7 @@ def get_club_detail(
             club_id=member.club_id,
             user_id=member.user_id,
             role=member.role,
+            status=member.status,
             created_at=member.created_at,
             user_email=email,
             balance=balance,
@@ -215,6 +224,125 @@ def get_club_detail(
     )
 
 
+@router.get("/{club_id}/pending-members", response_model=list[schemas.ClubMemberRead])
+def list_pending_members(
+    club_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only owners can view pending members")
+
+    pending_rows = (
+        db.query(
+            models.ClubMember,
+            models.User.email.label("email"),
+            models.User.balance.label("balance"),
+        )
+        .join(models.User, models.ClubMember.user_id == models.User.id)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.status == "pending",
+        )
+        .all()
+    )
+
+    return [
+        schemas.ClubMemberRead(
+            id=member.id,
+            club_id=member.club_id,
+            user_id=member.user_id,
+            role=member.role,
+            status=member.status,
+            created_at=member.created_at,
+            user_email=email,
+            balance=balance,
+        )
+        for member, email, balance in pending_rows
+    ]
+
+
+@router.post("/{club_id}/pending-members/{user_id}/approve", response_model=schemas.ClubMemberRead)
+def approve_pending_member(
+    club_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only owners can approve members")
+
+    membership = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.user_id == user_id,
+            models.ClubMember.status == "pending",
+        )
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Pending member not found")
+
+    membership.status = "approved"
+    db.add(membership)
+    db.commit()
+    db.refresh(membership)
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    balance = user.balance if user else 0
+    email = user.email if user else ""
+
+    return schemas.ClubMemberRead(
+        id=membership.id,
+        club_id=membership.club_id,
+        user_id=membership.user_id,
+        role=membership.role,
+        status=membership.status,
+        created_at=membership.created_at,
+        user_email=email,
+        balance=balance,
+    )
+
+
+@router.delete("/{club_id}/pending-members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def deny_pending_member(
+    club_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only owners can deny members")
+
+    membership = (
+        db.query(models.ClubMember)
+        .filter(
+            models.ClubMember.club_id == club_id,
+            models.ClubMember.user_id == user_id,
+            models.ClubMember.status == "pending",
+        )
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Pending member not found")
+
+    db.delete(membership)
+    db.commit()
+
+
 @router.get("/{club_id}/game-history", response_model=list[schemas.TableReportEntry])
 def get_club_game_history(
     club_id: int,
@@ -231,6 +359,7 @@ def get_club_game_history(
         .filter(
             models.ClubMember.club_id == club.id,
             models.ClubMember.user_id == current_user.id,
+            models.ClubMember.status == "approved",
         )
         .first()
         is not None

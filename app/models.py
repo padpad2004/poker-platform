@@ -45,6 +45,7 @@ class ClubMember(Base):
     club_id = Column(Integer, ForeignKey("clubs.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     role = Column(String, default="member")
+    status = Column(String, default="approved")  # approved | pending
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="memberships")

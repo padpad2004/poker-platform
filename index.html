@@ -1501,28 +1501,32 @@
         alert("Login first");
         return;
       }
-      const cid = Number(joinClubIdInput.value);
-      if (!cid) {
-        alert("Enter a club ID");
-        return;
-      }
-      try {
-        const club = await api(`/clubs/${cid}/join`, {
-          method: "POST",
-        });
-        currentClubId = club.id;
-        currentClubIdSpan.textContent = String(currentClubId);
-        alert(`Joined club ID ${currentClubId}`);
-        // Tell backend to remember this as my active club
-        await api(`/me/club?email=${encodeURIComponent(currentUserEmail)}`, {
-          method: "POST",
-          body: JSON.stringify({ club_id: club.id }),
-        });
+        const cid = Number(joinClubIdInput.value);
+        if (!cid) {
+          alert("Enter a club ID");
+          return;
+        }
+        try {
+          const club = await api(`/clubs/${cid}/join`, {
+            method: "POST",
+          });
+          try {
+            // Tell backend to remember this as my active club
+            await api(`/me/club?email=${encodeURIComponent(currentUserEmail)}`, {
+              method: "POST",
+              body: JSON.stringify({ club_id: club.id }),
+            });
+            currentClubId = club.id;
+            currentClubIdSpan.textContent = String(currentClubId);
+            alert(`Joined club ID ${currentClubId}`);
+          } catch (err) {
+            alert("Request sent. The club owner must approve you before you can access this club.");
+          }
 
-    
 
-        // For "remember my club", you can also make this update current_club_id server-side
-      } catch (e) {
+
+          // For "remember my club", you can also make this update current_club_id server-side
+        } catch (e) {
         alert(e.message);
       }
     };
