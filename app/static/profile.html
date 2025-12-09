@@ -380,7 +380,18 @@
 
   <script>
     const AUTH_KEY = "poker_token";
-    const authInfo = JSON.parse(localStorage.getItem("pokerAuth") || "{}");
+
+    function readAuthInfo() {
+      try {
+        return JSON.parse(localStorage.getItem("pokerAuth") || "{}");
+      } catch (error) {
+        console.warn("Failed to parse stored auth info", error);
+        localStorage.removeItem("pokerAuth");
+        return {};
+      }
+    }
+
+    const authInfo = readAuthInfo();
     const accessToken = localStorage.getItem(AUTH_KEY);
 
     if (!accessToken || !authInfo.email) {
