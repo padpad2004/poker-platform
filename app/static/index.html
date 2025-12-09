@@ -346,6 +346,150 @@
 
     /* TABLE AREA */
 
+    .table-area {
+      display: grid;
+      grid-template-columns: minmax(260px, 320px) 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .chat-panel {
+      background: radial-gradient(circle at top, rgba(59,130,246,0.08) 0, #0b1120 70%);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 320px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .chat-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .chat-subtitle {
+      margin: 2px 0 0;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .chat-status {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border: 1px solid var(--panel-border);
+      color: #fbbf24;
+      background: rgba(251, 191, 36, 0.08);
+    }
+
+    .chat-status.online {
+      color: #bbf7d0;
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--panel-border);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .chat-message {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+
+    .chat-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .chat-author {
+      font-weight: 700;
+      color: #bfdbfe;
+    }
+
+    .chat-text {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--text-main);
+      word-break: break-word;
+    }
+
+    .chat-empty {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 12px;
+      padding: 10px 0;
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    #chatInput {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: #0f172a;
+      color: var(--text-main);
+      font-size: 13px;
+    }
+
+    #chatInput:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #chatSendBtn {
+      min-width: 70px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: linear-gradient(135deg, var(--btn), var(--btn-hover));
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 12px;
+    }
+
+    #chatSendBtn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background: #1f2937;
+      border-color: #111827;
+    }
+
     .table-wrapper {
       position: relative;
       width: 100%;
@@ -1360,6 +1504,16 @@
       color: #111827;
     }
 
+    @media (max-width: 1100px) {
+      .table-area {
+        grid-template-columns: 1fr;
+      }
+
+      .chat-panel {
+        min-height: auto;
+      }
+    }
+
     @keyframes big-card-pop {
       0% {
         transform: scale(0.2) translateY(40px);
@@ -1540,9 +1694,27 @@
         </div>
         <div class="player-stats-grid" id="playerStatsGrid"></div>
       </div>
-      <div class="table-wrapper">
-        <div id="chipAnimationLayer" class="chip-animation-layer"></div>
-        <div class="felt">
+      <div class="table-area">
+        <aside class="chat-panel" aria-label="Table chat">
+          <div class="chat-header">
+            <div>
+              <p class="chat-title">Table chat</p>
+              <p class="chat-subtitle">Chat with players at this table.</p>
+            </div>
+            <span id="chatStatus" class="chat-status">Offline</span>
+          </div>
+          <div id="chatMessages" class="chat-messages">
+            <div id="chatEmpty" class="chat-empty">No messages yet. Say hello to the table.</div>
+          </div>
+          <form id="chatForm" class="chat-input-row">
+            <input id="chatInput" type="text" placeholder="Type a message" autocomplete="off" maxlength="240" />
+            <button id="chatSendBtn" type="submit" disabled>Send</button>
+          </form>
+        </aside>
+
+        <div class="table-wrapper">
+          <div id="chipAnimationLayer" class="chip-animation-layer"></div>
+          <div class="felt">
           <div class="center-area">
             <div class="pot-chip-stack">
               <div class="chip-pile" aria-hidden="true">
@@ -1876,6 +2048,7 @@
           </div>
         </div>
       </div>   <!-- end .table-wrapper -->
+    </div>   <!-- end .table-area -->
     </div>   <!-- end .panel -->
 
   <!-- Top up modal -->
@@ -1933,10 +2106,12 @@
   <script>
     const API_BASE = "";
     const AUTH_STORAGE_KEY = "pokerAuth";
+    const CHAT_MAX_MESSAGES = 50;
     let tableId = null;
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedTableId = urlParams.get("tableId");
     let lastState = null;
+    let chatMessages = [];
     let tableSocket = null;
     let wsReconnectTimer = null;
     let wsHeartbeatTimer = null;
@@ -2047,6 +2222,92 @@
       return null;
     }
 
+    function formatChatTimestamp(value) {
+      const parsed = value ? Date.parse(value) : NaN;
+      const date = Number.isFinite(parsed) ? new Date(parsed) : new Date();
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function trimChatHistory(list) {
+      if (!Array.isArray(list)) return [];
+      return list.slice(Math.max(list.length - CHAT_MAX_MESSAGES, 0));
+    }
+
+    function setChatConnected(isConnected) {
+      if (chatStatusBadge) {
+        chatStatusBadge.textContent = isConnected ? "Live" : "Offline";
+        chatStatusBadge.classList.toggle("online", !!isConnected);
+      }
+      if (chatInput) chatInput.disabled = !isConnected || !tableId;
+      if (chatSendBtn) chatSendBtn.disabled = !isConnected || !tableId;
+    }
+
+    function renderChatMessages() {
+      if (!chatMessagesEl) return;
+      chatMessagesEl.innerHTML = "";
+
+      if (!chatMessages.length) {
+        if (chatEmptyEl) {
+          chatEmptyEl.style.display = "block";
+          chatMessagesEl.appendChild(chatEmptyEl);
+        }
+        return;
+      }
+
+      if (chatEmptyEl) chatEmptyEl.style.display = "none";
+
+      chatMessages.forEach((entry) => {
+        const row = document.createElement("div");
+        row.className = "chat-message";
+
+        const meta = document.createElement("div");
+        meta.className = "chat-meta";
+
+        const author = document.createElement("span");
+        author.className = "chat-author";
+        author.textContent = entry.username || "Player";
+
+        const time = document.createElement("span");
+        time.textContent = formatChatTimestamp(entry.timestamp);
+
+        meta.appendChild(author);
+        meta.appendChild(time);
+
+        const body = document.createElement("p");
+        body.className = "chat-text";
+        body.textContent = entry.message || "";
+
+        row.appendChild(meta);
+        row.appendChild(body);
+        chatMessagesEl.appendChild(row);
+      });
+
+      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    }
+
+    function clearChatMessages() {
+      chatMessages = [];
+      renderChatMessages();
+    }
+
+    function handleChatPayload(payload) {
+      if (!payload || typeof payload !== "object") return false;
+
+      if (payload.type === "chat_history" && Array.isArray(payload.messages)) {
+        chatMessages = trimChatHistory(payload.messages);
+        renderChatMessages();
+        return true;
+      }
+
+      if (payload.type === "chat_message" && payload.message) {
+        chatMessages = trimChatHistory([...chatMessages, payload.message]);
+        renderChatMessages();
+        return true;
+      }
+
+      return false;
+    }
+
     // DOM elements
     const usernameInput = document.getElementById("usernameInput");
     const emailInput = document.getElementById("emailInput");
@@ -2088,6 +2349,12 @@
     const playerStatsMeta = document.getElementById("playerStatsMeta");
     const playerStatsGrid = document.getElementById("playerStatsGrid");
     const closePlayerStatsBtn = document.getElementById("closePlayerStats");
+    const chatMessagesEl = document.getElementById("chatMessages");
+    const chatEmptyEl = document.getElementById("chatEmpty");
+    const chatStatusBadge = document.getElementById("chatStatus");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const chatSendBtn = document.getElementById("chatSendBtn");
 
     const seatElements = document.querySelectorAll(".seat");
     let totalSeats = Math.min(seatElements.length, 9);
@@ -2130,6 +2397,8 @@
     if (logoutBtn) logoutBtn.disabled = true;
 
     updateLeaveButton();
+    setChatConnected(false);
+    renderChatMessages();
 
     // Action dock elements
     const foldMainBtn = document.getElementById("foldMainBtn");
@@ -3695,6 +3964,8 @@
           }
         }, WS_HEARTBEAT_MS);
 
+        setChatConnected(true);
+
         // Stop any HTTP polling once a websocket is active
         if (wsPollTimer) {
           clearInterval(wsPollTimer);
@@ -3705,6 +3976,7 @@
       tableSocket.onmessage = (event) => {
         try {
           const state = JSON.parse(event.data);
+          if (handleChatPayload(state)) return;
           renderState(state);
         } catch (e) {
           console.error("Bad WS message", e);
@@ -3714,6 +3986,7 @@
       tableSocket.onclose = () => {
         console.log("WebSocket closed");
         clearWebSocketTimers();
+        setChatConnected(false);
         if (!wsShouldReconnect || !tableId) return;
         wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
 
@@ -3731,6 +4004,7 @@
 
       tableSocket.onerror = (err) => {
         console.error("WebSocket error", err);
+        setChatConnected(false);
         if (!wsShouldReconnect || !tableId) return;
         clearWebSocketTimers();
         wsReconnectTimer = setTimeout(connectWebSocket, WS_RECONNECT_MS);
@@ -3832,11 +4106,39 @@
         }
         tableOwnerUserId = null;
         lastState = null;
+        clearChatMessages();
+        setChatConnected(false);
         updateEngineControlsVisibility();
         setAuthEnabled(false);
         updateLeaveButton();
         window.location.href = "/";
       };
+    }
+
+    if (chatForm) {
+      chatForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const text = (chatInput?.value || "").trim();
+        if (!tableId) {
+          alert("Join a table to chat.");
+          return;
+        }
+        if (!text) return;
+
+        const preferredName = (currentUsername || usernameInput?.value || "").trim();
+        const payload = {
+          type: "chat_message",
+          message: text,
+          username: preferredName || "Player",
+        };
+
+        if (tableSocket?.readyState === WebSocket.OPEN) {
+          tableSocket.send(JSON.stringify(payload));
+          chatInput.value = "";
+        } else {
+          alert("Chat connection is not ready yet. Trying to reconnect...");
+        }
+      });
     }
 
     // -------- Wallet actions --------
@@ -3983,6 +4285,8 @@
         tableIdSpan.textContent = String(numericId);
         if (tableHeadingLabel) tableHeadingLabel.textContent = `#${numericId}`;
         updateEngineControlsVisibility();
+        clearChatMessages();
+        setChatConnected(false);
         connectWebSocket();
         renderState(state);
         setControlsHidden(true);
