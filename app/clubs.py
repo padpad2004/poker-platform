@@ -596,6 +596,8 @@ def open_table(
         raise HTTPException(status_code=400, detail="Blinds must be positive")
     if payload.big_blind <= payload.small_blind:
         raise HTTPException(status_code=400, detail="Big blind must exceed small blind")
+    if payload.game_type not in {"holdem", "plo"}:
+        raise HTTPException(status_code=400, detail="Unsupported game type")
 
     table = models.PokerTable(
         club_id=club_id,
@@ -605,6 +607,7 @@ def open_table(
         big_blind=payload.big_blind,
         bomb_pot_every_n_hands=payload.bomb_pot_every_n_hands,
         bomb_pot_amount=payload.bomb_pot_amount,
+        game_type=payload.game_type,
         status="active",
     )
 

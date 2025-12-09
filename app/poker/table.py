@@ -1,5 +1,6 @@
 import time
 from dataclasses import dataclass, field
+from itertools import combinations, product
 from typing import Any, Dict, List, Optional, Set
 
 from .deck import Deck
@@ -46,6 +47,8 @@ class Table:
         bomb_pot_every_n_hands: Optional[int] = None,
         bomb_pot_amount: Optional[float] = None,
         action_time_limit: float = 30,
+        game_type: str = "holdem",
+        hole_cards_per_player: int = 2,
     ):
         self.max_seats = max_seats
         self.players: List[Player] = []
@@ -73,6 +76,10 @@ class Table:
         # Bomb pot configuration
         self.bomb_pot_every_n_hands: Optional[int] = bomb_pot_every_n_hands
         self.bomb_pot_amount: Optional[float] = bomb_pot_amount
+
+        # Game configuration
+        self.game_type = game_type
+        self.hole_cards_per_player = max(2, hole_cards_per_player)
 
         # Internal id counter to ensure player ids remain unique even after seats are vacated
         self._next_player_id: int = 1
@@ -223,8 +230,8 @@ class Table:
 
         # Note: blinds are logged inside post_blinds
 
-        # Deal 2 cards to each player
-        for _ in range(2):
+        # Deal hole cards to each player
+        for _ in range(self.hole_cards_per_player):
             for p in self.players:
                 if not p.in_hand:
                     continue
@@ -690,8 +697,21 @@ class Table:
         active_players = [p for p in self.players if p.in_hand and not p.has_folded]
 
         for p in active_players:
-            seven = p.hole_cards + self.board
-            rank, best_five_cards = best_hand(seven)
+            if self.game_type == "plo" and len(p.hole_cards) >= 4 and len(self.board) >= 3:
+                # Omaha requires exactly 2 hole cards and 3 board cards
+                best_rank = None
+                best_five_cards = []
+                for hole_combo, board_combo in product(
+                    combinations(p.hole_cards, 2), combinations(self.board, 3)
+                ):
+                    rank, candidate = best_hand(list(hole_combo + board_combo))
+                    if best_rank is None or rank > best_rank:
+                        best_rank = rank
+                        best_five_cards = candidate
+                rank = best_rank if best_rank is not None else 0
+            else:
+                seven = p.hole_cards + self.board
+                rank, best_five_cards = best_hand(seven)
             results[p.id] = {"hand_rank": rank, "best_five": best_five_cards}
 
             if best_rank is None or rank > best_rank:
