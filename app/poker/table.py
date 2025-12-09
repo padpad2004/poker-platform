@@ -63,6 +63,7 @@ class Table:
         self.big_blind_seat: Optional[int] = None
         self.small_blind: float = small_blind
         self.big_blind: float = big_blind
+        self.last_raise_amount: float = big_blind
         self.next_to_act_seat: Optional[int] = None
         self.action_deadline: Optional[float] = None  # epoch seconds for timer
         self.action_time_limit = action_time_limit
@@ -179,6 +180,7 @@ class Table:
         self.board = []
         self.pot = 0
         self.current_bet = 0
+        self.last_raise_amount = self.big_blind
         self.street = "preflop"
         self.small_blind_seat = None
         self.big_blind_seat = None
@@ -253,6 +255,7 @@ class Table:
         self.big_blind_seat = bb_player.seat
 
         self.current_bet = max(self.current_bet, self.big_blind)
+        self.last_raise_amount = self.big_blind
 
         self.next_to_act_seat = self._next_player_to_act(bb_player.seat)
         # The big blind should have the option to check/raise if action comes
@@ -571,6 +574,18 @@ class Table:
             if amount <= self.current_bet:
                 raise ValueError("raise_to amount must be greater than current bet")
 
+            is_all_in_target = amount >= acting_player.committed + acting_player.stack
+            min_raise_target = (
+                self.current_bet + self.last_raise_amount
+                if self.current_bet > 0
+                else self.big_blind
+            )
+
+            if amount < min_raise_target and not is_all_in_target:
+                raise ValueError(
+                    "NLH minimum raise is the size of the previous bet or raise"
+                )
+
             to_put_total = amount - acting_player.committed
             if to_put_total <= 0:
                 raise ValueError("Player has already committed that much")
@@ -579,12 +594,19 @@ class Table:
             acting_player.stack -= put_in
             acting_player.committed += put_in
             self.pot += put_in
+            previous_bet = self.current_bet
+            previous_closer = self.action_closing_seat
             self.current_bet = max(self.current_bet, acting_player.committed)
             if acting_player.stack == 0:
                 acting_player.all_in = True
             event_amount = put_in
-            # A raise sets the closing action back to the raiser.
-            self.action_closing_seat = acting_player.seat
+            if acting_player.committed - previous_bet >= self.last_raise_amount:
+                self.last_raise_amount = acting_player.committed - previous_bet
+                # A full raise resets action to the raiser.
+                self.action_closing_seat = acting_player.seat
+            else:
+                # A short all-in does not reopen betting.
+                self.action_closing_seat = previous_closer
 
         else:
             raise ValueError(f"Unknown action: {action}")
@@ -646,6 +668,7 @@ class Table:
 
     def reset_committed_for_new_street(self) -> None:
         self.current_bet = 0
+        self.last_raise_amount = self.big_blind
         for p in self.players:
             p.committed = 0
         self.next_to_act_seat = self._next_player_to_act(self.dealer_seat)
