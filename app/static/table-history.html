@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Club Table History | Poker Platform</title>
+  <style>
+    :root {
+      --bg: #0b1222;
+      --panel: #0f172a;
+      --panel-border: #1f2937;
+      --accent: #22c55e;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --btn: #2563eb;
+      --btn-hover: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top, #111827 0, #0b1222 60%);
+      color: var(--text-main);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--panel-border);
+      background: rgba(15, 23, 42, 0.9);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      color: #0b1224;
+      box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1);
+      overflow: hidden;
+    }
+
+    .page-title { margin: 0; font-size: 20px; letter-spacing: 0.03em; }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .ghost-button, .button-link {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: #111827;
+      color: var(--text-main);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ghost-button:hover, .button-link:hover { background: #1f2937; border-color: #334155; }
+
+    main { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    .muted { color: var(--text-muted); }
+
+    .list { display: grid; gap: 10px; margin-top: 12px; }
+
+    .chip {
+      border: 1px solid var(--panel-border);
+      background: #0b1020;
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(34, 197, 94, 0.1);
+      color: #86efac;
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+
+    .error-box {
+      border: 1px solid #b91c1c;
+      background: rgba(185, 28, 28, 0.15);
+      color: #fecdd3;
+      padding: 12px;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo-circle">PP</div>
+      <div>
+        <p class="page-title">Club Table History</p>
+        <p id="clubMeta" class="muted" style="margin: 0;">Loading club info...</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <a id="backToClub" class="ghost-button" href="/clubs.html">Back to Clubs</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <div>
+          <h2 id="clubTitle" style="margin: 0 0 4px;">Loading...</h2>
+          <p id="clubHint" class="muted" style="margin: 0;">Fetching table history</p>
+        </div>
+        <div class="badge" id="clubStatus">--</div>
+      </div>
+
+      <div id="historyEmpty" class="muted" style="margin-top: 12px;">No completed tables yet.</div>
+      <div id="historyError" class="error-box" style="display:none; margin-top: 12px;"></div>
+      <div id="historyList" class="list" style="display:none;"></div>
+    </div>
+  </main>
+
+  <script>
+    const AUTH_STORAGE_KEY = "pokerAuth";
+    let accessToken = "";
+    let currentClubId = null;
+
+    function loadAuth() {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (err) {
+        console.warn("Failed to parse auth", err);
+        return null;
+      }
+    }
+
+    function requireAuth() {
+      const auth = loadAuth();
+      if (!auth?.access_token) {
+        window.location.href = "/login.html";
+        throw new Error("Login required");
+      }
+      accessToken = auth.access_token;
+    }
+
+    async function api(path, options = {}) {
+      const headers = Object.assign({}, options.headers || {}, {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      });
+      const response = await fetch(path, { ...options, headers });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ detail: "Unexpected error" }));
+        throw new Error(err.detail || "Request failed");
+      }
+      return response.json();
+    }
+
+    function renderHistory(entries) {
+      const list = document.getElementById("historyList");
+      const empty = document.getElementById("historyEmpty");
+      if (!list || !empty) return;
+
+      list.innerHTML = "";
+      const hasEntries = entries.length > 0;
+      list.style.display = hasEntries ? "grid" : "none";
+      empty.style.display = hasEntries ? "none" : "block";
+
+      entries.forEach((entry) => {
+        const card = document.createElement("div");
+        card.className = "chip";
+
+        const info = document.createElement("div");
+        info.innerHTML = `
+          <strong>Table #${entry.table_id}</strong>
+          <div class="muted">${entry.generated_at ? new Date(entry.generated_at).toLocaleString() : "Pending"}</div>
+        `;
+
+        const actions = document.createElement("div");
+        actions.className = "badge";
+        const profitVal = Number(entry.profit_loss);
+        actions.textContent = Number.isFinite(profitVal)
+          ? `${profitVal >= 0 ? "+" : ""}${profitVal}`
+          : "N/A";
+
+        card.appendChild(info);
+        card.appendChild(actions);
+        list.appendChild(card);
+      });
+    }
+
+    async function loadClubDetails() {
+      const meta = document.getElementById("clubMeta");
+      const title = document.getElementById("clubTitle");
+      const status = document.getElementById("clubStatus");
+      const backLink = document.getElementById("backToClub");
+      if (!currentClubId) return;
+
+      const detail = await api(`/clubs/${currentClubId}`);
+      title.textContent = detail.name;
+      meta.textContent = `Club ID #${detail.id} • Owner ${detail.owner_id}`;
+      status.textContent = detail.status;
+      if (backLink) backLink.href = `/club-detail.html?club_id=${detail.id}`;
+    }
+
+    async function loadHistory() {
+      const errorBox = document.getElementById("historyError");
+      const hint = document.getElementById("clubHint");
+      if (errorBox) errorBox.style.display = "none";
+      if (hint) hint.textContent = "Fetching table history";
+      try {
+        const entries = await api(`/clubs/${currentClubId}/game-history`);
+        renderHistory(entries || []);
+        if (hint) hint.textContent = "Completed and closed tables for this club.";
+      } catch (err) {
+        if (errorBox) {
+          errorBox.textContent = err.message || "Unable to load table history.";
+          errorBox.style.display = "block";
+        }
+        if (hint) hint.textContent = "Unable to load history right now.";
+      }
+    }
+
+    function init() {
+      requireAuth();
+      const params = new URLSearchParams(window.location.search);
+      currentClubId = params.get("club_id");
+      if (!currentClubId) {
+        const errorBox = document.getElementById("historyError");
+        if (errorBox) {
+          errorBox.textContent = "Missing club_id in the URL.";
+          errorBox.style.display = "block";
+        }
+        return;
+      }
+      loadClubDetails();
+      loadHistory();
+    }
+
+    init();
+  </script>
+</body>
+</html>
