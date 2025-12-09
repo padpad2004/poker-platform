@@ -566,6 +566,11 @@ class Table:
             self.action_deadline = None
             return
 
+        if self.action_closing_seat == next_seat and self._betting_round_settled():
+            self.next_to_act_seat = None
+            self.action_deadline = None
+            return
+
         self.next_to_act_seat = next_seat
         self._set_action_deadline()
 
