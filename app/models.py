@@ -108,7 +108,7 @@ class PokerTable(Base):
     club_id = Column(Integer, ForeignKey("clubs.id"), nullable=False)
     created_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    max_seats = Column(Integer, default=6)
+    max_seats = Column(Integer, default=9)
     small_blind = Column(Float, default=1.0)
     big_blind = Column(Float, default=2.0)
     bomb_pot_every_n_hands = Column(Integer, nullable=True)

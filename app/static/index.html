@@ -782,8 +782,8 @@
 
     .seat {
       position: absolute;
-      width: 22%;
-      max-width: 220px;
+      width: 20%;
+      max-width: 210px;
       transform: translate(-50%, -50%);
       color: #e5e7eb;
       --seat-top: 50%;
@@ -1718,6 +1718,96 @@
               <div class="seat-cards"></div>
             </div>
           </div>
+
+          <div class="seat" data-seat="6">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Click to sit</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
+                  </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
+
+          <div class="seat" data-seat="7">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Click to sit</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
+                  </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
+
+          <div class="seat" data-seat="8">
+            <div class="seat-inner">
+              <div class="seat-main">
+                <div class="seat-avatar">
+                  <img class="seat-avatar-img" alt="Avatar" />
+                  <span class="seat-avatar-initial">?</span>
+                </div>
+                <div class="seat-body">
+                  <div class="seat-name-row">
+                    <span class="seat-name">Empty</span>
+                    <span class="seat-stack">0</span>
+                  </div>
+                  <div class="seat-meta-row">
+                    <span class="seat-status">Click to sit</span>
+                    <span class="seat-bet"></span>
+                  </div>
+                  <div class="seat-timer">
+                    <div class="seat-timer-fill"></div>
+                  </div>
+                  <div class="seat-buttons">
+                    <span class="button-chip dealer-chip hidden">DEALER</span>
+                    <span class="button-chip sb-chip hidden">SB</span>
+                    <span class="button-chip bb-chip hidden">BB</span>
+                  </div>
+                </div>
+              </div>
+              <div class="seat-cards"></div>
+            </div>
+          </div>
         </div> <!-- end .felt -->
 
         <div class="action-dock">
@@ -1860,16 +1950,46 @@
     const WS_HEARTBEAT_MS = 15000;
     const WS_RECONNECT_MS = 3000;
 
-    const TOTAL_SEATS = 6;
-    const VIEWER_DISPLAY_SEAT = 3; // bottom center anchor
-    const SEAT_DISPLAY_POSITIONS = [
-      { top: "16%", left: "50%" },
-      { top: "32%", left: "85%" },
-      { top: "70%", left: "85%" },
-      { top: "86%", left: "50%" },
-      { top: "70%", left: "15%" },
-      { top: "32%", left: "15%" },
-    ];
+    const SEAT_LAYOUTS = {
+      6: {
+        viewerSeat: 3,
+        positions: [
+          { top: "16%", left: "50%" },
+          { top: "32%", left: "85%" },
+          { top: "70%", left: "85%" },
+          { top: "86%", left: "50%" },
+          { top: "70%", left: "15%" },
+          { top: "32%", left: "15%" },
+        ],
+      },
+      8: {
+        viewerSeat: 4,
+        positions: [
+          { top: "12%", left: "50%" },
+          { top: "24%", left: "78%" },
+          { top: "46%", left: "90%" },
+          { top: "72%", left: "82%" },
+          { top: "88%", left: "60%" },
+          { top: "88%", left: "40%" },
+          { top: "72%", left: "18%" },
+          { top: "46%", left: "10%" },
+        ],
+      },
+      9: {
+        viewerSeat: 5,
+        positions: [
+          { top: "10%", left: "50%" },
+          { top: "22%", left: "76%" },
+          { top: "42%", left: "90%" },
+          { top: "64%", left: "82%" },
+          { top: "82%", left: "66%" },
+          { top: "92%", left: "50%" },
+          { top: "82%", left: "34%" },
+          { top: "64%", left: "18%" },
+          { top: "42%", left: "10%" },
+        ],
+      },
+    };
 
     function formatChips(value, decimals = 2) {
       const num = Number(value ?? 0);
@@ -1920,6 +2040,9 @@
     const closePlayerStatsBtn = document.getElementById("closePlayerStats");
 
     const seatElements = document.querySelectorAll(".seat");
+    let totalSeats = Math.min(seatElements.length, 9);
+    let seatPositions = SEAT_LAYOUTS[totalSeats]?.positions || SEAT_LAYOUTS[9].positions;
+    let viewerDisplaySeat = SEAT_LAYOUTS[totalSeats]?.viewerSeat || SEAT_LAYOUTS[9].viewerSeat;
     const actionDock = document.querySelector(".action-dock");
 
     const dealFlopBtn = document.getElementById("dealFlopBtn");
@@ -2224,17 +2347,44 @@
       return null;
     }
 
+    function resolveSeatLayout(size) {
+      const boundedSize = Math.min(Math.max(size || seatElements.length, 2), seatElements.length || 9);
+      const layout = SEAT_LAYOUTS[boundedSize] || SEAT_LAYOUTS[9] || Object.values(SEAT_LAYOUTS)[0];
+
+      return {
+        total: boundedSize,
+        positions: layout?.positions || seatPositions,
+        viewerSeat: layout?.viewerSeat ?? viewerDisplaySeat,
+      };
+    }
+
+    function updateSeatLayoutForTable(state) {
+      const maxSeatsFromState = Number(state?.max_seats ?? state?.table?.max_seats);
+      const desiredSeats = Math.min(
+        seatElements.length,
+        Number.isFinite(maxSeatsFromState) ? maxSeatsFromState : seatElements.length
+      );
+      const layout = resolveSeatLayout(desiredSeats || seatElements.length || totalSeats);
+      totalSeats = layout.total;
+      seatPositions = layout.positions;
+      viewerDisplaySeat = layout.viewerSeat;
+
+      seatElements.forEach((seatEl, idx) => {
+        seatEl.classList.toggle("hidden", idx >= totalSeats);
+      });
+    }
+
     function applySeatLayout(state) {
       const viewerSeat = findViewerSeat(state);
       const offset =
         viewerSeat !== null && viewerSeat !== undefined
-          ? (VIEWER_DISPLAY_SEAT - viewerSeat + TOTAL_SEATS) % TOTAL_SEATS
+          ? (viewerDisplaySeat - viewerSeat + totalSeats) % totalSeats
           : 0;
 
       seatElements.forEach((seatEl) => {
         const actualSeat = Number(seatEl.dataset.seat);
-        const displaySeat = (actualSeat + offset + TOTAL_SEATS) % TOTAL_SEATS;
-        const pos = SEAT_DISPLAY_POSITIONS[displaySeat] || SEAT_DISPLAY_POSITIONS[0];
+        const displaySeat = (actualSeat + offset + totalSeats) % totalSeats;
+        const pos = seatPositions[displaySeat] || seatPositions[0];
 
         seatEl.dataset.displaySeat = displaySeat;
         seatEl.style.setProperty("--seat-top", pos.top);
@@ -2242,7 +2392,7 @@
       });
 
       if (actionDock) {
-        const anchorPos = SEAT_DISPLAY_POSITIONS[VIEWER_DISPLAY_SEAT] || {
+        const anchorPos = seatPositions[viewerDisplaySeat] || {
           top: "82%",
           left: "50%",
         };
@@ -3031,6 +3181,8 @@
       const prevState = lastState;
       lastState = state;
 
+      updateSeatLayoutForTable(state);
+
       const nextSeatChanged = prevState?.next_to_act_seat !== state.next_to_act_seat;
       const deadlineChanged = prevState?.action_deadline !== state.action_deadline;
       if (nextSeatChanged || deadlineChanged) {
@@ -3306,7 +3458,7 @@
             : `Currently seated at #${mySeat}. Choose a free seat to move.`;
       }
 
-      for (let seatIndex = 0; seatIndex < TOTAL_SEATS; seatIndex++) {
+      for (let seatIndex = 0; seatIndex < totalSeats; seatIndex++) {
         const occupant = lastState.players?.find(p => p.seat === seatIndex);
         const btn = document.createElement("button");
         btn.textContent = occupant
