@@ -86,7 +86,7 @@
     .grid {
       display: grid;
       gap: 16px;
-      grid-template-columns: minmax(320px, 360px) 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       align-items: start;
     }
 
@@ -465,33 +465,8 @@
 
   <div class="grid">
     <div class="panel">
-      <h2>Access</h2>
-      <label>Email</label>
-      <input type="text" id="email" placeholder="you@example.com" autocomplete="off" />
-      <label>Password</label>
-      <input type="password" id="password" placeholder="••••••••" autocomplete="new-password" />
-      <div class="stacked">
-        <button id="registerBtn">Register</button>
-        <button id="loginBtn">Login</button>
-      </div>
-      <div class="muted" style="margin-top: 6px;">Use the same credentials as the main table page.</div>
-
-      <hr style="border: 1px solid #111827; margin: 16px 0;" />
-
-        <h2>Manage</h2>
-        <label>Club Name</label>
-        <input type="text" id="clubName" placeholder="My Poker Club" />
-
-        <button id="createClubBtn" disabled>Create Club</button>
-
-      <label>Join Existing Club by ID</label>
-      <input type="number" id="clubIdInput" placeholder="e.g. 3" />
-      <button id="joinClubBtn" disabled>Join Club</button>
-    </div>
-
-    <div class="panel">
       <h2>Your Clubs</h2>
-      <div id="clubList" class="list muted">Login to load your clubs.</div>
+      <div id="clubList" class="list muted">Sign in from the main page to load your clubs.</div>
     </div>
   </div>
 
@@ -643,14 +618,6 @@
     let currentClubId = null;
     let isCurrentUserOwner = false;
 
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const registerBtn = document.getElementById("registerBtn");
-    const loginBtn = document.getElementById("loginBtn");
-    const createClubBtn = document.getElementById("createClubBtn");
-    const joinClubBtn = document.getElementById("joinClubBtn");
-    const clubNameInput = document.getElementById("clubName");
-    const clubIdInput = document.getElementById("clubIdInput");
     const clubList = document.getElementById("clubList");
     const currentEmail = document.getElementById("currentEmail");
 
@@ -711,12 +678,6 @@
     }
 
 
-    function setAuthEnabled(enabled) {
-      createClubBtn.disabled = !enabled;
-      joinClubBtn.disabled = !enabled;
-      if (quickCreateTableBtn) quickCreateTableBtn.disabled = true;
-    }
-
     function persistAuth() {
       if (!accessToken || !currentUserEmail) return;
       try {
@@ -738,10 +699,7 @@
         accessToken = parsed.token;
         currentUserEmail = parsed.email;
         currentEmail.textContent = parsed.email;
-        if (emailInput) emailInput.value = parsed.email;
-        setAuthEnabled(true);
         loadBalance();
-        loadClubs();
       } catch (err) {
         console.warn("Failed to restore auth", err);
       }
@@ -995,7 +953,12 @@
     }
 
     async function loadClubs() {
-      requireAuth();
+      if (!accessToken) {
+        clubList.classList.add("muted");
+        clubList.innerHTML = "Sign in from the main page to manage your clubs.";
+        return;
+      }
+
       // Ensure we have the user id so we can enforce owner-only access
       if (!currentUserId) {
         await loadBalance();
@@ -1017,83 +980,8 @@
       }
     }
 
-    registerBtn.onclick = async () => {
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
-      if (!email || !password) return alert("Enter email and password");
-      try {
-        const res = await fetch("/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        if (!res.ok) throw new Error(`Error ${res.status}: ${await res.text()}`);
-        alert("Registered successfully. Please login.");
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-
-    loginBtn.onclick = async () => {
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
-      if (!email || !password) return alert("Enter email and password");
-
-      const body = new URLSearchParams();
-      body.append("username", email);
-      body.append("password", password);
-
-      try {
-        const res = await fetch("/auth/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body,
-        });
-        if (!res.ok) throw new Error(`Error ${res.status}: ${await res.text()}`);
-        const data = await res.json();
-        accessToken = data.access_token;
-        currentUserEmail = email;
-        currentEmail.textContent = email;
-        setAuthEnabled(true);
-        persistAuth();
-        loadBalance();
-        loadClubs();
-        alert("Logged in!");
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-
     restoreAuth();
-
-    createClubBtn.onclick = async () => {
-      requireAuth();
-      const name = clubNameInput.value.trim() || "My Club";
-      try {
-        const club = await api("/clubs/", {
-          method: "POST",
-          body: JSON.stringify({ name }),
-        });
-        alert(`Created club #${club.id}`);
-        loadClubs();
-      } catch (e) {
-        alert(e.message);
-      }
-    };
-
-    joinClubBtn.onclick = async () => {
-      requireAuth();
-      const clubId = Number(clubIdInput.value);
-      if (!clubId) return alert("Enter a valid club ID");
-        try {
-          await api(`/clubs/${clubId}/join`, { method: "POST" });
-          alert(`Joined club #${clubId}`);
-          currentClubId = clubId;
-          loadClubs();
-        } catch (e) {
-          alert(e.message);
-        }
-    };
+    loadClubs();
 
     function showGameTypeModal() {
       requireAuth();
