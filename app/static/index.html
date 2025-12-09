@@ -512,6 +512,12 @@
       transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
     }
 
+    .seat.sitting-out .seat-inner {
+      opacity: 0.65;
+      filter: grayscale(0.5);
+      border-color: rgba(156, 163, 175, 0.4);
+    }
+
     .seat-main {
       display: grid;
       grid-template-columns: 76px 1fr;
@@ -1505,6 +1511,8 @@
         <div class="table-panel-actions">
           <button id="toggleControlsBtn" class="btn secondary">Hide control panel</button>
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
+          <button id="sitOutBtn" class="btn secondary" disabled>Sit out</button>
+          <button id="returnToPlayBtn" class="btn secondary" disabled>I'm back</button>
           <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
         </div>
       </div>
@@ -1931,6 +1939,8 @@
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
+    const sitOutBtn = document.getElementById("sitOutBtn");
+    const returnToPlayBtn = document.getElementById("returnToPlayBtn");
     const toggleControlsBtn = document.getElementById("toggleControlsBtn");
     const handHistoryList = document.getElementById("handHistoryList");
     const handHistoryPanel = document.querySelector(".hand-history-panel");
@@ -2510,7 +2520,7 @@
       const seats = document.querySelectorAll(".seat");
       seats.forEach(seat => {
         seat.classList.add("empty");
-        seat.classList.remove("highlight");
+        seat.classList.remove("highlight", "sitting-out", "timer-warning");
 
         const nameEl = seat.querySelector(".seat-name");
         const stackEl = seat.querySelector(".seat-stack");
@@ -2818,7 +2828,7 @@
       const viewerSeat = getViewerSeat(state);
       const isViewerTurn = viewerSeat != null && actingPlayer.user_id === currentUserId;
       const shouldShowDock =
-        isViewerTurn && !actingPlayer.has_folded && actingPlayer.in_hand !== false;
+        isViewerTurn && !actingPlayer.has_folded && actingPlayer.in_hand !== false && !actingPlayer.sitting_out;
 
       if (actionDock) {
         actionDock.classList.toggle("visible", shouldShowDock);
@@ -3070,6 +3080,7 @@
         }
 
         seatDiv.classList.remove("empty");
+        seatDiv.classList.toggle("sitting-out", Boolean(p.sitting_out));
 
         const nameEl = seatDiv.querySelector(".seat-name");
         const stackEl = seatDiv.querySelector(".seat-stack");
@@ -3108,7 +3119,9 @@
 
         // Status
         if (statusEl) {
-          if (p.has_folded) {
+          if (p.sitting_out) {
+            statusEl.textContent = "Sitting out";
+          } else if (p.has_folded) {
             statusEl.textContent = "Folded";
           } else if (p.all_in) {
             statusEl.textContent = "All-in";
@@ -3165,14 +3178,15 @@
         const isActingSeat = state.next_to_act_seat === p.seat;
 
         if (timerBar) {
-          timerBar.classList.toggle("active", isActingSeat || actingTimerSeat === p.seat);
+          const timerShouldShow = !p.sitting_out && (isActingSeat || actingTimerSeat === p.seat);
+          timerBar.classList.toggle("active", timerShouldShow);
         }
 
-        if (!isActingSeat && timerFill && actingTimerSeat !== p.seat) {
+        if ((!isActingSeat || p.sitting_out) && timerFill && actingTimerSeat !== p.seat) {
           timerFill.style.width = "0%";
         }
 
-        if (isActingSeat) {
+        if (isActingSeat && !p.sitting_out) {
           seatDiv.classList.add("highlight");
         } else {
           seatDiv.classList.remove("highlight", "timer-warning");
@@ -3213,21 +3227,43 @@
       return mine ? mine.seat : null;
     }
 
+    function getViewerPlayer(state) {
+      if (!state || currentUserId == null) return null;
+      return state.players?.find(p => p.user_id === currentUserId) || null;
+    }
+
     function updateLeaveButton() {
       if (!leaveTableBtn) return;
       const mySeat = getViewerSeat(lastState);
+      const viewer = getViewerPlayer(lastState);
+      const sittingOut = viewer?.sitting_out;
+
       leaveTableBtn.disabled = !tableId || mySeat == null;
       leaveTableBtn.textContent = mySeat == null
         ? "Leave table"
         : `Leave table (seat ${mySeat})`;
+
+      if (sitOutBtn) {
+        sitOutBtn.disabled = !tableId || mySeat == null || Boolean(sittingOut);
+      }
+
+      if (returnToPlayBtn) {
+        returnToPlayBtn.disabled = !tableId || mySeat == null || !Boolean(sittingOut);
+      }
     }
 
     function updateSeatChangeUI() {
       if (!seatActionMessage || !lastState) return;
       const mySeat = getViewerSeat(lastState);
+      const viewer = getViewerPlayer(lastState);
       if (mySeat == null) {
         seatActionMessage.textContent = "Tap an empty seat to join.";
         if (changeSeatBtn) changeSeatBtn.disabled = true;
+        return;
+      }
+      if (viewer?.sitting_out) {
+        seatActionMessage.textContent = `You are seated at #${mySeat} and sitting out. Tap I'm back to rejoin.`;
+        if (changeSeatBtn) changeSeatBtn.disabled = false;
         return;
       }
       seatActionMessage.textContent = `You are seated at #${mySeat}. Use Change Seat to move.`;
@@ -3321,6 +3357,45 @@
     if (leaveTableBtn) {
       leaveTableBtn.onclick = handleLeaveTable;
     }
+
+    async function handleSitOut() {
+      if (!sitOutBtn || !tableId) return;
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+
+      try {
+        sitOutBtn.disabled = true;
+        const state = await api(`/tables/${tableId}/sit_out`, { method: "POST" });
+        renderState(state);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        updateLeaveButton();
+      }
+    }
+
+    async function handleReturnToPlay() {
+      if (!returnToPlayBtn || !tableId) return;
+      if (!accessToken) {
+        alert("Login first");
+        return;
+      }
+
+      try {
+        returnToPlayBtn.disabled = true;
+        const state = await api(`/tables/${tableId}/return`, { method: "POST" });
+        renderState(state);
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        updateLeaveButton();
+      }
+    }
+
+    if (sitOutBtn) sitOutBtn.onclick = handleSitOut;
+    if (returnToPlayBtn) returnToPlayBtn.onclick = handleReturnToPlay;
 
     function clearWebSocketTimers() {
       if (wsReconnectTimer) {

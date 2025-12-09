@@ -141,6 +141,7 @@ class PlayerState(BaseModel):
     seat: int
     stack: float
     committed: float
+    sitting_out: bool = False
     in_hand: bool
     has_folded: bool
     all_in: bool

@@ -139,6 +139,7 @@ def _table_state_for_viewer(
                 seat=p.seat,
                 stack=p.stack,
                 committed=p.committed,
+                sitting_out=getattr(p, "sitting_out", False),
                 in_hand=p.in_hand,
                 has_folded=p.has_folded,
                 all_in=p.all_in,
@@ -440,7 +441,8 @@ def _persist_table_stacks(table_id: int, engine_table: Table, db: Session) -> No
 
 def _auto_start_hand_if_ready(engine_table: Table) -> bool:
     """Start a fresh hand when at least two players are seated."""
-    if len(engine_table.players) < 2:
+    active_players = [p for p in engine_table.players if not getattr(p, "sitting_out", False)]
+    if len(active_players) < 2:
         return False
 
     if engine_table.street not in {"prehand", "showdown"}:
@@ -706,6 +708,55 @@ async def leave_table(
         table_id=table_id,
         seat=removed.seat,
         returned_amount=removed.stack,
+    )
+
+
+@router.post("/{table_id}/sit_out", response_model=schemas.TableState)
+async def sit_out(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    table_meta = _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+
+    player = _player_for_user(engine_table, current_user.id)
+    if not player:
+        raise HTTPException(status_code=404, detail="You are not seated at this table")
+
+    engine_table.sit_out_player(player, auto=False, reason="manual")
+
+    hand_finished = _auto_progress_hand(engine_table)
+    if hand_finished:
+        _record_hand_history(table_meta, engine_table, db)
+        _process_pending_leavers(table_id, engine_table, db)
+        _auto_start_hand_if_ready(engine_table)
+
+    await broadcast_table_state(table_id)
+    return _table_state(table_id, engine_table, viewer_user_id=current_user.id)
+
+
+@router.post("/{table_id}/return", response_model=schemas.TableState)
+async def return_to_play(
+    table_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    _ensure_user_in_table_club(table_id, db, current_user)
+    engine_table = _apply_timeouts(table_id, db)
+
+    player = _player_for_user(engine_table, current_user.id)
+    if not player:
+        raise HTTPException(status_code=404, detail="You are not seated at this table")
+
+    engine_table.return_player_to_game(player)
+    _auto_start_hand_if_ready(engine_table)
+
+    await broadcast_table_state(table_id)
+    return _table_state(
+        table_id,
+        engine_table,
+        viewer_user_id=current_user.id,
     )
 
 
