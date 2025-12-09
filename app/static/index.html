@@ -522,6 +522,10 @@
       align-items: center;
     }
 
+    .felt.hide-empty-seats .seat.empty {
+      display: none;
+    }
+
     .table-panel-actions {
       display: flex;
       gap: 8px;
@@ -860,6 +864,16 @@
       margin-top: 6px;
       font-size: 12px;
       color: var(--text-muted);
+    }
+
+    .seat-action-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .seat-action-inline .seat-action-message {
+      margin-top: 0;
     }
 
     .seat-status {
@@ -1759,6 +1773,10 @@
           <button id="toggleControlsBtn" class="btn secondary">Hide control panel</button>
           <button id="toggleChatVisibilityBtn" class="btn secondary" aria-pressed="false">Hide chat</button>
           <button id="backToLobbyBtn" class="btn secondary" onclick="window.location.href='/available-tables'">Back to Table Lobby</button>
+          <div class="seat-action-inline">
+            <button id="changeSeatBtn" class="btn secondary" disabled>Change seat</button>
+            <span id="seatActionMessage" class="seat-action-message"></span>
+          </div>
           <button id="sitOutBtn" class="btn secondary" disabled>Sit out</button>
           <button id="returnToPlayBtn" class="btn secondary" disabled>I'm back</button>
           <button id="leaveTableBtn" class="btn btn-danger" disabled>Leave table</button>
@@ -2092,22 +2110,18 @@
             </div>
           </div>
 
-          <div class="action-right">
-            <div>
-              <div class="bottom-label">Raise</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                <input type="number" id="raiseCustomInput" placeholder="Amt" />
-                <button id="raiseCustomBtn" disabled>Raise</button>
-                <button id="raise30Btn" disabled>30%</button>
-                <button id="raise50Btn" disabled>50%</button>
-                <button id="raise100Btn" disabled>100%</button>
+              <div class="action-right">
+                <div>
+                  <div class="bottom-label">Raise</div>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                    <input type="number" id="raiseCustomInput" placeholder="Amt" />
+                    <button id="raiseCustomBtn" disabled>Raise</button>
+                    <button id="raise30Btn" disabled>30%</button>
+                    <button id="raise50Btn" disabled>50%</button>
+                    <button id="raise100Btn" disabled>100%</button>
+                  </div>
+                </div>
               </div>
-              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;">
-                <button id="changeSeatBtn" disabled>Change Seat</button>
-                <span id="seatActionMessage" class="seat-action-message"></span>
-              </div>
-            </div>
-          </div>
         </div> <!-- end .action-dock -->
         <div class="hand-history-launcher">
           <button id="handHistoryToggleBtn" aria-expanded="false">View hand history</button>
@@ -2443,6 +2457,7 @@
     const chatSendBtn = document.getElementById("chatSendBtn");
     const chatVisibilityToggle = document.getElementById("toggleChatVisibilityBtn");
     const tableArea = document.querySelector(".table-area");
+    const felt = document.querySelector(".felt");
 
     const seatElements = document.querySelectorAll(".seat");
     let totalSeats = Math.min(seatElements.length, 9);
@@ -2844,6 +2859,12 @@
         actionDock.style.setProperty("--action-top", anchorPos.top);
         actionDock.style.setProperty("--action-left", anchorPos.left);
       }
+    }
+
+    function updateEmptySeatVisibility(state) {
+      if (!felt) return;
+      const mySeat = getViewerSeat(state);
+      felt.classList.toggle("hide-empty-seats", mySeat != null);
     }
 
     const PLAYER_STAT_DESCRIPTIONS = {
@@ -3629,6 +3650,7 @@
       }
 
       applySeatLayout(state);
+      updateEmptySeatVisibility(state);
 
       tableIdSpan.textContent = state.id;
       if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
