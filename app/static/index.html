@@ -2201,10 +2201,14 @@
     const API_BASE = "";
     const AUTH_STORAGE_KEY = "pokerAuth";
     const CHAT_MAX_MESSAGES = 50;
+    const STATE_RENDER_BASE_DELAY_MS = 200;
+    const HAND_START_EXTRA_DELAY_MS = 600;
     let tableId = null;
     const urlParams = new URLSearchParams(window.location.search);
     const preselectedTableId = urlParams.get("tableId");
     let lastState = null;
+    let pendingRenderState = null;
+    let renderStateTimer = null;
     let chatMessages = [];
     let tableSocket = null;
     let wsReconnectTimer = null;
@@ -3260,7 +3264,7 @@
         // and avoids repeated "already seated" errors.
         try {
           const state = await api(`/tables/${tableId}`, { method: "GET" });
-          renderState(state);
+          renderStateWithPacing(state);
         } catch (fetchErr) {
           console.warn("Failed to refresh table after sitting:", fetchErr);
         }
@@ -3633,6 +3637,35 @@
       });
     }
 
+    function renderStateWithPacing(state, { immediate = false } = {}) {
+      // Avoid delaying the very first render to prevent a blank screen on load.
+      if (immediate || !lastState) {
+        if (renderStateTimer) {
+          clearTimeout(renderStateTimer);
+          renderStateTimer = null;
+          pendingRenderState = null;
+        }
+        renderState(state);
+        return;
+      }
+
+      const isNewHand = lastState?.hand_number !== state.hand_number;
+      const delay = STATE_RENDER_BASE_DELAY_MS + (isNewHand ? HAND_START_EXTRA_DELAY_MS : 0);
+
+      pendingRenderState = state;
+      if (renderStateTimer) {
+        clearTimeout(renderStateTimer);
+      }
+
+      renderStateTimer = setTimeout(() => {
+        renderStateTimer = null;
+        if (pendingRenderState) {
+          renderState(pendingRenderState);
+          pendingRenderState = null;
+        }
+      }, delay);
+    }
+
     function renderState(state) {
       const prevState = lastState;
       lastState = state;
@@ -3983,7 +4016,7 @@
         await api(`/tables/${tableId}/leave`, { method: "POST" });
         await fetchMe();
         const refreshedState = await api(`/tables/${tableId}`, { method: "GET" });
-        renderState(refreshedState);
+        renderStateWithPacing(refreshedState);
         const leaveNotice =
           "You'll leave the table after the current hand finishes. You can still play this hand.";
         if (typeof window.showCustomAlert === "function") {
@@ -4012,7 +4045,7 @@
       try {
         sitOutBtn.disabled = true;
         const state = await api(`/tables/${tableId}/sit_out`, { method: "POST" });
-        renderState(state);
+        renderStateWithPacing(state);
       } catch (err) {
         alert(err.message);
       } finally {
@@ -4030,7 +4063,7 @@
       try {
         returnToPlayBtn.disabled = true;
         const state = await api(`/tables/${tableId}/return`, { method: "POST" });
-        renderState(state);
+        renderStateWithPacing(state);
       } catch (err) {
         alert(err.message);
       } finally {
@@ -4094,7 +4127,7 @@
         try {
           const state = JSON.parse(event.data);
           if (handleChatPayload(state)) return;
-          renderState(state);
+          renderStateWithPacing(state);
         } catch (e) {
           console.error("Bad WS message", e);
         }
@@ -4112,7 +4145,7 @@
           if (!tableId) return;
           try {
             const state = await api(`/tables/${tableId}`, { method: "GET" });
-            renderState(state);
+            renderStateWithPacing(state);
           } catch (err) {
             console.warn("Polling failed", err);
           }
@@ -4416,7 +4449,7 @@
         clearChatMessages();
         setChatConnected(false);
         connectWebSocket();
-        renderState(state);
+        renderStateWithPacing(state);
         setControlsHidden(true);
       } catch (e) {
         tableOwnerUserId = null;
