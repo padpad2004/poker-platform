@@ -503,15 +503,52 @@
       width: 100%;
       height: clamp(360px, 60vh, calc(100vh - 160px));
       aspect-ratio: 16 / 10;
-      background: radial-gradient(ellipse at center, rgba(7, 11, 26, 0.92) 0%, rgba(2, 6, 17, 0.92) 60%);
       border-radius: 18px;
       overflow: visible;
       margin-bottom: 16px;
       box-shadow: 0 50px 120px rgba(0,0,0,0.65);
       isolate: isolate;
+      perspective: 1600px;
+      transform-style: preserve-3d;
+      background: radial-gradient(ellipse at 50% 80%, rgba(0, 0, 0, 0.35), transparent 65%);
     }
 
-    .table-wrapper::before {
+    .table-stage {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform-style: preserve-3d;
+      perspective: inherit;
+    }
+
+    .table-stage-floor {
+      position: absolute;
+      inset: 8% 10% -12% 10%;
+      border-radius: 999px;
+      background: radial-gradient(ellipse at 50% 70%, rgba(0, 0, 0, 0.55), transparent 68%);
+      filter: blur(20px);
+      transform: translateZ(-120px) rotateX(92deg);
+      transform-origin: 50% 100%;
+      opacity: 0.9;
+      pointer-events: none;
+    }
+
+    .table-surface {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 18px;
+      background: radial-gradient(ellipse at center, rgba(7, 11, 26, 0.96) 0%, rgba(2, 6, 17, 0.96) 60%);
+      box-shadow: 0 28px 80px rgba(0,0,0,0.7);
+      overflow: visible;
+      transform-origin: 50% 100%;
+      transform: rotateX(12deg);
+      isolation: isolate;
+    }
+
+    .table-surface::before {
       content: "";
       position: absolute;
       inset: 4%;
@@ -525,7 +562,7 @@
       z-index: 0;
     }
 
-    .table-wrapper::after {
+    .table-surface::after {
       content: "";
       position: absolute;
       inset: 7%;
@@ -1978,8 +2015,11 @@
         </aside>
 
           <div class="table-wrapper">
-          <div id="chipAnimationLayer" class="chip-animation-layer"></div>
-          <div class="felt">
+            <div class="table-stage">
+              <div class="table-stage-floor"></div>
+              <div class="table-surface">
+                <div id="chipAnimationLayer" class="chip-animation-layer"></div>
+                <div class="felt">
           <div class="center-area">
             <div class="table-status-bar">
               <span class="pot-label">Total Pot</span>
@@ -2268,6 +2308,9 @@
           </div>
         </div> <!-- end .felt -->
 
+        </div>   <!-- end .table-surface -->
+      </div>     <!-- end .table-stage -->
+
         <div class="action-dock">
           <div class="action-left">
             <button id="foldMainBtn" class="btn-danger" disabled>Fold</button>
@@ -2284,18 +2327,18 @@
             </div>
           </div>
 
-              <div class="action-right">
-                <div>
-                  <div class="bottom-label">Raise</div>
-                  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-                    <input type="number" id="raiseCustomInput" placeholder="Amt" />
-                    <button id="raiseCustomBtn" disabled>Raise</button>
-                    <button id="raise30Btn" disabled>30%</button>
-                    <button id="raise50Btn" disabled>50%</button>
-                    <button id="raise100Btn" disabled>100%</button>
-                  </div>
-                </div>
+          <div class="action-right">
+            <div>
+              <div class="bottom-label">Raise</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <input type="number" id="raiseCustomInput" placeholder="Amt" />
+                <button id="raiseCustomBtn" disabled>Raise</button>
+                <button id="raise30Btn" disabled>30%</button>
+                <button id="raise50Btn" disabled>50%</button>
+                <button id="raise100Btn" disabled>100%</button>
               </div>
+            </div>
+          </div>
         </div> <!-- end .action-dock -->
         <div class="hand-history-launcher">
           <button id="handHistoryToggleBtn" aria-expanded="false">View hand history</button>
@@ -2314,10 +2357,10 @@
           <div id="handHistoryList" class="hand-history-list">
             <div class="empty-history">Play a hand to start building history.</div>
           </div>
-        </div>
+        </div> <!-- end .hand-history-panel -->
       </div>   <!-- end .table-wrapper -->
     </div>   <!-- end .table-area -->
-    </div>   <!-- end .panel -->
+  </div>   <!-- end .panel -->
 
   <!-- Top up modal -->
   <div id="topupModal" class="modal hidden">
