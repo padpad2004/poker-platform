@@ -2,6 +2,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 
+from .table_utils import default_table_name
+
 # Absolute path to THIS app folder
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "app.db")
@@ -70,6 +72,31 @@ def ensure_schema():
             if "bomb_pot_amount" not in columns:
                 conn.execute(
                     text("ALTER TABLE poker_tables ADD COLUMN bomb_pot_amount INTEGER")
+                )
+
+            if "game_type" not in columns:
+                conn.execute(text("ALTER TABLE poker_tables ADD COLUMN game_type TEXT"))
+
+            if "table_name" not in columns:
+                conn.execute(text("ALTER TABLE poker_tables ADD COLUMN table_name TEXT"))
+
+            rows = conn.execute(
+                text(
+                    "SELECT id, small_blind, big_blind, game_type, table_name FROM poker_tables;"
+                )
+            ).mappings()
+
+            for row in rows:
+                game_type = (row["game_type"] or "NLH").upper()
+                name = row["table_name"]
+                if not name:
+                    name = default_table_name(row["small_blind"], row["big_blind"], game_type)
+
+                conn.execute(
+                    text(
+                        "UPDATE poker_tables SET table_name = :name, game_type = :game_type WHERE id = :id"
+                    ),
+                    {"name": name, "game_type": game_type, "id": row["id"]},
                 )
 
         if "users" in existing_tables:

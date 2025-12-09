@@ -762,7 +762,8 @@
         const generatedLabel = entry.generated_at
           ? new Date(entry.generated_at).toLocaleString()
           : "Table report";
-        left.innerHTML = `<div style="font-weight:700">Table #${entry.table_id}</div><div class=\"muted\">${generatedLabel}</div>`;
+        const tableLabel = entry.table_name || `Table #${entry.table_id}`;
+        left.innerHTML = `<div style="font-weight:700">${tableLabel}</div><div class=\"muted\">${generatedLabel}</div>`;
 
         const right = document.createElement("div");
         right.style.textAlign = "right";
@@ -795,10 +796,13 @@
       reportModal.classList.toggle("active", isOpen);
     }
 
-    function showReportLoading(tableId, generatedAt) {
-      if (reportTitle) reportTitle.textContent = `Table #${tableId} results`;
+    function showReportLoading(entry) {
+      const tableLabel = entry?.table_name || (entry?.table_id ? `Table #${entry.table_id}` : "Table");
+      if (reportTitle) reportTitle.textContent = `${tableLabel} results`;
       if (reportSubtitle) {
-        const label = generatedAt ? new Date(generatedAt).toLocaleString() : "Completed table";
+        const label = entry?.generated_at
+          ? new Date(entry.generated_at).toLocaleString()
+          : "Completed table";
         reportSubtitle.textContent = label;
       }
       if (reportContent) {
@@ -836,7 +840,7 @@
 
     async function openTableReport(entry) {
       if (!entry?.table_report_id) return;
-      showReportLoading(entry.table_id, entry.generated_at);
+      showReportLoading(entry);
       try {
         const data = await api(`/me/game-history/${entry.table_report_id}?email=${encodeURIComponent(authInfo.email)}`);
         renderReportRows(data || []);

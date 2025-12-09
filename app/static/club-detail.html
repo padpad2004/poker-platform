@@ -417,6 +417,22 @@
           </div>
         </div>
 
+        <div class="modal-row">
+          <div>
+            <label for="tableNameInput">Table name (optional)</label>
+            <input id="tableNameInput" name="table_name" type="text" placeholder="High Society" />
+            <div class="muted">Leave blank to use the blinds and game type.</div>
+          </div>
+          <div>
+            <label for="gameTypeSelect">Game type</label>
+            <select id="gameTypeSelect" name="game_type">
+              <option value="NLH">No-limit Hold'em (NLH)</option>
+              <option value="PLO">Pot-limit Omaha (PLO)</option>
+            </select>
+            <div class="muted">Defaults the name when you do not set one.</div>
+          </div>
+        </div>
+
         <div class="muted" style="margin: 0 0 10px;">You can adjust table settings later by closing and reopening a new one.</div>
         <div id="createTableError" class="error-text" role="alert"></div>
         <div class="modal-footer">
@@ -487,6 +503,8 @@
     const bigBlindInput = document.getElementById("bigBlindInput");
     const maxSeatsInput = document.getElementById("maxSeatsInput");
     const tableNoteInput = document.getElementById("tableNote");
+    const tableNameInput = document.getElementById("tableNameInput");
+    const gameTypeSelect = document.getElementById("gameTypeSelect");
     const createTableError = document.getElementById("createTableError");
     const cancelCreateTableBtn = document.getElementById("cancelCreateTableBtn");
     const cancelCreateTableBtnFooter = document.getElementById("cancelCreateTableBtnFooter");
@@ -777,7 +795,7 @@
 
         const info = document.createElement("div");
         info.innerHTML = `
-          <strong>Table #${t.id}</strong>
+          <strong>${t.table_name || `Table #${t.id}`}</strong>
           <div class="muted">Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
         `;
 
@@ -819,7 +837,7 @@
 
         const info = document.createElement("div");
         info.innerHTML = `
-          <strong>Table #${entry.table_id}</strong>
+          <strong>${entry.table_name || `Table #${entry.table_id}`}</strong>
           <div class="muted">${entry.generated_at ? new Date(entry.generated_at).toLocaleString() : "Pending"}</div>
         `;
 
@@ -1079,12 +1097,21 @@
         }
         const data = await api("/tables/", {
           method: "POST",
-          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal }),
+          body: JSON.stringify({
+            club_id: currentClubId,
+            max_seats: seatsVal,
+            small_blind: sbVal,
+            big_blind: bbVal,
+            table_name: tableNameInput?.value?.trim() || null,
+            game_type: (gameTypeSelect?.value || "NLH").toUpperCase(),
+          }),
         });
         await loadClubDetail();
         hideCreateTableModal();
         if (tableNoteInput) tableNoteInput.value = "";
-        alert(`Created table ID ${data.table_id}`);
+        if (tableNameInput) tableNameInput.value = "";
+        if (gameTypeSelect) gameTypeSelect.value = "NLH";
+        alert(`Created table ${data.table_name}`);
       } catch (err) {
         createTableError.textContent = err.message || "Unable to create table.";
       } finally {
