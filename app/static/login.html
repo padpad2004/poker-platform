@@ -408,7 +408,7 @@
 
           const clubs = await clubsRes.json();
           if (Array.isArray(clubs) && clubs.length === 0) {
-            window.location.href = "/join-club";
+            window.location.href = "/create-club";
             return;
           }
         } catch (err) {
