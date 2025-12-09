@@ -917,6 +917,17 @@
       line-height: 1.3;
     }
 
+    .player-stat-empty {
+      grid-column: 1 / -1;
+      background: rgba(255,255,255,0.04);
+      border: 1px dashed rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
     /* ACTION DOCK */
 
     .action-dock {
@@ -2500,33 +2511,18 @@
       steal: "Steal attempts from late position",
     };
 
-    function seededNumber(seed, min, max, decimals = 0) {
-      let hash = 0;
-      for (let i = 0; i < seed.length; i++) {
-        hash = (hash << 5) - hash + seed.charCodeAt(i);
-        hash |= 0;
-      }
-      const normalized = (Math.sin(hash) + 1) / 2;
-      const value = min + (max - min) * normalized;
-      return Number(value.toFixed(decimals));
-    }
-
     function derivePlayerStats(player) {
-      const seedBase = `${player.user_id ?? player.id}-${player.name ?? "player"}-${player.seat}`;
-      const hands = Math.max(35, seededNumber(`${seedBase}-hands`, 40, 320));
-      const vpip = seededNumber(`${seedBase}-vpip`, 12, 45);
-      const pfr = Math.min(vpip - 2, seededNumber(`${seedBase}-pfr`, 8, 32));
       return {
-        hands,
-        vpip,
-        pfr,
-        threeBet: seededNumber(`${seedBase}-3bet`, 3, 14),
-        aggression: seededNumber(`${seedBase}-agg`, 1.2, 5.5, 1),
-        cbet: seededNumber(`${seedBase}-cbet`, 35, 75),
-        foldToCbet: seededNumber(`${seedBase}-foldcbet`, 30, 75),
-        wtsd: seededNumber(`${seedBase}-wtsd`, 18, 42),
-        wsd: seededNumber(`${seedBase}-wsd`, 35, 65),
-        steal: seededNumber(`${seedBase}-steal`, 20, 48),
+        hands: 0,
+        vpip: 0,
+        pfr: 0,
+        threeBet: 0,
+        aggression: 0,
+        cbet: 0,
+        foldToCbet: 0,
+        wtsd: 0,
+        wsd: 0,
+        steal: 0,
       };
     }
 
@@ -2556,27 +2552,36 @@
       ];
 
       playerStatsGrid.innerHTML = "";
-      rows.forEach(row => {
-        const tile = document.createElement("div");
-        tile.className = "player-stat-tile";
+      const hasHands = Number(stats?.hands ?? 0) > 0;
 
-        const label = document.createElement("div");
-        label.className = "player-stat-label";
-        label.textContent = row.label;
+      if (!hasHands) {
+        const emptyMessage = document.createElement("div");
+        emptyMessage.className = "player-stat-empty";
+        emptyMessage.textContent = "No stats yet. Play a hand to see your numbers.";
+        playerStatsGrid.appendChild(emptyMessage);
+      } else {
+        rows.forEach(row => {
+          const tile = document.createElement("div");
+          tile.className = "player-stat-tile";
 
-        const value = document.createElement("div");
-        value.className = "player-stat-value";
-        value.textContent = row.value;
+          const label = document.createElement("div");
+          label.className = "player-stat-label";
+          label.textContent = row.label;
 
-        const help = document.createElement("div");
-        help.className = "player-stat-help";
-        help.textContent = row.help;
+          const value = document.createElement("div");
+          value.className = "player-stat-value";
+          value.textContent = row.value;
 
-        tile.appendChild(label);
-        tile.appendChild(value);
-        tile.appendChild(help);
-        playerStatsGrid.appendChild(tile);
-      });
+          const help = document.createElement("div");
+          help.className = "player-stat-help";
+          help.textContent = row.help;
+
+          tile.appendChild(label);
+          tile.appendChild(value);
+          tile.appendChild(help);
+          playerStatsGrid.appendChild(tile);
+        });
+      }
 
       playerStatsName.textContent = player.name || `Seat ${player.seat}`;
       playerStatsMeta.textContent = `Seat ${player.seat} • Stack ${player.stack}`;
