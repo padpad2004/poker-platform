@@ -126,7 +126,7 @@ class ClubDetail(ClubRead):
 
 
 class ClubTableCreate(BaseModel):
-    max_seats: int = 6
+    max_seats: int = 9
     small_blind: float = 1
     big_blind: float = 2
     bomb_pot_every_n_hands: Optional[int] = None
@@ -200,7 +200,7 @@ class TableState(BaseModel):
 
 class CreateTableRequest(BaseModel):
     club_id: int
-    max_seats: int = 6
+    max_seats: int = 9
     small_blind: float = 1
     big_blind: float = 2
     bomb_pot_every_n_hands: Optional[int] = None
