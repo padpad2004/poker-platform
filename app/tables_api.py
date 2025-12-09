@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.poker.table import Table
 from . import models, schemas
-from .deps import get_current_user, get_db
+from .deps import get_current_user, get_db, is_club_owner
 from .database import SessionLocal
 
 router = APIRouter(prefix="/tables", tags=["tables"])
@@ -104,7 +104,7 @@ def _ensure_user_in_table_club(
     table_meta = _close_table_if_expired(table_meta, db)
 
     club = table_meta.club
-    is_owner = club.owner_id == current_user.id
+    is_owner = is_club_owner(db, club.id, current_user.id)
     is_member = (
         db.query(models.ClubMember)
         .filter(
@@ -539,7 +539,7 @@ def create_table(
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
-    is_owner = club.owner_id == current_user.id
+    is_owner = is_club_owner(db, club.id, current_user.id)
     if not is_owner:
         raise HTTPException(
             status_code=403,

@@ -977,7 +977,7 @@
       }
       try {
         const clubs = await api("/clubs/");
-        const ownedClubs = clubs.filter((club) => club.owner_id === currentUserId);
+        const ownedClubs = clubs.filter((club) => club.is_owner);
 
         if (!ownedClubs.length) {
           clubList.classList.add("muted");

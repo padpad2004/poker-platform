@@ -963,7 +963,12 @@
       requireAuth();
       try {
         const detail = await api(`/clubs/${currentClubId}`);
-        isCurrentUserOwner = currentUserId === detail.owner_id;
+        const memberIsOwner = Array.isArray(detail.members)
+          ? detail.members.some(
+              (member) => member.user_id === currentUserId && member.role === "owner"
+            )
+          : false;
+        isCurrentUserOwner = detail.is_owner || memberIsOwner;
 
         if (!isCurrentUserOwner) {
           alert("Only the club owner can use this page.");
