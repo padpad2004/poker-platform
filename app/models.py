@@ -14,7 +14,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    balance = Column(Integer, nullable=False, default=0)
+    balance = Column(Float, nullable=False, default=0)
     current_club_id = Column(Integer, ForeignKey("clubs.id"), nullable=True)
     profile_picture_url = Column(String, nullable=True)
     university = Column(String, nullable=True)
