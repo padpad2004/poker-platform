@@ -21,6 +21,14 @@ TABLE_CONNECTIONS: Dict[int, Dict[WebSocket, Optional[int]]] = {}
 USER_CONNECTIONS: Dict[int, Set[WebSocket]] = {}
 
 
+@router.get("/online-count")
+def get_online_player_count(current_user: models.User = Depends(get_current_user)):
+    """Return the number of distinct authenticated users connected via websocket."""
+
+    unique_players = set(USER_CONNECTIONS.keys())
+    return {"online_players": len(unique_players)}
+
+
 def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
     table = TABLES.get(table_id)
     if table:
