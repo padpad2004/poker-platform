@@ -623,6 +623,11 @@ def open_table(
         raise HTTPException(status_code=400, detail="Unsupported game type")
     validate_nlh_table_rules(payload.max_seats, payload.small_blind, payload.big_blind)
 
+    game_type = payload.game_type or "holdem"
+    table_name = resolve_table_name(
+        payload.table_name, payload.small_blind, payload.big_blind, game_type
+    )
+
     table = models.PokerTable(
         club_id=club_id,
         created_by_user_id=current_user.id,
@@ -631,7 +636,8 @@ def open_table(
         big_blind=payload.big_blind,
         bomb_pot_every_n_hands=payload.bomb_pot_every_n_hands,
         bomb_pot_amount=payload.bomb_pot_amount,
-        game_type=payload.game_type,
+        game_type=game_type,
+        table_name=table_name,
         status="active",
     )
 
