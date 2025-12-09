@@ -581,6 +581,9 @@
       "York St John University",
     ];
 
+    // Ensure the university dropdown is usable even if profile data fails to load
+    renderUniversityOptions();
+
     async function api(path, options = {}) {
       const headers = {
         "Content-Type": "application/json",
