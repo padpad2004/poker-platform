@@ -50,3 +50,24 @@ def test_short_all_in_does_not_reopen_betting():
 
     assert table.action_closing_seat == previous_closer
     assert table.last_raise_amount == 4
+
+
+def test_no_bet_street_requires_full_orbit():
+    table = Table()
+    player_sb = table.add_player("Alice")  # seat 0, small blind & button
+    player_bb = table.add_player("Bob")    # seat 1, big blind
+
+    table.start_new_hand()
+
+    # Preflop: small blind completes the call, big blind checks.
+    table.player_action(player_sb.id, "call")
+    table.player_action(player_bb.id, "check")
+
+    table.deal_flop()
+
+    # On the flop with no bet, the big blind acts first and a check should
+    # still pass action to the small blind instead of ending the street.
+    assert table.next_to_act_seat == player_bb.seat
+    table.player_action(player_bb.id, "check")
+
+    assert table.next_to_act_seat == player_sb.seat
