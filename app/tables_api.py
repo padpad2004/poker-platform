@@ -25,9 +25,16 @@ USER_CONNECTIONS: Dict[int, Set[WebSocket]] = {}
 
 @router.get("/online-count")
 def get_online_player_count(current_user: models.User = Depends(get_current_user)):
-    """Return the number of distinct authenticated users connected via websocket."""
+    """Return the number of distinct authenticated users considered online.
+
+    We count unique websocket participants and the requesting user so the
+    current session is reflected even if they have not opened a table socket
+    yet.
+    """
 
     unique_players = set(USER_CONNECTIONS.keys())
+    if current_user and current_user.id is not None:
+        unique_players.add(current_user.id)
     return {"online_players": len(unique_players)}
 
 
