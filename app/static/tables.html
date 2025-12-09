@@ -663,7 +663,8 @@
 
       tournamentProgressTitle.textContent = tournament?.name || "Club tournament";
       const statusText = tournament?.status ? tournament.status.toUpperCase() : "RUNNING";
-      tournamentProgressMeta.textContent = `${statusText} • Table #${table.id}`;
+      const tableLabel = table.table_name || `Table #${table.id}`;
+      tournamentProgressMeta.textContent = `${statusText} • ${tableLabel}`;
 
       tournamentProgressList.innerHTML = "";
 
@@ -843,7 +844,7 @@
 
         const title = document.createElement("div");
         title.className = "table-title";
-        title.textContent = `Table #${tbl.id}`;
+        title.textContent = tbl.table_name || `Table #${tbl.id}`;
 
         const meta = document.createElement("div");
         meta.className = "table-meta";

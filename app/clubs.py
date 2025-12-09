@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .deps import get_db, get_current_user, is_club_owner
+from .tables_api import TABLES, TABLE_CONNECTIONS, close_table_and_report
+from .table_utils import resolve_table_name
 from .tables_api import (
     TABLES,
     TABLE_CONNECTIONS,
@@ -423,6 +425,21 @@ def get_club_game_history(
         .all()
     )
 
+    table_ids = {entry.table_id for entry, _ in rows}
+    table_name_lookup = {}
+    if table_ids:
+        table_rows = (
+            db.query(models.PokerTable)
+            .filter(models.PokerTable.id.in_(table_ids))
+            .all()
+        )
+        table_name_lookup = {
+            table.id: resolve_table_name(
+                table.table_name, table.small_blind, table.big_blind, table.game_type
+            )
+            for table in table_rows
+        }
+
     return [
         schemas.TableReportEntry(
             table_report_id=entry.table_report_id,
@@ -433,6 +450,7 @@ def get_club_game_history(
             cash_out=entry.cash_out,
             profit_loss=entry.profit_loss,
             generated_at=generated_at,
+            table_name=table_name_lookup.get(entry.table_id, f"Table #{entry.table_id}"),
         )
         for entry, generated_at in rows
     ]

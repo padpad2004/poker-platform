@@ -52,6 +52,7 @@ class TableReportEntry(BaseModel):
     cash_out: Optional[int]
     profit_loss: int
     generated_at: datetime
+    table_name: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -126,6 +127,8 @@ class PokerTableMeta(BaseModel):
     big_blind: float
     bomb_pot_every_n_hands: Optional[int]
     bomb_pot_amount: Optional[float]
+    game_type: str
+    table_name: str
     game_type: str = "holdem"
     status: str
     created_at: datetime
@@ -194,6 +197,8 @@ class TableHandHistory(BaseModel):
 
 class TableState(BaseModel):
     id: int
+    table_name: str
+    game_type: str
     hand_number: int
     street: str
     pot: float
@@ -227,11 +232,14 @@ class CreateTableRequest(BaseModel):
     big_blind: float = 2
     bomb_pot_every_n_hands: Optional[int] = None
     bomb_pot_amount: Optional[float] = None
+    table_name: Optional[str] = None
+    game_type: Literal["NLH", "PLO"] = "NLH"
     game_type: Literal["holdem", "plo"] = "holdem"
 
 
 class CreateTableResponse(BaseModel):
     table_id: int
+    table_name: str
 
 
 class AddPlayerRequest(BaseModel):

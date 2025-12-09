@@ -209,7 +209,7 @@
 
         const info = document.createElement("div");
         info.innerHTML = `
-          <strong>Table #${entry.table_id}</strong>
+          <strong>${entry.table_name || `Table #${entry.table_id}`}</strong>
           <div class="muted">${entry.generated_at ? new Date(entry.generated_at).toLocaleString() : "Pending"}</div>
         `;
 

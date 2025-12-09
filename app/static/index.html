@@ -1749,7 +1749,10 @@
       <!-- STATE -->
       <h2>State</h2>
       <div class="row">
-        <div><span class="label">Table:</span><span id="tableId">None</span></div>
+        <div>
+          <span class="label">Table:</span><span id="tableName">None</span>
+          <span class="muted small" id="tableIdLabel">(ID: --)</span>
+        </div>
         <div><span class="label">Street:</span><span id="street">-</span></div>
         <div><span class="label">Pot:</span><span id="pot">0</span></div>
         <div><span class="label">Current Bet:</span><span id="currentBet">0</span></div>
@@ -2481,7 +2484,8 @@
     const dealRiverBtn = document.getElementById("dealRiverBtn");
     const showdownBtn = document.getElementById("showdownBtn");
 
-    const tableIdSpan = document.getElementById("tableId");
+    const tableNameSpan = document.getElementById("tableName");
+    const tableIdLabel = document.getElementById("tableIdLabel");
     const streetSpan = document.getElementById("street");
     const potSpan = document.getElementById("pot");
     const currentBetSpan = document.getElementById("currentBet");
@@ -3056,7 +3060,7 @@
 
         const title = document.createElement("div");
         title.className = "table-title";
-        title.textContent = `Table #${tbl.id}`;
+        title.textContent = tbl.table_name || `Table #${tbl.id}`;
 
         const meta = document.createElement("div");
         meta.className = "table-meta";
@@ -3653,6 +3657,10 @@
 
       applySeatLayout(state);
 
+      const tableLabel = state.table_name || `Table #${state.id}`;
+      if (tableNameSpan) tableNameSpan.textContent = tableLabel;
+      if (tableIdLabel) tableIdLabel.textContent = state.id ? `(ID: ${state.id})` : "(ID: --)";
+      if (tableHeadingLabel) tableHeadingLabel.textContent = tableLabel;
       tableIdSpan.textContent = state.id;
       if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
       if (tableGameTypeBadge) {
@@ -4259,7 +4267,8 @@
         currentUsername = null;
         tableId = null;
         if (tableHeadingLabel) tableHeadingLabel.textContent = "-";
-        if (tableIdSpan) tableIdSpan.textContent = "None";
+        if (tableNameSpan) tableNameSpan.textContent = "None";
+        if (tableIdLabel) tableIdLabel.textContent = "(ID: --)";
         clearTableCountdown();
         if (tableSocket) {
           wsShouldReconnect = false;
@@ -4461,8 +4470,10 @@
           clearTableCountdown();
         }
         tableId = numericId;
-        tableIdSpan.textContent = String(numericId);
-        if (tableHeadingLabel) tableHeadingLabel.textContent = `#${numericId}`;
+        const tableLabel = meta?.table_name || `Table #${numericId}`;
+        if (tableNameSpan) tableNameSpan.textContent = tableLabel;
+        if (tableIdLabel) tableIdLabel.textContent = `(ID: ${numericId})`;
+        if (tableHeadingLabel) tableHeadingLabel.textContent = tableLabel;
         updateEngineControlsVisibility();
         clearChatMessages();
         setChatConnected(false);

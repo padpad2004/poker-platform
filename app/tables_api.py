@@ -9,6 +9,7 @@ from app.poker.table import Table
 from . import models, schemas
 from .deps import get_current_user, get_db, is_club_owner
 from .database import SessionLocal
+from .table_utils import default_table_name, resolve_table_name
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 TABLE_EXPIRY = timedelta(hours=24)
@@ -156,7 +157,26 @@ def _table_state_for_viewer(
     table_id: int,
     engine_table: Table,
     viewer_user_id: Optional[int],
+    *,
+    table_meta: Optional[models.PokerTable] = None,
+    db: Session | None = None,
 ) -> schemas.TableState:
+    close_db = False
+    if table_meta is None:
+        if db is None:
+            db = SessionLocal()
+            close_db = True
+        table_meta = db.query(models.PokerTable).filter(models.PokerTable.id == table_id).first()
+
+    table_name = resolve_table_name(
+        getattr(table_meta, "table_name", None),
+        getattr(table_meta, "small_blind", engine_table.small_blind),
+        getattr(table_meta, "big_blind", engine_table.big_blind),
+        getattr(table_meta, "game_type", None),
+    )
+    game_type = (getattr(table_meta, "game_type", None) or "NLH").upper()
+
+    state = schemas.TableState(
     now = time.time()
     reveal_until = engine_table.showdown_reveal_until
     reveal_showdown = engine_table.street == "showdown" and (
@@ -166,6 +186,8 @@ def _table_state_for_viewer(
 
     return schemas.TableState(
         id=table_id,
+        table_name=table_name,
+        game_type=game_type,
         hand_number=engine_table.hand_number,
         street=engine_table.street,
         pot=engine_table.pot,
@@ -214,11 +236,27 @@ def _table_state_for_viewer(
         runout_results=engine_table.runout_results,
     )
 
+    if close_db:
+        db.close()
+
+    return state
+
 
 def _table_state(
-    table_id: int, engine_table: Table, viewer_user_id: Optional[int] = None
+    table_id: int,
+    engine_table: Table,
+    viewer_user_id: Optional[int] = None,
+    *,
+    table_meta: Optional[models.PokerTable] = None,
+    db: Session | None = None,
 ) -> schemas.TableState:
-    return _table_state_for_viewer(table_id, engine_table, viewer_user_id=viewer_user_id)
+    return _table_state_for_viewer(
+        table_id,
+        engine_table,
+        viewer_user_id=viewer_user_id,
+        table_meta=table_meta,
+        db=db,
+    )
 
 
 def _player_for_user(engine_table: Table, user_id: int):
@@ -436,7 +474,12 @@ def _record_hand_history(
     if not engine_table.hand_start_stacks:
         return
 
-    table_name = f"Table #{table_meta.id}"
+    table_name = resolve_table_name(
+        table_meta.table_name,
+        table_meta.small_blind,
+        table_meta.big_blind,
+        table_meta.game_type,
+    )
 
     for p in engine_table.players:
         if p.user_id is None:
@@ -564,18 +607,26 @@ async def broadcast_table_state(table_id: int):
     connections: Dict[WebSocket, Optional[int]] = {}
     sent: Set[WebSocket] = set()
     db = SessionLocal()
+    table_meta: Optional[models.PokerTable] = None
     try:
         _apply_timeouts(table_id, db)
         _auto_progress_hand(engine_table)
         _auto_start_hand_if_ready(engine_table)
         _persist_table_stacks(table_id, engine_table, db)
+        table_meta = db.query(models.PokerTable).filter(models.PokerTable.id == table_id).first()
         connections = TABLE_CONNECTIONS.get(table_id, {})
         player_user_ids = {p.user_id for p in engine_table.players if p.user_id is not None}
 
         # First notify anyone subscribed to the specific table
         for ws, viewer_user_id in list(connections.items()):
             try:
-                state = _table_state_for_viewer(table_id, engine_table, viewer_user_id)
+                state = _table_state_for_viewer(
+                    table_id,
+                    engine_table,
+                    viewer_user_id,
+                    table_meta=table_meta,
+                    db=db,
+                )
                 await ws.send_json(state.dict())
                 sent.add(ws)
             except Exception:
@@ -591,7 +642,11 @@ async def broadcast_table_state(table_id: int):
                 continue
             try:
                 state = _table_state_for_viewer(
-                    table_id, engine_table, viewer_user_id=user_id
+                    table_id,
+                    engine_table,
+                    viewer_user_id=user_id,
+                    table_meta=table_meta,
+                    db=db,
                 )
                 await ws.send_json(state.dict())
                 sent.add(ws)
@@ -642,6 +697,8 @@ def create_table(
             detail="Only club owners can create tables",
         )
 
+    game_type = (req.game_type or "NLH").upper()
+    table_name = resolve_table_name(req.table_name, req.small_blind, req.big_blind, game_type)
     if req.game_type not in {"holdem", "plo"}:
         raise HTTPException(status_code=400, detail="Unsupported game type")
     validate_nlh_table_rules(req.max_seats, req.small_blind, req.big_blind)
@@ -654,6 +711,8 @@ def create_table(
         big_blind=req.big_blind,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
+        game_type=game_type,
+        table_name=table_name,
         game_type=req.game_type,
         status="active",
     )
@@ -672,7 +731,7 @@ def create_table(
     )
     TABLES[table_meta.id] = engine_table
 
-    return schemas.CreateTableResponse(table_id=table_meta.id)
+    return schemas.CreateTableResponse(table_id=table_meta.id, table_name=table_meta.table_name)
 
 
 @router.post("/{table_id}/players", response_model=schemas.AddPlayerResponse)

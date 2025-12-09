@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app import models, schemas
 from app.deps import get_db, get_current_user, is_club_owner
+from app.table_utils import resolve_table_name
 
 router = APIRouter(tags=["users"])
 
@@ -334,6 +335,21 @@ def get_game_history(
         .all()
     )
 
+    table_ids = {entry.table_id for entry, _ in rows}
+    table_name_lookup = {}
+    if table_ids:
+        table_rows = (
+            db.query(models.PokerTable)
+            .filter(models.PokerTable.id.in_(table_ids))
+            .all()
+        )
+        table_name_lookup = {
+            table.id: resolve_table_name(
+                table.table_name, table.small_blind, table.big_blind, table.game_type
+            )
+            for table in table_rows
+        }
+
     return [
         schemas.TableReportEntry(
             table_report_id=entry.table_report_id,
@@ -344,6 +360,7 @@ def get_game_history(
             cash_out=entry.cash_out,
             profit_loss=entry.profit_loss,
             generated_at=generated_at,
+            table_name=table_name_lookup.get(entry.table_id, f"Table #{entry.table_id}"),
         )
         for entry, generated_at in rows
     ]
@@ -392,6 +409,21 @@ def get_game_history_detail(
     if not rows:
         raise HTTPException(status_code=404, detail="Table report not found")
 
+    table_ids = {entry.table_id for entry, _, _ in rows}
+    table_name_lookup = {}
+    if table_ids:
+        table_rows = (
+            db.query(models.PokerTable)
+            .filter(models.PokerTable.id.in_(table_ids))
+            .all()
+        )
+        table_name_lookup = {
+            table.id: resolve_table_name(
+                table.table_name, table.small_blind, table.big_blind, table.game_type
+            )
+            for table in table_rows
+        }
+
     return [
         schemas.TableReportEntryWithUser(
             table_report_id=entry.table_report_id,
@@ -403,6 +435,7 @@ def get_game_history_detail(
             profit_loss=entry.profit_loss,
             generated_at=generated_at,
             username=username,
+            table_name=table_name_lookup.get(entry.table_id, f"Table #{entry.table_id}"),
         )
         for entry, generated_at, username in rows
     ]
