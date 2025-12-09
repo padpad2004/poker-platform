@@ -155,6 +155,25 @@
       flex-wrap: wrap;
     }
 
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.08);
+      border: 1px solid rgba(34, 197, 94, 0.24);
+      color: #bbf7d0;
+      font-size: 13px;
+      letter-spacing: 0.01em;
+    }
+
+    .status-pill.is-error {
+      background: rgba(220, 38, 38, 0.08);
+      border-color: rgba(220, 38, 38, 0.3);
+      color: #fecaca;
+    }
+
     .checkbox-row {
       display: flex;
       align-items: center;
@@ -328,6 +347,7 @@
             <input type="checkbox" id="hideFullTables" /> Hide full tables
           </label>
           <span class="subtext" id="liveStatus">Live updates</span>
+          <span class="status-pill" id="onlineCount">Players online: --</span>
         </div>
       </div>
 
@@ -371,6 +391,7 @@
     const tableList = document.getElementById("tableList");
     const hideFullCheckbox = document.getElementById("hideFullTables");
     const liveStatus = document.getElementById("liveStatus");
+    const onlineCount = document.getElementById("onlineCount");
     const errorBox = document.getElementById("errorBox");
     const logoutBtn = document.getElementById("logoutBtn");
     const tournamentListEl = document.getElementById("tournamentList");
@@ -513,6 +534,22 @@
       const seats = Math.max(Number(tableSize) || 1, 1);
       const players = Math.max(playersCount || 0, 0);
       return Math.max(1, Math.ceil(players / seats) || 1);
+    }
+
+    async function loadOnlinePlayerCount() {
+      if (!onlineCount) return;
+
+      try {
+        const data = await api("/tables/online-count", { method: "GET" });
+        const count = Number(data?.online_players ?? data?.count ?? 0);
+        const safeCount = Number.isFinite(count) ? count : 0;
+        const noun = safeCount === 1 ? "player" : "players";
+        onlineCount.textContent = `${safeCount} ${noun} online`;
+        onlineCount.classList.remove("is-error");
+      } catch (err) {
+        onlineCount.textContent = "Players online: --";
+        onlineCount.classList.add("is-error");
+      }
     }
 
     function formatCurrency(value) {
@@ -738,6 +775,7 @@
       tableRefreshTimer = setInterval(() => {
         if (!document.hidden) {
           loadTables();
+          loadOnlinePlayerCount();
           renderTournaments(loadStoredTournaments());
         }
       }, TABLE_REFRESH_MS);
@@ -745,6 +783,7 @@
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           loadTables();
+          loadOnlinePlayerCount();
           renderTournaments(loadStoredTournaments());
         }
       });
@@ -767,6 +806,7 @@
     ensureClubMembership().then((ok) => {
       if (ok) {
         loadTables();
+        loadOnlinePlayerCount();
         renderTournaments(loadStoredTournaments());
         startAutoRefresh();
       }
