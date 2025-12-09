@@ -24,7 +24,7 @@ class UserRead(UserBase):
 
 class UserMe(UserBase):
     id: int
-    balance: int
+    balance: float
     current_club_id: Optional[int] = None
     profile_picture_url: Optional[str] = None
     university: Optional[str] = None
@@ -68,7 +68,7 @@ class ProfileResponse(UserMe):
 
 
 class AdminUser(UserRead):
-    balance: int
+    balance: float
     current_club_id: Optional[int] = None
     profile_picture_url: Optional[str] = None
     university: Optional[str] = None
@@ -108,7 +108,7 @@ class ClubMemberRead(BaseModel):
     status: str
     created_at: datetime
     user_email: EmailStr
-    balance: int
+    balance: float
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -263,7 +263,7 @@ class BalanceUpdateRequest(BaseModel):
 
 class BalanceUpdateResponse(BaseModel):
     user_id: int
-    new_balance: int
+    new_balance: float
 
 
 class AdminOverview(BaseModel):
