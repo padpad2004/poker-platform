@@ -238,6 +238,24 @@
       margin-bottom: 10px;
     }
 
+    .upload-row {
+      margin-top: 10px;
+    }
+
+    .upload-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+
+    .upload-actions input[type="file"] {
+      color: var(--text-main);
+    }
+
+    .muted.small { font-size: 12px; }
+
     .history-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 
     .history-card {
@@ -323,6 +341,14 @@
           <input type="url" id="avatarUrl" name="avatarUrl" placeholder="https://..." required />
           <button type="submit" class="btn">Save picture</button>
         </form>
+        <div class="upload-row">
+          <label for="avatarFile">Upload from your device</label>
+          <div class="upload-actions">
+            <input type="file" id="avatarFile" name="avatarFile" accept="image/*" />
+            <button type="button" class="btn secondary" id="uploadAvatarBtn">Upload &amp; save</button>
+          </div>
+          <p id="uploadHelper" class="muted small">Choose an image from your device (max 2 MB).</p>
+        </div>
         <p class="muted" style="margin: 12px 0 6px;">Or pick one of our ready-made avatars:</p>
         <div id="presetGrid" class="preset-grid"></div>
         <div id="avatarMessage" class="muted"></div>
@@ -375,6 +401,9 @@
     const avatarForm = document.getElementById("avatarForm");
     const avatarUrlInput = document.getElementById("avatarUrl");
     const avatarMessage = document.getElementById("avatarMessage");
+    const avatarFileInput = document.getElementById("avatarFile");
+    const uploadAvatarBtn = document.getElementById("uploadAvatarBtn");
+    const uploadHelper = document.getElementById("uploadHelper");
     const refreshBtn = document.getElementById("refreshBtn");
     const historyList = document.getElementById("history");
     const gameHistoryBtn = document.getElementById("gameHistoryBtn");
@@ -393,6 +422,8 @@
       { url: "/static/avatars/avatar-diamond.svg", label: "Diamond" },
       { url: "/static/avatars/avatar-chips.svg", label: "Chips" },
     ];
+
+    const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2 MB
 
     const UK_UNIVERSITIES = [
       "AECC University College",
@@ -571,6 +602,15 @@
       if (res.status === 204 || contentType === "") return null;
       if (contentType.includes("application/json")) return res.json();
       return res.text();
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Unable to read file"));
+        reader.readAsDataURL(file);
+      });
     }
 
     function renderAvatar(targetEl, url, fallbackText) {
@@ -793,6 +833,53 @@
       avatarMessage.textContent = "";
       saveAvatar(avatarUrlInput.value.trim());
     });
+
+    if (avatarFileInput) {
+      avatarFileInput.addEventListener("change", () => {
+        const file = avatarFileInput.files?.[0];
+        if (uploadHelper) {
+          uploadHelper.textContent = file
+            ? `Selected: ${file.name} (${Math.ceil(file.size / 1024)} KB)`
+            : "Choose an image from your device (max 2 MB).";
+        }
+        avatarMessage.textContent = "";
+      });
+    }
+
+    if (uploadAvatarBtn) {
+      uploadAvatarBtn.addEventListener("click", async (event) => {
+        event.preventDefault();
+        avatarMessage.textContent = "";
+        const file = avatarFileInput?.files?.[0];
+
+        if (!file) {
+          avatarMessage.textContent = "Select an image to upload.";
+          return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+          avatarMessage.textContent = "Please upload an image file.";
+          return;
+        }
+
+        if (file.size > MAX_AVATAR_SIZE) {
+          avatarMessage.textContent = "Please choose an image smaller than 2 MB.";
+          return;
+        }
+
+        try {
+          if (uploadHelper) uploadHelper.textContent = "Uploading...";
+          const dataUrl = await readFileAsDataUrl(file);
+          await saveAvatar(dataUrl, "Profile picture uploaded from your device.");
+          if (uploadHelper)
+            uploadHelper.textContent = "Upload saved. Choose another image to replace it.";
+          if (avatarFileInput) avatarFileInput.value = "";
+        } catch (error) {
+          avatarMessage.textContent = error.message || "Unable to upload picture.";
+          if (uploadHelper) uploadHelper.textContent = "Choose an image from your device (max 2 MB).";
+        }
+      });
+    }
 
     if (universityForm) {
       universityForm.addEventListener("submit", async (event) => {
