@@ -111,6 +111,7 @@ class PokerTable(Base):
     max_seats = Column(Integer, default=9)
     small_blind = Column(Float, default=1.0)
     big_blind = Column(Float, default=2.0)
+    game_type = Column(String, default="nlh")  # nlh | plo
     bomb_pot_every_n_hands = Column(Integer, nullable=True)
     bomb_pot_amount = Column(Float, nullable=True)
     status = Column(String, default="active")  # active | closed

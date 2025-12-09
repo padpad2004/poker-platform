@@ -59,6 +59,7 @@ def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
         big_blind=table_meta.big_blind,
         bomb_pot_every_n_hands=table_meta.bomb_pot_every_n_hands,
         bomb_pot_amount=table_meta.bomb_pot_amount,
+        game_type=table_meta.game_type,
     )
     TABLES[table_id] = table
     _restore_persisted_stacks(table_id, table, db)
@@ -149,6 +150,7 @@ def _table_state_for_viewer(
         big_blind_seat=engine_table.big_blind_seat,
         small_blind=engine_table.small_blind,
         big_blind=engine_table.big_blind,
+        game_type=engine_table.game_type,
         players=[
             schemas.PlayerState(
                 id=p.id,
@@ -587,6 +589,9 @@ def create_table(
     if not club:
         raise HTTPException(status_code=404, detail="Club not found")
 
+    if req.game_type not in {"nlh", "plo"}:
+        raise HTTPException(status_code=400, detail="Invalid game type")
+
     is_owner = is_club_owner(db, club.id, current_user.id)
     if not is_owner:
         raise HTTPException(
@@ -600,6 +605,7 @@ def create_table(
         max_seats=req.max_seats,
         small_blind=req.small_blind,
         big_blind=req.big_blind,
+        game_type=req.game_type,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
         status="active",
@@ -614,6 +620,7 @@ def create_table(
         big_blind=req.big_blind,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
+        game_type=req.game_type,
     )
     TABLES[table_meta.id] = engine_table
 

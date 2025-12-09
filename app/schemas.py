@@ -124,6 +124,7 @@ class PokerTableMeta(BaseModel):
     max_seats: int
     small_blind: float
     big_blind: float
+    game_type: Literal["nlh", "plo"]
     bomb_pot_every_n_hands: Optional[int]
     bomb_pot_amount: Optional[float]
     status: str
@@ -204,6 +205,7 @@ class TableState(BaseModel):
     big_blind_seat: Optional[int]
     small_blind: float
     big_blind: float
+    game_type: Literal["nlh", "plo"]
     players: List[PlayerState]
     recent_hands: List[TableHandHistory] = []
 
@@ -215,6 +217,7 @@ class CreateTableRequest(BaseModel):
     max_seats: int = 9
     small_blind: float = 1
     big_blind: float = 2
+    game_type: Literal["nlh", "plo"] = "nlh"
     bomb_pot_every_n_hands: Optional[int] = None
     bomb_pot_amount: Optional[float] = None
 

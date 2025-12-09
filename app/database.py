@@ -60,6 +60,13 @@ def ensure_schema():
                 row[1] for row in conn.execute(text("PRAGMA table_info(poker_tables);"))
             }
 
+            if "game_type" not in columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE poker_tables ADD COLUMN game_type TEXT DEFAULT 'nlh'"
+                    )
+                )
+
             if "bomb_pot_every_n_hands" not in columns:
                 conn.execute(
                     text(
