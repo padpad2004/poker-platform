@@ -2026,6 +2026,27 @@
       return `${hours}:${minutes}:${seconds}`;
     }
 
+    function parseServerDatetime(value) {
+      if (value == null) return null;
+
+      if (typeof value === "number") {
+        return Number.isFinite(value) ? value : null;
+      }
+
+      const raw = String(value).trim();
+      if (!raw) return null;
+
+      const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
+      const parsedNormalized = Date.parse(normalized);
+      if (Number.isFinite(parsedNormalized)) return parsedNormalized;
+
+      const trimmedFractional = normalized.replace(/(\.\d{3})\d+/, "$1");
+      const parsedTrimmed = Date.parse(trimmedFractional);
+      if (Number.isFinite(parsedTrimmed)) return parsedTrimmed;
+
+      return null;
+    }
+
     // DOM elements
     const usernameInput = document.getElementById("usernameInput");
     const emailInput = document.getElementById("emailInput");
@@ -3952,8 +3973,8 @@
           api(`/tables/${numericId}`, { method: "GET" }),
         ]);
         tableOwnerUserId = meta?.created_by_user_id ?? null;
-        const createdAt = meta?.created_at ? new Date(meta.created_at).getTime() : null;
-        if (createdAt) {
+        const createdAt = parseServerDatetime(meta?.created_at);
+        if (createdAt != null) {
           startTableCountdown(createdAt + TABLE_EXPIRY_MS);
         } else {
           clearTableCountdown();
