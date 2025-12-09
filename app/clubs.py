@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from . import models, schemas
 from .deps import get_db, get_current_user
 from .tables_api import TABLES, TABLE_CONNECTIONS, close_table_and_report
+from .club_cleanup import delete_club_with_relations
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
@@ -135,6 +136,23 @@ def leave_club(
         current_user.current_club_id = None
         db.add(current_user)
 
+    db.commit()
+
+
+@router.delete("/{club_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_club(
+    club_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    club = db.query(models.Club).filter(models.Club.id == club_id).first()
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    if club.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the club owner can delete this club")
+
+    delete_club_with_relations(club, db)
     db.commit()
 
 @router.get("/{club_id}", response_model=schemas.ClubDetail)

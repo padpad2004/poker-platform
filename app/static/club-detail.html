@@ -311,6 +311,7 @@
       </div>
       <div style="display:flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
         <button id="changeCrestBtn" class="ghost-button" type="button">Change crest</button>
+        <button id="deleteClubBtn" class="btn-danger" type="button">Delete club</button>
         <div class="badge" id="clubStatus">--</div>
       </div>
     </div>
@@ -354,6 +355,27 @@
       <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Club Tournaments</h3>
       <div id="tournamentsEmpty" class="muted">No tournaments saved for this club.</div>
       <div id="tournamentsList"></div>
+    </div>
+  </div>
+
+  <div id="deleteClubModal" class="modal hidden" aria-hidden="true" role="dialog">
+    <div class="modal-content">
+      <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px;">
+        <div>
+          <h3 style="margin: 0;">Delete this club?</h3>
+          <p class="muted" style="margin: 2px 0 0;">Type DELETE to confirm. This action cannot be undone.</p>
+        </div>
+        <button type="button" class="ghost-button" id="closeDeleteClubModalBtn" aria-label="Close">✕</button>
+      </div>
+
+      <label for="deleteClubInput">Confirmation</label>
+      <input id="deleteClubInput" type="text" placeholder="Type DELETE" autocomplete="off" />
+      <div id="deleteClubError" class="error-text"></div>
+
+      <div class="modal-footer">
+        <button type="button" class="ghost-button" id="cancelDeleteClubBtn">Cancel</button>
+        <button type="button" class="btn-danger" id="confirmDeleteClubBtn" disabled>Delete club</button>
+      </div>
     </div>
   </div>
 
@@ -474,6 +496,13 @@
     const closeCrestModalBtn = document.getElementById("closeCrestModalBtn");
     const cancelCrestBtn = document.getElementById("cancelCrestBtn");
     const saveCrestBtn = document.getElementById("saveCrestBtn");
+    const deleteClubBtn = document.getElementById("deleteClubBtn");
+    const deleteClubModal = document.getElementById("deleteClubModal");
+    const deleteClubInput = document.getElementById("deleteClubInput");
+    const deleteClubError = document.getElementById("deleteClubError");
+    const cancelDeleteClubBtn = document.getElementById("cancelDeleteClubBtn");
+    const confirmDeleteClubBtn = document.getElementById("confirmDeleteClubBtn");
+    const closeDeleteClubModalBtn = document.getElementById("closeDeleteClubModalBtn");
 
     const crestOptions = [
       { url: "/static/crests/crest-crown.svg", label: "Royal" },
@@ -575,6 +604,68 @@
       requireAuth();
       highlightCrestSelection(selectedCrestUrl);
       showCrestModal();
+    });
+
+    function updateDeleteConfirmState() {
+      const matches = deleteClubInput?.value.trim().toUpperCase() === "DELETE";
+      if (confirmDeleteClubBtn) {
+        confirmDeleteClubBtn.disabled = !matches;
+      }
+    }
+
+    function showDeleteClubModal() {
+      if (!deleteClubModal) return;
+      deleteClubError.textContent = "";
+      if (deleteClubInput) deleteClubInput.value = "";
+      updateDeleteConfirmState();
+      deleteClubModal.classList.remove("hidden");
+      requestAnimationFrame(() => deleteClubModal.classList.add("show"));
+      deleteClubInput?.focus();
+    }
+
+    function hideDeleteClubModal() {
+      if (!deleteClubModal) return;
+      deleteClubModal.classList.remove("show");
+      setTimeout(() => deleteClubModal.classList.add("hidden"), 200);
+    }
+
+    deleteClubInput?.addEventListener("input", updateDeleteConfirmState);
+
+    [closeDeleteClubModalBtn, cancelDeleteClubBtn].forEach((btn) => {
+      btn?.addEventListener("click", hideDeleteClubModal);
+    });
+
+    deleteClubModal?.addEventListener("click", (event) => {
+      if (event.target === deleteClubModal) hideDeleteClubModal();
+    });
+
+    deleteClubBtn?.addEventListener("click", () => {
+      requireAuth();
+      showDeleteClubModal();
+    });
+
+    confirmDeleteClubBtn?.addEventListener("click", async () => {
+      requireAuth();
+      if (!currentClubId) return alert("No club selected.");
+
+      if (deleteClubInput?.value.trim().toUpperCase() !== "DELETE") {
+        deleteClubError.textContent = "Please type DELETE to confirm.";
+        updateDeleteConfirmState();
+        return;
+      }
+
+      try {
+        confirmDeleteClubBtn.textContent = "Deleting...";
+        confirmDeleteClubBtn.disabled = true;
+        await api(`/clubs/${currentClubId}`, { method: "DELETE" });
+        alert("Club deleted successfully.");
+        window.location.href = "/club-management";
+      } catch (err) {
+        deleteClubError.textContent = err.message || "Unable to delete club.";
+        updateDeleteConfirmState();
+      } finally {
+        confirmDeleteClubBtn.textContent = "Delete club";
+      }
     });
 
     saveCrestBtn?.addEventListener("click", async () => {
@@ -995,8 +1086,14 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && createTableModal?.classList.contains("show")) {
+      if (event.key !== "Escape") return;
+
+      if (createTableModal?.classList.contains("show")) {
         hideCreateTableModal();
+      }
+
+      if (deleteClubModal?.classList.contains("show")) {
+        hideDeleteClubModal();
       }
     });
 
