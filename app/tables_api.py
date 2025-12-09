@@ -79,6 +79,8 @@ def _get_engine_table(table_id: int, db: Session | None = None) -> Table:
         big_blind=table_meta.big_blind,
         bomb_pot_every_n_hands=table_meta.bomb_pot_every_n_hands,
         bomb_pot_amount=table_meta.bomb_pot_amount,
+        game_type=table_meta.game_type or "holdem",
+        hole_cards_per_player=4 if (table_meta.game_type or "holdem") == "plo" else 2,
     )
     TABLES[table_id] = table
     _restore_persisted_stacks(table_id, table, db)
@@ -169,6 +171,8 @@ def _table_state_for_viewer(
         big_blind_seat=engine_table.big_blind_seat,
         small_blind=engine_table.small_blind,
         big_blind=engine_table.big_blind,
+        game_type=getattr(engine_table, "game_type", "holdem"),
+        hole_cards_per_player=getattr(engine_table, "hole_cards_per_player", 2),
         players=[
             schemas.PlayerState(
                 id=p.id,
@@ -614,6 +618,8 @@ def create_table(
             detail="Only club owners can create tables",
         )
 
+    if req.game_type not in {"holdem", "plo"}:
+        raise HTTPException(status_code=400, detail="Unsupported game type")
     validate_nlh_table_rules(req.max_seats, req.small_blind, req.big_blind)
 
     table_meta = models.PokerTable(
@@ -624,6 +630,7 @@ def create_table(
         big_blind=req.big_blind,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
+        game_type=req.game_type,
         status="active",
     )
     db.add(table_meta)
@@ -636,6 +643,8 @@ def create_table(
         big_blind=req.big_blind,
         bomb_pot_every_n_hands=req.bomb_pot_every_n_hands,
         bomb_pot_amount=req.bomb_pot_amount,
+        game_type=req.game_type,
+        hole_cards_per_player=4 if req.game_type == "plo" else 2,
     )
     TABLES[table_meta.id] = engine_table
 

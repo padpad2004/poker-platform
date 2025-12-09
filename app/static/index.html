@@ -944,6 +944,16 @@
       justify-content: center;
     }
 
+    .seat-cards.four-card-hand {
+      gap: 4px;
+      max-width: 220px;
+    }
+
+    .seat-cards.four-card-hand .seat-card img {
+      width: 64px;
+      height: 92px;
+    }
+
     .seat-timer {
       margin-top: 6px;
       height: 4px;
@@ -1742,6 +1752,7 @@
           <h2>Table <span id="tableHeadingLabel">-</span></h2>
           <div class="table-subtitle">Focused table view</div>
           <div class="table-meta-row">
+            <span class="table-blinds-pill" id="tableGameType">No-Limit Hold'em</span>
             <span class="table-blinds-pill" id="tableBlindsBadge">Blinds -/-</span>
             <span class="table-countdown" id="tableClosingTimer">Closing timer unavailable</span>
           </div>
@@ -2462,6 +2473,7 @@
     const potChipAmount = document.getElementById("potChipAmount");
     const chipAnimationLayer = document.getElementById("chipAnimationLayer");
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
+    const tableGameTypeBadge = document.getElementById("tableGameType");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
     const tableClosingTimer = document.getElementById("tableClosingTimer");
     const leaveTableBtn = document.getElementById("leaveTableBtn");
@@ -3596,6 +3608,10 @@
       const prevState = lastState;
       lastState = state;
 
+      const gameType = state.game_type || "holdem";
+      const holeCardsPerPlayer = state.hole_cards_per_player || 2;
+      document.body?.setAttribute("data-game-type", gameType);
+
       updateSeatLayoutForTable(state);
 
       const nextSeatChanged = prevState?.next_to_act_seat !== state.next_to_act_seat;
@@ -3612,6 +3628,9 @@
 
       tableIdSpan.textContent = state.id;
       if (tableHeadingLabel) tableHeadingLabel.textContent = `#${state.id}`;
+      if (tableGameTypeBadge) {
+        tableGameTypeBadge.textContent = gameType === "plo" ? "Pot-Limit Omaha" : "No-Limit Hold'em";
+      }
       if (tableBlindsBadge) {
         tableBlindsBadge.textContent = `Blinds ${formatChips(state.small_blind)}/${formatChips(state.big_blind)}`;
       }
@@ -3740,6 +3759,7 @@
           const prevPlayer = prevState?.players?.find(pp => pp.seat === p.seat);
           const prevCards = prevPlayer?.hole_cards || [];
           cardsEl.innerHTML = "";
+          cardsEl.classList.toggle("four-card-hand", holeCardsPerPlayer > 2);
 
           if (isViewer) {
             p.hole_cards.forEach((c, idx) => {

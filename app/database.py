@@ -72,6 +72,11 @@ def ensure_schema():
                     text("ALTER TABLE poker_tables ADD COLUMN bomb_pot_amount INTEGER")
                 )
 
+            if "game_type" not in columns:
+                conn.execute(
+                    text("ALTER TABLE poker_tables ADD COLUMN game_type TEXT DEFAULT 'holdem'")
+                )
+
         if "users" in existing_tables:
             user_columns = {
                 row[1] for row in conn.execute(text("PRAGMA table_info(users);"))
