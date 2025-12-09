@@ -142,6 +142,68 @@
       gap: 10px;
     }
 
+    .progress-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 30;
+    }
+
+    .progress-modal.show {
+      display: flex;
+    }
+
+    .progress-card {
+      width: min(560px, 95vw);
+      background: #0f172a;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .progress-card header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .progress-title { margin: 0; }
+
+    .progress-meta {
+      color: var(--text-muted);
+      margin: 4px 0 0;
+      font-size: 13px;
+    }
+
+    .progress-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .progress-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--panel-border);
+    }
+
+    .progress-label { color: var(--text-muted); font-size: 13px; }
+
+    .progress-value { font-weight: 700; }
+
     .subtext {
       color: var(--text-muted);
       margin: 6px 0 0;
@@ -368,6 +430,19 @@
     </div>
   </main>
 
+  <div id="tournamentProgressModal" class="progress-modal" role="dialog" aria-modal="true">
+    <div class="progress-card">
+      <header>
+        <div>
+          <h3 id="tournamentProgressTitle" class="progress-title">Tournament progress</h3>
+          <div id="tournamentProgressMeta" class="progress-meta">Live snapshot for this table</div>
+        </div>
+        <button id="closeTournamentProgress" class="btn secondary" type="button">Close</button>
+      </header>
+      <ul id="tournamentProgressList" class="progress-list"></ul>
+    </div>
+  </div>
+
   <script src="/static/custom-alert.js"></script>
   <script>
     const authInfo = JSON.parse(localStorage.getItem("pokerAuth") || "{}");
@@ -396,9 +471,15 @@
     const logoutBtn = document.getElementById("logoutBtn");
     const tournamentListEl = document.getElementById("tournamentList");
     const tournamentEmptyEl = document.getElementById("tournamentEmpty");
+    const tournamentProgressModal = document.getElementById("tournamentProgressModal");
+    const tournamentProgressTitle = document.getElementById("tournamentProgressTitle");
+    const tournamentProgressMeta = document.getElementById("tournamentProgressMeta");
+    const tournamentProgressList = document.getElementById("tournamentProgressList");
+    const closeTournamentProgressBtn = document.getElementById("closeTournamentProgress");
     const TABLE_REFRESH_MS = 10000;
     let tableRefreshTimer = null;
     let isTablesLoading = false;
+    const tableStates = {};
 
     function restoreAuthMetadata() {
       try {
@@ -534,6 +615,85 @@
       const seats = Math.max(Number(tableSize) || 1, 1);
       const players = Math.max(playersCount || 0, 0);
       return Math.max(1, Math.ceil(players / seats) || 1);
+    }
+
+    function findActiveTournamentForClub(clubId) {
+      const tournaments = loadStoredTournaments();
+      return tournaments
+        .filter((t) => (t.clubId == null || t.clubId === clubId))
+        .find((t) => (t.status || "registering") !== "completed");
+    }
+
+    function formatMsAsDuration(ms) {
+      if (!Number.isFinite(ms)) return "--";
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      if (minutes > 0) return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+      return `${seconds}s`;
+    }
+
+    function renderTournamentProgress(table) {
+      if (!tournamentProgressModal || !tournamentProgressList || !tournamentProgressTitle || !tournamentProgressMeta) return;
+
+      const tournament = findActiveTournamentForClub(table.club_id);
+      const state = tableStates[table.id];
+      const players = Array.isArray(state?.players) ? state.players : [];
+      const stacks = players
+        .map((p) => ({ name: p.name || `Seat ${p.seat}`, stack: Number(p.stack) }))
+        .filter((p) => Number.isFinite(p.stack));
+
+      const chipLeader = stacks.reduce(
+        (leader, p) => (leader == null || p.stack > leader.stack ? p : leader),
+        null
+      );
+      const totalStack = stacks.reduce((sum, p) => sum + p.stack, 0);
+      const avgStack = stacks.length ? totalStack / stacks.length : null;
+
+      let regDetail = "Late reg info unavailable";
+      if (tournament?.lateRegMinutes && tournament?.startAt) {
+        const regClose = new Date(tournament.startAt).getTime() + tournament.lateRegMinutes * 60000;
+        const remaining = regClose - Date.now();
+        regDetail = remaining > 0
+          ? `Late reg closes in ${formatMsAsDuration(remaining)}`
+          : "Late reg closed";
+      } else if (tournament?.lateRegMinutes) {
+        regDetail = `Late reg window: ${tournament.lateRegMinutes} mins`;
+      }
+
+      tournamentProgressTitle.textContent = tournament?.name || "Club tournament";
+      const statusText = tournament?.status ? tournament.status.toUpperCase() : "RUNNING";
+      tournamentProgressMeta.textContent = `${statusText} • Table #${table.id}`;
+
+      tournamentProgressList.innerHTML = "";
+
+      const items = [
+        { label: "Players seated", value: players.length ? `${players.length} players` : "No seats yet" },
+        { label: "Chip leader", value: chipLeader ? `${chipLeader.name} (${chipLeader.stack} chips)` : "Not available" },
+        { label: "Average stack", value: avgStack ? `${Math.round(avgStack)} chips` : "Not available" },
+        { label: "Registration", value: regDetail },
+        { label: "Table size", value: `${table.max_seats}-max` },
+      ];
+
+      items.forEach((item) => {
+        const li = document.createElement("li");
+        li.className = "progress-item";
+        const label = document.createElement("span");
+        label.className = "progress-label";
+        label.textContent = item.label;
+        const value = document.createElement("span");
+        value.className = "progress-value";
+        value.textContent = item.value;
+        li.appendChild(label);
+        li.appendChild(value);
+        tournamentProgressList.appendChild(li);
+      });
+
+      tournamentProgressModal.classList.add("show");
+    }
+
+    function closeTournamentProgress() {
+      tournamentProgressModal?.classList.remove("show");
     }
 
     async function loadOnlinePlayerCount() {
@@ -707,10 +867,21 @@
           window.location.href = `/poker?tableId=${tbl.id}`;
         };
 
+        const progressBtn = document.createElement("button");
+        progressBtn.className = "btn secondary";
+        progressBtn.textContent = "Tournament progress";
+        progressBtn.onclick = () => renderTournamentProgress(tbl);
+        const hasTournament = Boolean(findActiveTournamentForClub(tbl.club_id));
+        progressBtn.disabled = !hasTournament;
+        if (!hasTournament) {
+          progressBtn.title = "No active tournament for this club";
+        }
+
         const seatWrap = document.createElement("div");
         seatWrap.className = "table-seats";
         seatWrap.appendChild(seats);
         seatWrap.appendChild(joinBtn);
+        seatWrap.appendChild(progressBtn);
 
         const mainRow = document.createElement("div");
         mainRow.className = "table-card-main";
@@ -748,9 +919,11 @@
           let playersCount = null;
           try {
             const state = await api(`/tables/${tbl.id}`, { method: "GET" });
+            tableStates[tbl.id] = state;
             if (Array.isArray(state.players)) playersCount = state.players.length;
           } catch (err) {
             console.warn("Failed to load table state", err);
+            tableStates[tbl.id] = null;
           }
 
           if (hideFull && playersCount !== null && playersCount >= tbl.max_seats) {
@@ -793,6 +966,13 @@
       }
     }
     hideFullCheckbox.addEventListener("change", loadTables);
+
+    closeTournamentProgressBtn?.addEventListener("click", closeTournamentProgress);
+    tournamentProgressModal?.addEventListener("click", (event) => {
+      if (event.target === tournamentProgressModal) {
+        closeTournamentProgress();
+      }
+    });
 
     logoutBtn.addEventListener("click", () => {
       localStorage.removeItem(AUTH_KEY);
