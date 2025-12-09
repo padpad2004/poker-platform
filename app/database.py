@@ -97,6 +97,24 @@ def ensure_schema():
             if "university" not in user_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN university TEXT"))
 
+        if "hand_histories" not in existing_tables:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS hand_histories (
+                        id INTEGER PRIMARY KEY,
+                        user_id INTEGER NOT NULL,
+                        table_name TEXT NOT NULL,
+                        result TEXT NOT NULL,
+                        net_change INTEGER DEFAULT 0,
+                        summary TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY(user_id) REFERENCES users(id)
+                    );
+                    """
+                )
+            )
+
         if "clubs" in existing_tables:
             club_columns = {
                 row[1] for row in conn.execute(text("PRAGMA table_info(clubs);"))
