@@ -88,6 +88,10 @@ class Table:
         # automatically stand up once the hand finishes.
         self.pending_leave_user_ids: Set[int] = set()
 
+        # Track which seats have acted this betting round to ensure a no-bet
+        # street still completes a full orbit before advancing.
+        self.acted_this_round: Set[int] = set()
+
     # ---------- Player & seating ----------
 
     def add_player(
@@ -188,6 +192,7 @@ class Table:
         self.big_blind_seat = None
         self.dealer_button_seat = None
         self.action_closing_seat = None
+        self.acted_this_round = set()
 
         # Remember each player's stack before blinds or bomb pots are taken so
         # net changes can be calculated when the hand finishes.
@@ -626,6 +631,7 @@ class Table:
         ):
             self.action_closing_seat = self._previous_active_seat(acting_player.seat)
 
+        self.acted_this_round.add(acting_player.seat)
         self._log_action(self.street, acting_player, action, event_amount, auto=auto)
         self._advance_turn()
 
@@ -664,6 +670,9 @@ class Table:
         return self._betting_round_complete()
 
     def _betting_round_settled(self) -> bool:
+        if self.action_closing_seat is not None:
+            if self.action_closing_seat not in self.acted_this_round:
+                return False
         for p in self.players:
             if not p.in_hand or p.has_folded or p.all_in:
                 continue
@@ -681,6 +690,7 @@ class Table:
         self.next_to_act_seat = self._next_player_to_act(self.dealer_seat)
         # With no existing bet, action closes after everyone has acted once.
         self.action_closing_seat = self._previous_active_seat(self.next_to_act_seat)
+        self.acted_this_round = set()
         self._set_action_deadline()
 
     def deal_flop(self) -> None:
