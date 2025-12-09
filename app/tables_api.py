@@ -23,6 +23,26 @@ TABLE_CONNECTIONS: Dict[int, Dict[WebSocket, Optional[int]]] = {}
 USER_CONNECTIONS: Dict[int, Set[WebSocket]] = {}
 
 
+def validate_nlh_table_rules(max_seats: int, small_blind: float, big_blind: float) -> None:
+    """Enforce basic No-Limit Hold'em table constraints.
+
+    - Tables must seat at least 2 and at most 9 players (standard NLH ring game).
+    - Blinds must be positive, with the big blind exactly twice the small blind.
+    """
+
+    if max_seats < 2 or max_seats > 9:
+        raise HTTPException(status_code=400, detail="NLH tables must have between 2 and 9 seats")
+
+    if small_blind <= 0 or big_blind <= 0:
+        raise HTTPException(status_code=400, detail="Blinds must be positive for NLH tables")
+
+    if big_blind != small_blind * 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Big blind must be exactly twice the small blind for NLH tables",
+        )
+
+
 @router.get("/online-count")
 def get_online_player_count(current_user: models.User = Depends(get_current_user)):
     """Return the number of distinct authenticated users considered online.
@@ -593,6 +613,8 @@ def create_table(
             status_code=403,
             detail="Only club owners can create tables",
         )
+
+    validate_nlh_table_rules(req.max_seats, req.small_blind, req.big_blind)
 
     table_meta = models.PokerTable(
         club_id=req.club_id,
