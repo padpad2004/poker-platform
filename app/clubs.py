@@ -408,11 +408,16 @@ def get_club_game_history(
         raise HTTPException(status_code=403, detail="Not a member of this club")
 
     rows = (
-        db.query(models.TableReportEntry, models.TableReport.generated_at)
+        db.query(
+            models.TableReportEntry,
+            models.TableReport.generated_at,
+            models.PokerTable.table_name,
+        )
         .join(
             models.TableReport,
             models.TableReport.id == models.TableReportEntry.table_report_id,
         )
+        .join(models.PokerTable, models.PokerTable.id == models.TableReportEntry.table_id)
         .filter(models.TableReport.club_id == club_id)
         .order_by(models.TableReport.generated_at.desc())
         .all()
@@ -422,6 +427,7 @@ def get_club_game_history(
         schemas.TableReportEntry(
             table_report_id=entry.table_report_id,
             table_id=entry.table_id,
+            table_name=table_name,
             club_id=entry.club_id,
             user_id=entry.user_id,
             buy_in=entry.buy_in,
@@ -429,7 +435,7 @@ def get_club_game_history(
             profit_loss=entry.profit_loss,
             generated_at=generated_at,
         )
-        for entry, generated_at in rows
+        for entry, generated_at, table_name in rows
     ]
 
 

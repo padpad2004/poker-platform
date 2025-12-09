@@ -460,6 +460,14 @@
       window.location.href = "/";
     }
 
+    function formatTableName(entry) {
+      if (!entry) return "Table";
+      const customName = (entry.table_name || "").trim();
+      if (customName) return customName;
+      if (entry.table_id != null) return `Table #${entry.table_id}`;
+      return "Table";
+    }
+
     const logoutBtn = document.getElementById("logoutBtn");
     const avatarBox = document.getElementById("avatarBox");
     const navAvatar = document.getElementById("navAvatar");
@@ -762,7 +770,8 @@
         const generatedLabel = entry.generated_at
           ? new Date(entry.generated_at).toLocaleString()
           : "Table report";
-        left.innerHTML = `<div style="font-weight:700">Table #${entry.table_id}</div><div class=\"muted\">${generatedLabel}</div>`;
+        const tableLabel = formatTableName(entry);
+        left.innerHTML = `<div style="font-weight:700">${tableLabel}</div><div class=\"muted\">${generatedLabel}</div>`;
 
         const right = document.createElement("div");
         right.style.textAlign = "right";
@@ -795,10 +804,13 @@
       reportModal.classList.toggle("active", isOpen);
     }
 
-    function showReportLoading(tableId, generatedAt) {
-      if (reportTitle) reportTitle.textContent = `Table #${tableId} results`;
+    function showReportLoading(entry) {
+      const tableLabel = formatTableName(entry);
+      if (reportTitle) reportTitle.textContent = `${tableLabel} results`;
       if (reportSubtitle) {
-        const label = generatedAt ? new Date(generatedAt).toLocaleString() : "Completed table";
+        const label = entry?.generated_at
+          ? new Date(entry.generated_at).toLocaleString()
+          : "Completed table";
         reportSubtitle.textContent = label;
       }
       if (reportContent) {
@@ -836,7 +848,7 @@
 
     async function openTableReport(entry) {
       if (!entry?.table_report_id) return;
-      showReportLoading(entry.table_id, entry.generated_at);
+      showReportLoading(entry);
       try {
         const data = await api(`/me/game-history/${entry.table_report_id}?email=${encodeURIComponent(authInfo.email)}`);
         renderReportRows(data || []);

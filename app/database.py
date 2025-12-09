@@ -60,6 +60,16 @@ def ensure_schema():
                 row[1] for row in conn.execute(text("PRAGMA table_info(poker_tables);"))
             }
 
+            if "table_name" not in columns:
+                conn.execute(
+                    text("ALTER TABLE poker_tables ADD COLUMN table_name TEXT")
+                )
+                conn.execute(
+                    text(
+                        "UPDATE poker_tables SET table_name = COALESCE(table_name, 'Table #' || id)"
+                    )
+                )
+
             if "game_type" not in columns:
                 conn.execute(
                     text(

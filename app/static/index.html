@@ -3037,6 +3037,14 @@
       return res.json();
     }
 
+    function formatTableName(table) {
+      if (!table) return "Table";
+      const customName = (table.table_name || "").trim();
+      if (customName) return customName;
+      if (table.id != null) return `Table #${table.id}`;
+      return "Table";
+    }
+
     function renderTableList(tables) {
       if (!tableListEl) return;
       tableListEl.innerHTML = "";
@@ -3052,7 +3060,7 @@
 
         const title = document.createElement("div");
         title.className = "table-title";
-        title.textContent = `Table #${tbl.id}`;
+        title.textContent = formatTableName(tbl);
 
         const meta = document.createElement("div");
         meta.className = "table-meta";

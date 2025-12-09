@@ -575,6 +575,13 @@
 
       <form id="createTableForm">
         <div class="modal-row">
+          <div style="width:100%">
+            <label for="tableNameInput">Table name</label>
+            <input id="tableNameInput" name="table_name" type="text" maxlength="80" placeholder="Downtown cash game" />
+          </div>
+        </div>
+
+        <div class="modal-row">
           <div>
             <label for="smallBlindInput">Small blind</label>
             <input id="smallBlindInput" name="small_blind" type="number" step="0.01" min="0.01" value="0.05" />
@@ -652,6 +659,7 @@
     const closeGameTypeBtn = document.getElementById("closeGameTypeBtn");
     const createTableModal = document.getElementById("createTableModal");
     const createTableForm = document.getElementById("createTableForm");
+    const tableNameInput = document.getElementById("tableNameInput");
     const smallBlindInput = document.getElementById("smallBlindInput");
     const bigBlindInput = document.getElementById("bigBlindInput");
     const maxSeatsInput = document.getElementById("maxSeatsInput");
@@ -687,6 +695,14 @@
         span.textContent = name.charAt(0).toUpperCase();
         el.appendChild(span);
       }
+    }
+
+    function formatTableName(table) {
+      if (!table) return "Table";
+      const customName = (table.table_name || "").trim();
+      if (customName) return customName;
+      if (table.id != null) return `Table #${table.id}`;
+      return "Table";
     }
 
 
@@ -832,8 +848,9 @@
         div.className = "chip";
 
         const info = document.createElement("div");
+        const tableLabel = formatTableName(t);
         info.innerHTML = `
-          <strong>Table #${t.id}</strong>
+          <strong>${tableLabel}</strong>
           <div class="muted">${(t.game_type || 'nlh').toUpperCase()} • Blinds ${t.small_blind}/${t.big_blind} • Seats ${t.max_seats}</div>
         `;
 
@@ -872,8 +889,9 @@
         card.className = "chip";
 
         const info = document.createElement("div");
+        const tableLabel = formatTableName(entry) || `Table #${entry.table_id}`;
         info.innerHTML = `
-          <strong>Table #${entry.table_id}</strong>
+          <strong>${tableLabel}</strong>
           <div class="muted">${new Date(entry.generated_at).toLocaleString()}</div>
         `;
 
@@ -1068,6 +1086,7 @@
       const bbVal = Number(bigBlindInput?.value || 0);
       const seatsVal = Number(maxSeatsInput?.value || 6);
       const gameType = (gameTypeInput?.value || "nlh").toLowerCase();
+      const tableName = (tableNameInput?.value || "").trim();
 
       createTableError.textContent = "";
       if (!sbVal || !bbVal || sbVal <= 0 || bbVal <= 0) {
@@ -1082,6 +1101,10 @@
         createTableError.textContent = "Choose at least two seats.";
         return;
       }
+      if (tableName.length > 80) {
+        createTableError.textContent = "Table name must be 80 characters or fewer.";
+        return;
+      }
 
       try {
         if (submitCreateTableBtn) {
@@ -1090,12 +1113,13 @@
         }
         const data = await api("/tables/", {
           method: "POST",
-          body: JSON.stringify({ club_id: currentClubId, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal, game_type: gameType }),
+          body: JSON.stringify({ club_id: currentClubId, table_name: tableName, max_seats: seatsVal, small_blind: sbVal, big_blind: bbVal, game_type: gameType }),
         });
         await loadClubDetail(currentClubId);
         hideCreateTableModal();
         if (tableNoteInput) tableNoteInput.value = "";
-        alert(`Created table ID ${data.table_id}`);
+        if (tableNameInput) tableNameInput.value = "";
+        alert(`Created ${data.table_name || `table #${data.table_id}`}`);
       } catch (err) {
         createTableError.textContent = err.message || "Unable to create table.";
       } finally {

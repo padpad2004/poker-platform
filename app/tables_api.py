@@ -397,7 +397,7 @@ def _record_hand_history(
     if not engine_table.hand_start_stacks:
         return
 
-    table_name = f"Table #{table_meta.id}"
+    table_name = table_meta.table_name or f"Table #{table_meta.id}"
 
     for p in engine_table.players:
         if p.user_id is None:
@@ -599,9 +599,11 @@ def create_table(
             detail="Only club owners can create tables",
         )
 
+    provided_name = (req.table_name or "").strip()
     table_meta = models.PokerTable(
         club_id=req.club_id,
         created_by_user_id=current_user.id,
+        table_name=provided_name or "Table",
         max_seats=req.max_seats,
         small_blind=req.small_blind,
         big_blind=req.big_blind,
@@ -614,6 +616,12 @@ def create_table(
     db.commit()
     db.refresh(table_meta)
 
+    if not provided_name:
+        table_meta.table_name = f"Table #{table_meta.id}"
+        db.add(table_meta)
+        db.commit()
+        db.refresh(table_meta)
+
     engine_table = Table(
         max_seats=req.max_seats,
         small_blind=req.small_blind,
@@ -624,7 +632,9 @@ def create_table(
     )
     TABLES[table_meta.id] = engine_table
 
-    return schemas.CreateTableResponse(table_id=table_meta.id)
+    return schemas.CreateTableResponse(
+        table_id=table_meta.id, table_name=table_meta.table_name
+    )
 
 
 @router.post("/{table_id}/players", response_model=schemas.AddPlayerResponse)
