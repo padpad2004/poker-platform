@@ -724,12 +724,18 @@
     function restoreAuth() {
       try {
         const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed.token || !parsed.email) return;
-        accessToken = parsed.token;
-        currentUserEmail = parsed.email;
-        currentEmail.textContent = parsed.email;
+        const parsed = raw ? JSON.parse(raw) : null;
+        const storedToken = parsed?.token || localStorage.getItem("poker_token");
+        const storedEmail = parsed?.email || null;
+
+        if (!storedToken) return;
+
+        accessToken = storedToken;
+        if (storedEmail) {
+          currentUserEmail = storedEmail;
+          currentEmail.textContent = storedEmail;
+        }
+
         loadBalance();
       } catch (err) {
         console.warn("Failed to restore auth", err);
@@ -1013,6 +1019,16 @@
           clubList.innerHTML =
             "Only club owners can access this page. Create a club to continue.";
           return;
+        }
+
+        if (!currentUserEmail && ownedClubs[0]?.owner_email) {
+          currentUserEmail = ownedClubs[0].owner_email;
+          currentEmail.textContent = currentUserEmail;
+          persistAuth();
+        }
+
+        if (!currentUserId && ownedClubs[0]?.owner_id) {
+          currentUserId = ownedClubs[0].owner_id;
         }
 
         renderClubList(ownedClubs);
