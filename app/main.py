@@ -119,6 +119,12 @@ def read_join_club_page():
     return _serve_html("join-club.html")
 
 
+@app.get("/create-club")
+@app.get("/create-club.html")
+def read_create_club_page():
+    return _serve_html("create-club.html")
+
+
 @app.get("/available-tables")
 @app.get("/available-tables.html")
 def read_available_tables_page():

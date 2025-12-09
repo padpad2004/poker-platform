@@ -300,6 +300,7 @@
       </div>
     </div>
     <div class="header-actions">
+      <a class="btn" id="createClubBtn" href="/create-club">Create club</a>
       <a class="btn secondary" id="dataOverviewBtn" href="/admin" style="display:none">Admin</a>
       <a class="btn secondary" id="clubManagerBtn" href="/clubs" style="display:none">Club manager</a>
       <a class="btn secondary" href="/profile">Profile</a>
@@ -439,7 +440,7 @@
       try {
         const clubs = await api("/clubs/", { method: "GET" });
         if (!Array.isArray(clubs) || clubs.length === 0) {
-          window.location.href = "/join-club";
+          window.location.href = "/create-club";
           return false;
         }
         return true;
