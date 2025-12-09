@@ -330,7 +330,11 @@
     </div>
 
     <div style="margin-top: 16px;">
-      <h3 style="margin: 0 0 6px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Open Tables</h3>
+      <div class="header-row" style="align-items: center;">
+        <h3 style="margin: 0; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 12px;">Open Tables</h3>
+        <button id="tableHistoryBtn" class="ghost-button" type="button" disabled aria-label="View table history">Table history</button>
+      </div>
+      <div class="muted" style="margin-top: 4px;">See recent closed tables and summary results.</div>
       <div class="create-table-cta">
         <div class="muted">Open a fresh table for this club with custom blinds and seating.</div>
         <div class="cta-actions">
@@ -340,6 +344,10 @@
       </div>
       <div id="tablesEmpty" class="muted">No active tables for this club.</div>
       <div id="tablesList" class="list"></div>
+      <div id="tableHistoryWrap" style="margin-top: 12px; display: none;">
+        <div id="tableHistoryEmpty" class="muted">No table history yet.</div>
+        <div id="tableHistoryList" class="list"></div>
+      </div>
     </div>
 
     <div style="margin-top: 16px;">
@@ -438,6 +446,10 @@
     const membersBody = document.getElementById("membersBody");
     const tablesEmpty = document.getElementById("tablesEmpty");
     const tablesList = document.getElementById("tablesList");
+    const tableHistoryBtn = document.getElementById("tableHistoryBtn");
+    const tableHistoryWrap = document.getElementById("tableHistoryWrap");
+    const tableHistoryEmpty = document.getElementById("tableHistoryEmpty");
+    const tableHistoryList = document.getElementById("tableHistoryList");
     const tournamentsList = document.getElementById("tournamentsList");
     const tournamentsEmpty = document.getElementById("tournamentsEmpty");
     const manageMembersLink = document.getElementById("manageMembersLink");
@@ -696,6 +708,46 @@
       });
     }
 
+    function renderTableHistory(entries) {
+      if (!tableHistoryList || !tableHistoryWrap || !tableHistoryEmpty) return;
+      tableHistoryWrap.style.display = "block";
+      tableHistoryList.innerHTML = "";
+      if (!entries.length) {
+        tableHistoryEmpty.style.display = "block";
+        return;
+      }
+
+      tableHistoryEmpty.style.display = "none";
+      entries.forEach((entry) => {
+        const card = document.createElement("div");
+        card.className = "chip";
+
+        const info = document.createElement("div");
+        info.innerHTML = `
+          <strong>Table #${entry.table_id}</strong>
+          <div class="muted">${entry.generated_at ? new Date(entry.generated_at).toLocaleString() : "Pending"}</div>
+        `;
+
+        const actions = document.createElement("div");
+        actions.className = "chip-actions";
+        const buyIn = document.createElement("div");
+        buyIn.className = "muted";
+        buyIn.textContent = `Buy-in ${entry.buy_in ?? "-"}`;
+        const profit = document.createElement("div");
+        profit.className = "badge";
+        const profitVal = Number(entry.profit_loss);
+        profit.textContent = Number.isFinite(profitVal)
+          ? `${profitVal >= 0 ? "+" : ""}${profitVal}`
+          : "N/A";
+        actions.appendChild(buyIn);
+        actions.appendChild(profit);
+
+        card.appendChild(info);
+        card.appendChild(actions);
+        tableHistoryList.appendChild(card);
+      });
+    }
+
     function loadStoredTournaments() {
       try {
         const raw = localStorage.getItem(TOURNAMENT_STORAGE_KEY);
@@ -811,6 +863,21 @@
       }
     }
 
+    async function loadTableHistory() {
+      if (!currentClubId) return;
+      if (tableHistoryWrap) tableHistoryWrap.style.display = "block";
+      if (tableHistoryEmpty) tableHistoryEmpty.style.display = "none";
+      if (tableHistoryList) tableHistoryList.innerHTML = '<div class="muted">Loading table history...</div>';
+      try {
+        const entries = await api(`/clubs/${currentClubId}/game-history`);
+        renderTableHistory(entries || []);
+      } catch (e) {
+        if (tableHistoryList) {
+          tableHistoryList.innerHTML = `<div class="muted">${e.message || "Unable to load table history."}</div>`;
+        }
+      }
+    }
+
     async function loadClubDetail() {
       requireAuth();
       try {
@@ -840,6 +907,12 @@
         if (createTournamentBtn) {
           createTournamentBtn.disabled = !isCurrentUserOwner;
           createTournamentBtn.textContent = isCurrentUserOwner ? "Create New Tournament" : "Owner access required";
+        }
+        if (tableHistoryBtn) {
+          tableHistoryBtn.disabled = !isCurrentUserOwner;
+        }
+        if (tableHistoryWrap) {
+          tableHistoryWrap.style.display = "none";
         }
         renderMembers(detail.members || []);
         renderTables(detail.tables || []);
@@ -951,6 +1024,8 @@
         window.location.href = `/tournament.html?club_id=${currentClubId}`;
       };
     }
+
+    tableHistoryBtn?.addEventListener("click", loadTableHistory);
 
     async function init() {
       restoreAuth();
