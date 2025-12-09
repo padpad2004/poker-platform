@@ -132,3 +132,23 @@ def ensure_schema():
                         """
                     )
                 )
+
+
+_schema_initialized = False
+
+
+def ensure_schema_once():
+    """Apply schema migrations a single time per process."""
+
+    global _schema_initialized
+    if _schema_initialized:
+        return
+
+    ensure_schema()
+    _schema_initialized = True
+
+
+# Run migrations on import so that auxiliary scripts and background tasks
+# always have the latest columns available (e.g., profile pictures,
+# universities) even if they don't explicitly call ensure_schema().
+ensure_schema_once()
