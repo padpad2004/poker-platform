@@ -644,6 +644,65 @@
       color: #facc15; /* yellow for current bet */
     }
 
+    .chip-pile {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      min-height: 32px;
+      padding: 6px 10px 10px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, #f59e0b, #f97316);
+      box-shadow:
+        0 3px 0 rgba(0,0,0,0.3),
+        0 10px 18px rgba(0,0,0,0.4);
+      border: 2px solid rgba(255,255,255,0.22);
+      overflow: hidden;
+    }
+
+    .chip-pile::before,
+    .chip-pile::after {
+      content: "";
+      position: absolute;
+      inset: 6px 10px auto 10px;
+      height: 10px;
+      border-radius: 10px;
+      background: repeating-linear-gradient(90deg, rgba(255,255,255,0.45), rgba(255,255,255,0.45) 6px, transparent 6px, transparent 12px);
+      opacity: 0.35;
+    }
+
+    .chip-pile::after {
+      inset: 12px 16px auto 16px;
+      opacity: 0.2;
+    }
+
+    .chip-amount-label {
+      position: relative;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      color: #fef9c3;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    .chip-pile.muted {
+      background: linear-gradient(145deg, #9ca3af, #6b7280);
+      border-color: rgba(255,255,255,0.15);
+      color: #e5e7eb;
+    }
+
+    .pot-chip-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.45);
+    }
+
     /* Bigger GG-style hole cards */
     .seat-cards {
       margin-top: 6px;
@@ -842,22 +901,31 @@
     /* ACTION DOCK */
 
     .action-dock {
-      position: absolute;
-      top: calc(var(--action-top, 82%) + 2%);
-      left: var(--action-left, 50%);
-      transform: translate(-50%, -10%);
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translate(-50%, 120%);
       padding: 14px 18px;
       border-radius: 18px;
-      background: rgba(2, 6, 23, 0.92);
+      background: rgba(2, 6, 23, 0.94);
       border: 1px solid #1f2937;
-      box-shadow: 0 18px 36px rgba(0,0,0,0.65);
+      box-shadow: 0 20px 44px rgba(0,0,0,0.65);
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 14px;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(6px);
       z-index: 200;
+      pointer-events: none;
+      opacity: 0;
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      width: min(960px, 96%);
+    }
+
+    .action-dock.visible {
       pointer-events: auto;
+      opacity: 1;
+      transform: translate(-50%, 0);
     }
 
     .action-left,
@@ -1455,7 +1523,12 @@
         <div id="chipAnimationLayer" class="chip-animation-layer"></div>
         <div class="felt">
           <div class="center-area">
-            <div class="pot-display">Pot: <span id="potCenter">0</span></div>
+            <div class="pot-chip-stack">
+              <div class="chip-pile" aria-hidden="true">
+                <span id="potChipAmount" class="chip-amount-label">0</span>
+              </div>
+              <div class="pot-display">Pot: <span id="potCenter">0</span></div>
+            </div>
             <div class="board-cards" id="boardCards"></div>
           </div>
           <!-- 6 seat slots -->
@@ -1854,6 +1927,7 @@
 
     const boardCardsSpan = document.getElementById("boardCards");
     const potCenterSpan = document.getElementById("potCenter");
+    const potChipAmount = document.getElementById("potChipAmount");
     const chipAnimationLayer = document.getElementById("chipAnimationLayer");
     const tableHeadingLabel = document.getElementById("tableHeadingLabel");
     const tableBlindsBadge = document.getElementById("tableBlindsBadge");
@@ -2710,6 +2784,10 @@
       const currentBet = state.current_bet || 0;
       actingPlayer = null;
 
+      if (actionDock) {
+        actionDock.classList.remove("visible");
+      }
+
       if (state.next_to_act_seat === null || state.next_to_act_seat === undefined) {
         actingPlayerLabel.textContent = "None";
         callMainBtn.disabled = true;
@@ -2740,6 +2818,12 @@
       const toCall = Math.max(0, currentBet - actingPlayer.committed);
       const viewerSeat = getViewerSeat(state);
       const isViewerTurn = viewerSeat != null && actingPlayer.user_id === currentUserId;
+      const shouldShowDock =
+        isViewerTurn && !actingPlayer.has_folded && actingPlayer.in_hand !== false;
+
+      if (actionDock) {
+        actionDock.classList.toggle("visible", shouldShowDock);
+      }
 
       callAmountLabel.textContent = toCall > 0 ? toCall.toString() : "0 (check)";
       callMainBtn.disabled = !isViewerTurn;
@@ -2949,6 +3033,9 @@
       console.log("STATE PLAYERS:", state.players);
 
       potCenterSpan.textContent = state.pot;
+      if (potChipAmount) {
+        potChipAmount.textContent = state.pot ?? 0;
+      }
 
       // ---- BOARD CARDS ----
       const prevBoardLen = prevState ? prevState.board.length : 0;
@@ -3035,7 +3122,11 @@
 
         // Bet
         if (betEl) {
-          betEl.textContent = p.committed > 0 ? `Bet: ${p.committed}` : "";
+          if (p.committed > 0) {
+            betEl.innerHTML = `<div class="chip-pile muted"><span class="chip-amount-label">Bet ${p.committed}</span></div>`;
+          } else {
+            betEl.textContent = "";
+          }
         }
 
         const isDealer = state.dealer_button_seat === p.seat;
