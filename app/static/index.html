@@ -3311,6 +3311,13 @@
         await fetchMe();
         const refreshedState = await api(`/tables/${tableId}`, { method: "GET" });
         renderState(refreshedState);
+        const leaveNotice =
+          "You'll leave the table after the current hand finishes. You can still play this hand.";
+        if (typeof window.showCustomAlert === "function") {
+          window.showCustomAlert(leaveNotice);
+        } else if (typeof window.alert === "function") {
+          window.alert(leaveNotice);
+        }
       } catch (err) {
         alert(err.message);
       } finally {
