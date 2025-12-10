@@ -1358,9 +1358,9 @@
     /* ACTION DOCK */
 
     .action-dock {
-      position: fixed;
-      left: 50%;
-      bottom: 18px;
+      position: absolute;
+      left: var(--action-left, 50%);
+      top: var(--action-top, 82%);
       transform: translate(-50%, 120%);
       padding: 14px 18px;
       border-radius: 18px;
@@ -1372,7 +1372,7 @@
       justify-content: center;
       gap: 14px;
       backdrop-filter: blur(6px);
-      z-index: 200;
+      z-index: 5;
       pointer-events: none;
       opacity: 0;
       transition: transform 0.25s ease, opacity 0.25s ease;
@@ -2313,7 +2313,6 @@
         </div> <!-- end .felt -->
 
         </div>   <!-- end .table-surface -->
-      </div>     <!-- end .table-stage -->
 
         <div class="action-dock">
           <div class="action-left">
@@ -2344,6 +2343,8 @@
             </div>
           </div>
         </div> <!-- end .action-dock -->
+      </div>     <!-- end .table-stage -->
+
         <div class="hand-history-launcher">
           <button id="handHistoryToggleBtn" aria-expanded="false">View hand history</button>
         </div>
