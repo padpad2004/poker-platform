@@ -503,6 +503,7 @@
       width: 100%;
       height: clamp(360px, 60vh, calc(100vh - 160px));
       aspect-ratio: 16 / 10;
+      z-index: 0;
       border-radius: 18px;
       overflow: visible;
       margin-bottom: 16px;
@@ -1256,7 +1257,8 @@
       --seat-left: 50%;
       top: var(--seat-top);
       left: var(--seat-left);
-      z-index: 3;
+      z-index: 5;
+      pointer-events: auto;
       transition: top 0.25s ease, left 0.25s ease;
     }
     .seat.empty .seat-inner {
