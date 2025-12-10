@@ -545,6 +545,7 @@
       overflow: visible;
       transform-origin: 50% 100%;
       transform: rotateX(16deg);
+      transform-style: preserve-3d;
       isolation: isolate;
     }
 
@@ -634,6 +635,8 @@
       align-items: center;
       overflow: hidden;
       z-index: 2;
+      transform: translateZ(50px);
+      transform-style: preserve-3d;
     }
 
     .felt::before {
@@ -681,6 +684,7 @@
       gap: 14px;
       z-index: 4;
       pointer-events: none;
+      transform: translateZ(60px);
     }
 
     .table-status-bar {
@@ -735,6 +739,7 @@
       pointer-events: none;
       overflow: hidden;
       z-index: 3;
+      transform: translateZ(60px);
     }
 
     .chip-flight {
@@ -1237,7 +1242,7 @@
       position: absolute;
       width: clamp(180px, 20vw, 240px);
       max-width: 260px;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%) translateZ(60px);
       color: #e5e7eb;
       --seat-top: 50%;
       --seat-left: 50%;
