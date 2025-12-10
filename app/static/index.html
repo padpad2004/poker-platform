@@ -3852,8 +3852,13 @@
         if (amt <= currentBet) {
           amt = currentBet + 1;
         }
+
+        // Prefill the custom raise field so the user sees the target amount.
         raiseCustomInput.value = amt.toString();
         raiseCustomInput.focus();
+
+        if (!actingPlayer) return;
+        sendAction(actingPlayer.id, "raise_to", amt);
       };
 
       raise30Btn.onclick = makePctHandler(0.3);
