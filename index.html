@@ -1097,6 +1097,37 @@
     const seatElements = Array.from(document.querySelectorAll(".seat"));
     const defaultSeatPositions = generateSeatPositions(seatElements.length, 5);
 
+    // NEW: make empty seats clickable – same behaviour as the "Sit as Me" button
+    seatElements.forEach((seatEl) => {
+      // Show that these are interactive
+      seatEl.style.cursor = "pointer";
+
+      seatEl.addEventListener("click", async () => {
+        // Only let you click genuinely empty seats
+        if (!seatEl.classList.contains("empty")) {
+          return;
+        }
+
+        if (!accessToken) {
+          alert("Login first");
+          return;
+        }
+        if (!tableId) {
+          alert("Create or join a table first");
+          return;
+        }
+
+        try {
+          await api(`/tables/${tableId}/sit_me`, {
+            method: "POST",
+          });
+        } catch (e) {
+          console.error(e);
+          alert(e.message || "Error joining seat");
+        }
+      });
+    });
+
     function applySeatPositions(positions = defaultSeatPositions) {
       seatElements.forEach((seatEl, idx) => {
         const pos = positions[idx] || positions[positions.length - 1] || { top: "50%", left: "50%" };
