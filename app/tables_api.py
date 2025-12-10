@@ -671,16 +671,26 @@ async def sit_me(
         if p.user_id == current_user.id:
             raise HTTPException(status_code=400, detail="User already seated at this table")
 
-    existing_session = _active_session(table_id, current_user.id, db)
-    if existing_session:
-        raise HTTPException(status_code=400, detail="You already have an open session here")
-
-    if req.buy_in <= 0:
-        raise HTTPException(status_code=400, detail="Buy-in must be positive")
-
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    existing_session = _active_session(table_id, current_user.id, db)
+    if existing_session:
+        # If the player is not actually seated anymore (e.g. after a restart or crash),
+        # close out the stale session and refund their buy-in so they can take a new seat.
+        player_for_user = _player_for_user(engine_table, current_user.id)
+        if player_for_user:
+            raise HTTPException(status_code=400, detail="You already have an open session here")
+
+        user.balance += existing_session.buy_in
+        _finalize_session(table_id, current_user.id, existing_session.buy_in, db)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    if req.buy_in <= 0:
+        raise HTTPException(status_code=400, detail="Buy-in must be positive")
 
     if user.balance < req.buy_in:
         raise HTTPException(status_code=400, detail="Insufficient balance for buy-in")
