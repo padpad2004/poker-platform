@@ -313,6 +313,8 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      position: relative;
+      z-index: 1;
     }
 
     .table-card-main {
@@ -540,6 +542,17 @@
       if (customName) return customName;
       if (table.id != null) return `Table #${table.id}`;
       return "Table";
+    }
+
+    if (tableList) {
+      tableList.addEventListener("click", (event) => {
+        const sitButton = event.target.closest(".sit-table-btn");
+        if (!sitButton) return;
+        event.preventDefault();
+        const tableId = sitButton.dataset.tableId;
+        if (!tableId) return;
+        window.location.href = `/poker?tableId=${tableId}`;
+      });
     }
 
     async function api(path, options = {}) {
@@ -910,11 +923,10 @@
         seats.textContent = seatsLabel;
 
         const joinBtn = document.createElement("button");
-        joinBtn.className = "btn";
-        joinBtn.textContent = "Join";
-        joinBtn.onclick = () => {
-          window.location.href = `/poker?tableId=${tbl.id}`;
-        };
+        joinBtn.className = "btn sit-table-btn";
+        joinBtn.type = "button";
+        joinBtn.dataset.tableId = String(tbl.id);
+        joinBtn.textContent = "Sit at table";
 
         const seatWrap = document.createElement("div");
         seatWrap.className = "table-seats";
