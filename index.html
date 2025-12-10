@@ -194,6 +194,7 @@
       perspective-origin: 50% 18%;
       transform: rotateX(10deg);
       transition: height 0.15s ease-out;
+      z-index: 0;
     }
 
     .felt {
@@ -400,6 +401,8 @@
       max-width: 210px;
       transform: translate(-50%, -50%);
       color: #e5e7eb;
+      z-index: 5;
+      pointer-events: auto;
     }
 
     .seat-inner {
