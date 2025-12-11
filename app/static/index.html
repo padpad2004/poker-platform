@@ -2674,26 +2674,6 @@
     const seatElements = document.querySelectorAll(".seat");
     seatElements.forEach((seatEl) => {
       seatEl.style.cursor = "pointer";
-
-      seatEl.addEventListener("click", async () => {
-        if (!seatEl.classList.contains("empty")) return;
-
-        if (!accessToken) {
-          alert("Login first");
-          return;
-        }
-
-        if (!tableId) {
-          alert("Join a table first");
-          return;
-        }
-
-        try {
-          await api(`/tables/${tableId}/sit_me`, { method: "POST" });
-        } catch (err) {
-          alert(err?.message || "Unable to sit at the table.");
-        }
-      });
     });
     let totalSeats = Math.min(seatElements.length, 9);
     let seatPositions = SEAT_LAYOUTS[totalSeats]?.positions || SEAT_LAYOUTS[9].positions;
